@@ -146,4 +146,14 @@ describe('recorrido del concurso', () => {
     // se guarda
     expect(new ShowRunner(show(), JSON.parse(JSON.stringify(r.toJSON()))).skipped).toEqual(new Set(['s1', 's3']));
   });
+
+  it('las de «Se juega: No» empiezan quitadas (salvo que lo fueran todas)', () => {
+    const sh = show();
+    sh.sections[0].play = false;
+    expect(new ShowRunner(sh).skipped).toEqual(new Set(['s1']));
+    // lo que eligió el presentador (guardado) manda
+    expect(new ShowRunner(sh, { screen: SCREEN.SETUP, skipped: [] }).skipped).toEqual(new Set());
+    sh.sections.forEach((x) => (x.play = false));
+    expect(new ShowRunner(sh).skipped).toEqual(new Set());
+  });
 });

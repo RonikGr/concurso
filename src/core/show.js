@@ -197,6 +197,7 @@ const COLUMNS = {
     turns: ['por turnos', 'turnos'],
     music: ['musica'],
     env: ['entorno'],
+    play: ['se juega', 'jugar'],
   },
   pulsador: {
     section: ['seccion'],
@@ -385,6 +386,9 @@ export function parseShowWorkbook(sheets) {
       // Entorno de Halloween (opcional): si no se pone o no existe, se reparte uno distinto por sección.
       const env = parseEnv(values.env);
       if (!isEmpty(values.env) && !env) warn('Concurso', row, `Entorno desconocido: "${text(values.env)}". Se usará uno automático.`);
+      // «Se juega: No» = está en la hoja pero sale sin marcar en «¿Qué juegos jugamos?» (se activa con un clic)
+      const play = parseYesNo(values.play, true);
+      if (play === undefined) err('Concurso', row, '"Se juega" debe ser sí o no.');
       const order = parseNumber(values.order);
       sections.push({
         id: `s${sections.length + 1}`,
@@ -393,6 +397,7 @@ export function parseShowWorkbook(sheets) {
         description: text(values.description),
         points,
         presenterPlays: presenterPlays ?? info.presenterPlays,
+        play: play !== false,
         turns: !!turns,
         music,
         env,

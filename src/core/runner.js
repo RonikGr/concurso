@@ -31,7 +31,11 @@ export class ShowRunner {
     this.shown = { question: false, answer: false }; // qué se ha enseñado en la tele de la pregunta actual
     this.peekScoreboard = false; // marcador "por encima" sin perder el sitio (tecla M)
     const ids = new Set(show.sections.map((s) => s.id));
-    this.skipped = new Set((saved?.skipped ?? []).filter((id) => ids.has(id))); // secciones que esta noche no se juegan
+    // Secciones que esta noche no se juegan: las que quitó el presentador o, al cargar la hoja, las de «Se juega: No»
+    // (si fueran todas, se juegan todas)
+    const off = show.sections.filter((s) => s.play === false).map((s) => s.id);
+    const initial = saved?.skipped ?? (off.length < show.sections.length ? off : []);
+    this.skipped = new Set(initial.filter((id) => ids.has(id)));
     if (saved && Object.values(SCREEN).includes(saved.screen)) {
       this.screen = saved.screen;
       this.sectionIndex = Math.min(Math.max(0, saved.sectionIndex | 0), Math.max(0, show.sections.length - 1));

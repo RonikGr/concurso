@@ -28,6 +28,9 @@ function pointsText(points, ranked) {
 
 // ---------------------------------------------------------------------------------------- Preparación
 
+// La plantilla siempre recién bajada (sin «?v=…», el navegador podía dar una vieja de su caché tras publicar otra)
+const TEMPLATE_URL = `./plantilla-concurso.xlsx?v=${Date.now()}`;
+
 /**
  * Antes de empezar hay tres pasos (view.setupStep): «prep» = la hoja, los archivos y el mando; «title» = el título en
  * grande (main.js lo pinta encima, con su canción); «join» = se conecta la gente.
@@ -68,7 +71,7 @@ function importBox(view, ctx) {
       'div',
       { class: 'import-actions' },
       h('button', { class: 'btn', onclick: () => fileInput.click() }, 'Cargar concurso (.xlsx)'),
-      h('a', { class: 'btn', href: './plantilla-concurso.xlsx', download: 'plantilla-concurso.xlsx' }, 'Descargar plantilla'),
+      h('a', { class: 'btn', href: TEMPLATE_URL, download: 'plantilla-concurso.xlsx' }, 'Descargar plantilla'),
       fileInput,
     ),
     h('p', { class: 'muted small' }, 'También puedes arrastrar el archivo a esta pantalla.'),

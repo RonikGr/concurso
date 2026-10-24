@@ -249,7 +249,8 @@ jugador (null si está en el banquillo) y les pasa los `play` (`#onPlay`; `casti
   jugador). La ruleta gira 6 s con CSS; un `spin` guardado se da por girado hace mucho al recargar (no vuelve a girar).
 - **Pestañas sin sección:** las filas de un tipo sin ninguna sección en Concurso se ignoran (preguntas de reserva).
 - **Qué se juega:** `runner.skipped` (persistido) + orden `toggleSection {id, on}` (solo en la preparación; al menos
-  una). `next` / `prev` / fin de sección saltan las quitadas; nº de sección y total cuentan solo las que se juegan.
+  una). La columna «Se juega» de Concurso (`section.play`) da las quitadas al cargar la hoja (si fueran todas, ninguna).
+  El enlace «Descargar plantilla» lleva `?v=` para que el navegador no dé una vieja de su caché. `next` / `prev` / fin de sección saltan las quitadas; nº de sección y total cuentan solo las que se juegan.
 - Los concursantes de prueba también juegan: hacen la tarjeta si les toca (65 % aciertan), pitan a veces, agitan a su
   ritmo, apuestan y responden si son portavoces y votan 3 castigos.
 

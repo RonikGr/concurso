@@ -26,9 +26,9 @@ conectado por HDMI); cada jugador usa su móvil como pulsador, sin instalar nada
    encantado, Huerto de calabazas, Laboratorio, Mansión encantada, Telaraña, Aquelarre, Cripta helada, Tormenta o
    Noche de luna). Si se deja vacía, cada sección tiene uno distinto.
 5. **Castigos**: en la pestaña Castigos, una opción por fila (sin filas, no hay castigo).
-6. La plantilla viene llena (15 secciones con preguntas de Halloween y pruebas físicas, equipos Zombies y Hombres Lobo).
-   Las pestañas de Verdad o mentira y Estimación tienen preguntas de reserva: no se juegan mientras no haya una
-   sección de ese tipo en Concurso.
+6. La plantilla viene llena (18 secciones con preguntas de Halloween y pruebas físicas, equipos Zombies y Hombres Lobo).
+   La columna **Se juega** de Concurso dice cuáles van esta noche: Calentamiento, ¿Verdad o mentira? y Calcula vienen
+   con «No» (en rojo) y salen sin marcar en la tele; se activan con un clic.
    ¿Una noche sin algún juego? No hace falta borrarlo: en la preparación de la tele, **¿Qué juegos jugamos?** tiene una
    casilla por sección (también en el mando, pestaña Juego, durante la preparación). Las que quitas se saltan.
 
