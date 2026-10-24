@@ -671,3 +671,17 @@ body.c-playing .c-main {
 .c-standings li.dim {
   opacity: 0.4;
 }
+
+/* Contrarreloj: un botón por número de piezas bien (0…N) */
+.c-pieces {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(3.2rem, 1fr));
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.c-pieces .btn {
+  min-height: 3.2rem;
+  font-size: 1.3rem;
+  font-weight: 800;
+}

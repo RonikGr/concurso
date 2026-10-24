@@ -34,6 +34,13 @@ class SoundEngine extends EventTarget {
   #cueKey = null; // última entrada atendida
   #cuePlay = null; // lo que suena: {key, track, src, g, t0, from, loop, after}
   #cueHeld = false; // ¿la música de siempre está callada por las canciones del millonario?
+  // Canciones de las pruebas (carpeta «Canciones»: «¿Qué canción es?», la bachata…): también descodificadas, para
+  // pausar y seguir donde iba y para callar justo antes del golpe. Mientras hay una, la música de siempre calla.
+  #songs = new Map(); // clave (songKey) → {id, blob}
+  #song = null; // lo que pide el realizador: {key, track, from, playing, silence: [desde, hasta]?, until?}
+  #songPlay = null; // lo que suena: {key, src, g, t0, from}
+  #songPos = new Map(); // key → segundo de la canción donde se pausó (o acabó)
+  #songHeld = false;
   #noise = null;
   #schedule = 0;
 
@@ -61,6 +68,7 @@ class SoundEngine extends EventTarget {
       this.#decodeMill();
       this.#startMusic();
       this.#applyCue();
+      this.#applySong();
       this.dispatchEvent(new Event('unlock'));
     });
   }
@@ -203,6 +211,11 @@ class SoundEngine extends EventTarget {
     this.cueBus.gain.value = this.settings.musicOn ? CUE_LEVEL : 0;
     this.cueBus.connect(this.master);
 
+    // Canciones de las pruebas: son parte del juego, suenan aunque la música esté apagada
+    this.songBus = c.createGain();
+    this.songBus.gain.value = 0.85;
+    this.songBus.connect(this.master);
+
     this.sfxBus = c.createGain();
     this.sfxBus.gain.value = this.settings.sfxOn ? 1 : 0;
     this.sfxBus.connect(this.master);
@@ -278,11 +291,14 @@ class SoundEngine extends EventTarget {
     this.#tracks = map;
     this.#mill = new Map();
     for (const [slot, list] of map) if (slot.startsWith('mill:') && list.length) this.#mill.set(slot.slice(5), { id: list[0].id, blob: list[0].blob });
+    this.#songs = new Map();
+    for (const [slot, list] of map) if (slot.startsWith('song:') && list.length) this.#songs.set(slot.slice(5), { id: list[0].id, blob: list[0].blob });
     this.#cueKey = null; // por si ha cambiado la canción que sonaba
     if (!this.unlocked) return;
     this.#decodeMill();
     this.#switchLayer(true);
     this.#applyCue();
+    this.#applySong();
   }
 
   // ------------------------------------------------------------------------------------------ millonario
@@ -421,7 +437,7 @@ class SoundEngine extends EventTarget {
   }
 
   #switchLayer(force = false) {
-    if (this.#cueHeld) return; // suenan las canciones del millonario
+    if (this.#cueHeld || this.#songHeld) return; // suenan las canciones del millonario o la de una prueba
     const c = this.ctx;
     // Si hay canciones tuyas para este momento, suenan ellas; si no, la música generada.
     const slot = this.#slotKey();
@@ -444,6 +460,120 @@ class SoundEngine extends EventTarget {
     if (style.pad) this.#buildPad(layer);
     style.start?.(layer.st, mood);
     this.#layer = layer;
+  }
+
+  // ------------------------------------------------------------------------------------------ canciones de las pruebas
+
+  /** ¿Está en el portátil la canción con esta clave (songKey)? */
+  hasSong(track) {
+    return this.#songs.has(track);
+  }
+
+  /** Descodificarla ya (al llegar a la pregunta), para que al abrir suene sin esperar. */
+  prepareSong(track) {
+    if (this.unlocked && track) this.#decodeSong(track);
+  }
+
+  /**
+   * Lo que tiene que sonar de una prueba, o null. {key (una por pregunta: si cambia, empieza de nuevo), track,
+   * from (s), playing (false = en pausa: luego sigue donde iba), startAt (performance.now() en que empieza a sonar, si
+   * es más tarde), silence: [a, b] (calla de a a b), until (s: ahí acaba)}
+   */
+  setSong(song) {
+    this.#song = song;
+    if (this.unlocked) this.#applySong();
+  }
+
+  /** Por dónde va (s) la canción de la prueba con esta key, o null si no suena. */
+  songPosition(key) {
+    const p = this.#songPlay;
+    if (p?.key === key) return p.from + (this.ctx.currentTime - p.t0);
+    return this.#songPos.get(key) ?? null;
+  }
+
+  async #decodeSong(track) {
+    const rec = this.#songs.get(track);
+    if (!rec || this.#buffers.has(rec.id) || this.#decoding.has(rec.id)) return;
+    this.#decoding.add(rec.id);
+    try {
+      this.#buffers.set(rec.id, await this.ctx.decodeAudioData(await rec.blob.arrayBuffer()));
+      this.#applySong();
+    } catch (e) {
+      console.warn('[música] no se pudo leer una canción de las pruebas', e);
+    } finally {
+      this.#decoding.delete(rec.id);
+    }
+  }
+
+  #applySong() {
+    const s = this.#song;
+    const rec = s && this.#songs.get(s.track);
+    if (!rec) {
+      // Sin canción (o no está en el portátil): la música de siempre
+      this.#stopSong();
+      if (this.#songHeld) {
+        this.#songHeld = false;
+        this.#switchLayer();
+      }
+      return;
+    }
+    if (!this.#songHeld) {
+      this.#songHeld = true;
+      this.#fadeOut(this.#layer);
+      this.#layer = null;
+      this.#stopSlot();
+    }
+    const buf = this.#buffers.get(rec.id);
+    if (!buf) return this.#decodeSong(s.track); // al descodificarla se vuelve aquí
+    const cur = this.#songPlay;
+    if (cur && cur.key !== s.key) this.#stopSong();
+    if (!s.playing) {
+      if (this.#songPlay) {
+        this.#songPos.set(s.key, this.songPosition(s.key));
+        this.#stopSong();
+      }
+      return;
+    }
+    if (this.#songPlay) return; // ya suena
+    const from = this.#songPos.get(s.key) ?? s.from;
+    const end = Math.min(buf.duration, s.until ?? buf.duration);
+    if (from >= end - 0.05) return; // ya acabó
+    const c = this.ctx;
+    const wait = s.startAt != null ? Math.max(0, (s.startAt - performance.now()) / 1000) : 0; // p. ej. al «¡Pulsad!»
+    const t = c.currentTime + 0.03 + wait;
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.setTargetAtTime(1, t, 0.015);
+    // Silencio antes del golpe: calla en «a» y vuelve de golpe en «b» (programado: exacto)
+    if (s.silence && s.silence[1] > from) {
+      const [a, b] = s.silence;
+      if (a > from) g.gain.setTargetAtTime(0, t + (a - from), 0.04);
+      else g.gain.setValueAtTime(0, t);
+      g.gain.setValueAtTime(1, t + (b - from));
+    }
+    // Final con fundido (si se corta antes de que acabe la canción)
+    if (end < buf.duration) g.gain.setTargetAtTime(0, t + (end - from) - 0.6, 0.2);
+    src.connect(g).connect(this.songBus);
+    src.start(t, from, end - from);
+    const play = { key: s.key, src, g, t0: t, from };
+    src.onended = () => {
+      if (this.#songPlay !== play) return;
+      this.#songPlay = null;
+      this.#songPos.set(play.key, end); // acabada: no vuelve a empezar al repintar
+    };
+    this.#songPlay = play;
+  }
+
+  #stopSong() {
+    const p = this.#songPlay;
+    this.#songPlay = null;
+    if (!p) return;
+    const t = this.ctx.currentTime;
+    p.g.gain.cancelScheduledValues(t);
+    p.g.gain.setTargetAtTime(0, t, 0.05);
+    p.src.stop(t + 0.3);
   }
 
   // ------------------------------------------------------------------------------------------ canciones (.mp3)

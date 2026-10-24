@@ -26,7 +26,9 @@ conectado por HDMI); cada jugador usa su móvil como pulsador, sin instalar nada
    encantado, Huerto de calabazas, Laboratorio, Mansión encantada, Telaraña, Aquelarre, Cripta helada, Tormenta o
    Noche de luna). Si se deja vacía, cada sección tiene uno distinto.
 5. **Castigos**: en la pestaña Castigos, una opción por fila (sin filas, no hay castigo).
-6. La plantilla viene llena (12 secciones con preguntas de Halloween, equipos Zombies y Hombres Lobo): sirve tal cual.
+6. La plantilla viene llena (15 secciones con preguntas de Halloween y pruebas físicas, equipos Zombies y Hombres Lobo).
+   Las pestañas de Verdad o mentira y Estimación tienen preguntas de reserva: no se juegan mientras no haya una
+   sección de ese tipo en Concurso.
    ¿Una noche sin algún juego? No hace falta borrarlo: en la preparación de la tele, **¿Qué juegos jugamos?** tiene una
    casilla por sección (también en el mando, pestaña Juego, durante la preparación). Las que quitas se saltan.
 
@@ -50,6 +52,10 @@ conectado por HDMI); cada jugador usa su móvil como pulsador, sin instalar nada
    los siguientes (con «casi empate» si la diferencia es menor de 30 ms). Luego **Acierto** (suma los puntos de la
    sección) o **Fallo: rebote al resto** (bloquea a quien falló y reabre el turno), «Mostrar respuesta» y
    «Siguiente pregunta».
+   - **Con canción** («¿Qué canción es?»: columnas «Canción» y «Desde (s)»): la tele la pone en el «¡Pulsad!», la
+     para en cuanto alguien pulsa, sigue donde iba si falla y suena entera al acertar. Los archivos van en la carpeta
+     del concurso, en `Canciones/`, con el nombre que pone la hoja (sin tildes ni mayúsculas, da igual). En la
+     preparación, la tele dice si falta alguna.
 7. Quien pulse antes de abrir el turno queda **bloqueado** en esa pregunta (se puede desactivar en **Ajustes** o
    perdonar con «Desbloquear»).
 
@@ -86,7 +92,15 @@ conectado por HDMI); cada jugador usa su móvil como pulsador, sin instalar nada
     - **Cronómetro**: «¡Empezar!» y, cuando alguien cae, «Eliminado» (con «Deshacer» por si te equivocas). Al caer el
       último se para solo. Gana quien más aguanta.
     - **Contador**: botones −/+ por participante y números en grande en la tele; «Parar» cuando acabe el tiempo.
-    - **Ninguna**: eliges al ganador directamente.
+    - **Contrarreloj** (p. ej. «Botellas en orden»): salen de uno en uno (el orden en que los marcas). «¡Empezar!» pone
+      en marcha el reloj del primero; con «Piezas» (5 botellas), en cada intento tocas cuántas tiene bien (0…5) y la
+      tele lo enseña con botellas encendidas; con todas bien, o «¡Lo tiene!», se para su reloj. Luego «▶ Empieza…» el
+      siguiente. Gana el más rápido; quien se rinde no puntúa.
+    - **Ninguna**: eliges al ganador directamente. Con **canción** (la bachata: columnas «Canción», «Desde», «Golpe» y
+      «Silencio»), «¡Que suene la canción!» la pone: se calla «Silencio» segundos antes del golpe (3 si lo dejas
+      vacío) y vuelve justo en el golpe. Regla: seguir bailando sin música y marcar el golpe a la vez que vuelve, y
+      quedarse congelados 3 s; quien se adelanta, se retrasa o se mueve, no lo ha clavado. Tú marcas a quien sí.
+      Para cada canción hay que escribir en «Golpe» su segundo exacto (escúchala).
     - El mando propone el ganador (puedes cambiarlo o marcar varios) y «Dar puntos»: a cada jugador o, si participan
       equipos, al equipo entero.
 13. **Palabras secretas**: cada turno es de un equipo (se alternan; «Turnos por equipo» y «Segundos por turno» en
@@ -260,6 +274,11 @@ Cubren la lógica que no depende de la red (`src/core`, `src/shared`).
 
 - Cada sección tiene su **entorno de Halloween** animado en la tele (y sus colores de fondo en los móviles); entre
   secciones el decorado se funde en otro.
+- **Fluidez:** la tele mide cómo de fluida va y, si el portátil no llega, simplifica sola el fondo (menos resolución,
+  menos fotogramas), quita el desenfoque de los cristales y echa menos confeti; si va sobrada, vuelve a subir. En
+  **Ajustes → Imagen de la tele** se puede fijar «Siempre la mejor» o «Ligera». Con **D** (depuración) se ven los
+  fotogramas por segundo y la calidad. Todo (letras, sonidos, música generada) ya es local: no se descarga nada
+  durante el concurso; lo que cuesta es dibujar, no descargar.
 - **Presentar el concurso**: el título en grande con su canción; luego se conecta la gente y, al empezar, «Equipo A
   contra equipo B» (cada equipo entra por su lado con su gente). Después, una **introducción**: las secciones de la
   noche, cómo se juega y los equipos.
@@ -286,7 +305,8 @@ Cubren la lógica que no depende de la red (`src/core`, `src/shared`).
   responde y los demás ven «¡sin soplar!».
 - **Carpeta del concurso:** en la preparación, **📁 Elegir la carpeta del concurso**. Una carpeta del portátil con:
   la hoja (.xlsx), `Millonario/` (sus 7 canciones), `Caras/` (una foto por persona, «Rodri, Rodrigo.jpg») y
-  `Música/<Momento>/` o `Música/<Sección>/<Momento>/` (momentos con el nombre de la ventana de música). La tele lo copia
+  `Música/<Momento>/` o `Música/<Sección>/<Momento>/` (momentos con el nombre de la ventana de música) y `Canciones/`
+  (las de las pruebas: «¿Qué canción es?», la bachata; con el nombre que pone la hoja). La tele lo copia
   todo al portátil y recuerda la carpeta (Chrome y Edge): luego basta **📁 Volver a leer**. Si se pierde la sala o se
   crea otra, las canciones y las caras siguen ahí. Esa carpeta no va al repositorio, que es público.
 - **Canciones del millonario** (todas las secciones de Test): tema del programa, explicación, pregunta fácil, media y

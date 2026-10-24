@@ -7,11 +7,12 @@
 //     Caras/        una foto por persona, con sus nombres en el del archivo («Rodri, Rodrigo.jpg»)
 //     Música/<Momento>/…mp3             canciones para todo el concurso («Música/Marcador/…»)
 //     Música/<Sección>/<Momento>/…mp3   solo para una sección (su nombre en la hoja)
+//     Canciones/…mp3    las de las pruebas: «¿Qué canción es?», la bachata… (la hoja las nombra por su archivo)
 //
 // Los momentos se escriben como en la ventana de música («Preparación», «Jugando», «Respuesta definitiva»…).
 import { millionaireTrackFor } from './millionaireMusic.js';
 
-export const FOLDER_NAMES = { millionaire: 'Millonario', faces: 'Caras', music: 'Música' };
+export const FOLDER_NAMES = { millionaire: 'Millonario', faces: 'Caras', music: 'Música', songs: 'Canciones' };
 
 /** Para comparar nombres de carpeta: sin tildes, mayúsculas, espacios ni signos. */
 export const folderKey = (s) =>
@@ -22,6 +23,9 @@ export const folderKey = (s) =>
     .replace(/[^a-z0-9]+/g, '');
 
 const AUDIO = /\.(mp3|m4a|ogg|wav|aac)$/i;
+
+/** Clave de una canción de las pruebas: su nombre de archivo (sin extensión, tildes ni mayúsculas). */
+export const songKey = (name) => folderKey(String(name ?? '').replace(AUDIO, ''));
 const IMAGE = /\.(jpe?g|png|webp|gif|heic|avif)$/i;
 const JUNK = /^(\.|~\$|desktop\.ini$|thumbs\.db$)/i;
 
@@ -30,10 +34,10 @@ const JUNK = /^(\.|~\$|desktop\.ini$|thumbs\.db$)/i;
  * @param slots huecos de la ventana de música [{id, label}] (generales y efectos)
  * @param sectionSlots ids de los huecos que puede tener una sección
  * @param sections nombres de las secciones del concurso cargado
- * @returns {sheet, millionaire: {track: entry}, faces: [entry], music: [{slot, entry}], ignored: [ruta]}
+ * @returns {sheet, millionaire: {track: entry}, faces: [entry], music: [{slot, entry}], songs: [entry], ignored: [ruta]}
  */
 export function classifyFolder(entries, { slots = [], sectionSlots = [], sections = [] } = {}) {
-  const out = { sheet: null, millionaire: {}, faces: [], music: [], ignored: [] };
+  const out = { sheet: null, millionaire: {}, faces: [], music: [], songs: [], ignored: [] };
   const slotOf = (name) => slots.find((s) => folderKey(s.label) === folderKey(name) || folderKey(s.id) === folderKey(name));
   const sectionOf = (name) => sections.find((s) => folderKey(s) === folderKey(name));
   for (const e of entries) {
@@ -51,6 +55,9 @@ export function classifyFolder(entries, { slots = [], sectionSlots = [], section
         out.millionaire[track] = e;
         used = true;
       }
+    } else if (top === folderKey(FOLDER_NAMES.songs) && AUDIO.test(name)) {
+      out.songs.push(e);
+      used = true;
     } else if (top === folderKey(FOLDER_NAMES.faces) && IMAGE.test(name)) {
       out.faces.push(e);
       used = true;

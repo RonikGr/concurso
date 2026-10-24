@@ -15,7 +15,8 @@ const ms = (v, digits = 0) => (Number.isFinite(v) ? `${v.toFixed(digits).replace
 const signed = (v) => (Number.isFinite(v) ? `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1).replace('.', ',')}` : '—');
 const who = (p) => h('span', { class: 'dbg-who' }, h('span', { class: 'emoji' }, avatarOf(p)), ' ', p.name);
 
-export function createDebugPanel() {
+/** @param imageInfo () => texto de cómo va la imagen de la tele (fps y calidad del fondo) */
+export function createDebugPanel({ imageInfo = () => '' } = {}) {
   const root = h('aside', { class: 'debug-panel', hidden: true, 'aria-label': 'Depuración' });
 
   function render(room) {
@@ -81,6 +82,7 @@ export function createDebugPanel() {
     fill(
       root,
       h('header', {}, h('h2', {}, 'Depuración'), h('span', { class: 'dbg-key' }, 'D para cerrar')),
+      h('p', { class: 'dbg-help' }, imageInfo()),
       h('h3', {}, 'Relojes'),
       clocks,
       h(

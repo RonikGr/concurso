@@ -1,7 +1,7 @@
 // Carpeta del concurso (ver core/folder.js): se elige una vez y la tele recuerda dónde está (Chrome y Edge guardan el
 // permiso para leerla; en otros navegadores hay que volver a elegirla). Al leerla, todo se copia a este portátil
 // (IndexedDB), así que después funciona aunque la carpeta no esté; volver a leerla sustituye lo que vino de ella.
-import { classifyFolder } from '../core/folder.js';
+import { classifyFolder, songKey } from '../core/folder.js';
 import { EFFECT_SLOTS, MUSIC_SLOTS, SECTION_SLOTS } from './fx/tracks.js';
 
 const DB = 'concurso-carpeta';
@@ -100,6 +100,7 @@ export async function importFolder({ entries }, { trackStore, faceStore, importS
   await trackStore.removeSource(SOURCE, { reload: false });
   for (const [track, e] of Object.entries(found.millionaire)) await trackStore.add(`mill:${track}`, [e.file], { source: SOURCE, reload: false });
   for (const { slot, entry } of found.music) await trackStore.add(slot, [entry.file], { source: SOURCE, reload: false });
+  for (const e of found.songs) await trackStore.add(`song:${songKey(e.path.at(-1))}`, [e.file], { source: SOURCE, reload: false });
   await trackStore.load();
   await faceStore.removeSource(SOURCE);
   if (found.faces.length) await faceStore.add(found.faces.map((e) => e.file), { source: SOURCE });
@@ -109,6 +110,7 @@ export async function importFolder({ entries }, { trackStore, faceStore, importS
     millionaire: Object.keys(found.millionaire).length,
     faces: found.faces.length,
     music: found.music.length,
+    songs: found.songs.length,
     ignored: found.ignored,
   };
 }

@@ -247,10 +247,34 @@ jugador (null si está en el banquillo) y les pasa los `play` (`#onPlay`; `casti
   (`close`: los 3 más votados, empates al azar → `finalists`) y el siguiente va a la portada. En el final, `next` →
   `'roulette'` y `punishSpin` (o Espacio) elige al azar entre los finalistas para `loser` (último equipo, o último
   jugador). La ruleta gira 6 s con CSS; un `spin` guardado se da por girado hace mucho al recargar (no vuelve a girar).
+- **Pestañas sin sección:** las filas de un tipo sin ninguna sección en Concurso se ignoran (preguntas de reserva).
 - **Qué se juega:** `runner.skipped` (persistido) + orden `toggleSection {id, on}` (solo en la preparación; al menos
   una). `next` / `prev` / fin de sección saltan las quitadas; nº de sección y total cuentan solo las que se juegan.
 - Los concursantes de prueba también juegan: hacen la tarjeta si les toca (65 % aciertan), pitan a veces, agitan a su
   ritmo, apuestan y responden si son portavoces y votan 3 castigos.
+
+### Pruebas con canción y contrarreloj (fase 11)
+
+- **Canciones de las pruebas** (carpeta del concurso `Canciones/` → trackStore `song:<songKey(nombre)>`, una por hueco;
+  `core/folder.js` `songKey`): la hoja las nombra en «Canción» (Pulsador y Libre). `core/songs.js` `songFor(view)`
+  (puro, con tests) dice qué suena: {key, track, from, playing, startAt, silence, until}; el realizador lo manda a
+  `sound.setSong()` y `prepareSong()` las descodifica al llegar a la pregunta. audio.js las toca como AudioBuffer por
+  `songBus` (suenan aunque la música esté apagada), calla la música de siempre (`#songHeld`), pausa recordando dónde
+  iba (`#songPos` por key) y programa el silencio antes del golpe con automatización de ganancia (exacto).
+  Pulsador: suena en `tOpen`, para en `result` sin juzgar, sigue en el rebote y al acertar / `closed` / mostrar
+  respuesta. Libre con canción (sin herramienta: `FreeRound.startable`): suena al empezar; `silence = [golpe − s,
+  golpe]`, acaba 4 s tras el golpe; la tele enseña «A bailar / Silencio / ¡GOLPE!» con `sound.songPosition()`.
+  La preparación avisa de las que faltan (`songsStatus()` en main.js).
+- **Contrarreloj** (`TOOL.TRIAL`, Libre «Contrarreloj» + «Piezas»): salen de uno en uno en el orden de
+  `participants`; `trials[id] = {tStart, time, gaveUp, attempts: [{n, t}]}`, `current`. Órdenes freeAttempt {n},
+  freeUndoAttempt, freeDone {gaveUp}, freeNext. Con n = piezas se para solo. Gana el menor tiempo (rendirse = sin puesto).
+- **Fluidez de la tele** (`fx/backdrop.js` `QUALITY_LEVELS`): con calidad 'auto' (ajuste `quality`) mide la mediana del
+  fotograma cada 90 y, si pasa de 1,35 × el ritmo de la pantalla, baja un nivel (resolución del shader 0,6 → 0,26,
+  dibujar 1 de cada 2–3 fotogramas); sube si va sobrada 8 medidas seguidas y 30 s después de bajar. Desde el nivel 2,
+  `body.fx-lite`: sin `backdrop-filter` y la mitad de confeti. Los cristales pequeños (tarjetas, filas) ya no
+  desenfocan nunca (brillo en degradado): el desenfoque sobre un fondo que se mueve se recalcula en cada fotograma.
+- El realizador va en try/catch: un fallo de sonido no puede dejar la tele sin repintar (pasó con los comodines de
+  `AnswerRound`, que ya no existen: las secciones de respuestas no enseñaban el revelado).
 
 ### Justicia en los tiempos (fase 3)
 
@@ -317,7 +341,7 @@ jugador (null si está en el banquillo) y les pasa los `play` (`#onPlay`; `casti
   `getCues()` lo usan el realizador (`millionaireCue(v, ahora, cues)`) y audio.js. «📋 Copiar ajustes» los da en
   texto para dejarlos fijos en el código.
 - **Carpeta del concurso** (`core/folder.js` `classifyFolder`, puro con tests; `host/contestFolder.js`): hoja .xlsx en la
-  raíz, `Millonario/`, `Caras/`, `Música/<Momento>/` y `Música/<Sección>/<Momento>/` (nombres sin tildes ni mayúsculas).
+  raíz, `Millonario/`, `Caras/`, `Música/<Momento>/`, `Música/<Sección>/<Momento>/` y `Canciones/` (nombres sin tildes ni mayúsculas).
   Con File System Access (Chrome/Edge) el handle se guarda en IndexedDB (`concurso-carpeta`) para «Volver a leer» con
   un clic; si no, `webkitdirectory`. Se copia todo a los almacenes con `source: 'carpeta'` y al releer se sustituye.
   La carpeta del presentador está en sus Documentos («Concurso del año - archivos»), fuera del repositorio.
@@ -388,8 +412,8 @@ jugador (null si está en el banquillo) y les pasa los `play` (`#onPlay`; `casti
   al final y vacía = la única sección de ese tipo (si hay varias, error que las nombra). En Concurso, «Sus preguntas, en
   la pestaña» es una fórmula (la lectura no la mira). Formato condicional: la respuesta buena del Test en verde, la
   dificultad en colores, Verdad/Mentira y la frase falsa de Dos verdades.
-- **Música:** sin Spotify (descartado): la pone el presentador aparte. Las columnas "Música de entrada", "Canción" y
-  "Desde segundo" ya no están en la plantilla; si una hoja antigua las trae, se leen pero no se usan.
+- **Música:** sin Spotify (descartado). «Canción» y «Desde (s)» (Pulsador y Libre) nombran un archivo de la carpeta
+  `Canciones/` (ver «Pruebas con canción»). «Música de entrada» de la pestaña Concurso se lee pero no se usa.
 - **Secciones:**
   - **Pulsador** (la actual) + la pregunta en grande en la tele cuando el presentador quiera.
   - **Test** = «¿Quién quiere ser millonario?»: un concursante cada vez; comodines 50:50, Público y Llamada (por equipo);
@@ -421,5 +445,7 @@ jugador (null si está en el banquillo) y les pasa los `play` (`#onPlay`; `casti
 9. Espectáculo con tema de Halloween: entorno por sección (WebGL), música y efectos generados, transiciones, marcador
    animado, revelados con suspense, podio con confeti, wake lock, tarjetas compactas para 20 jugadores. ✔
 10. Juegos de fiesta: Palabras secretas, Agita el móvil, La gran apuesta; castigos con ruleta; elegir los juegos. ✔
+11. Pruebas físicas y con música: canciones desde la carpeta (¿Qué canción es?, bachata con silencio antes del golpe),
+    contrarreloj con intentos (botellas); calidad automática de la imagen de la tele. ✔
 
 Hoja de ruta posterior: mandos físicos (Gamepad API), imagen pixelada, rosco, dibuja y adivina.

@@ -11,6 +11,7 @@ import { generateRoomCode } from '../shared/roomCode.js';
 import { LOCK, PHASE } from '../core/game.js';
 import { SCREEN } from '../core/runner.js';
 import { parseShowWorkbook } from '../core/show.js';
+import { songKey } from '../core/folder.js';
 import { HostRoom } from './room.js';
 import { clearSavedRoom, loadSavedRoom } from './persistence.js';
 import { createStage } from './stage.js';
@@ -29,6 +30,7 @@ import { coverScreen, finalScreen, introScreen, punishVoteScreen, rouletteScreen
 import { openSettingsDialog } from './settingsDialog.js';
 import { createDebugPanel } from './debugPanel.js';
 import { Backdrop } from './fx/backdrop.js';
+import { setLite as setConfettiLite } from './fx/confetti.js';
 import { sound } from './fx/audio.js';
 import { TrackStore } from './fx/tracks.js';
 import { FaceStore } from './faceStore.js';
@@ -55,7 +57,12 @@ let shakeStage = null;
 let betStage = null;
 let qrs = null; // {join, joinMini, control}
 let lastScreenSignature = null;
-const debug = createDebugPanel();
+const debug = createDebugPanel({
+  imageInfo: () =>
+    backdrop?.ok
+      ? `Imagen: ${backdrop.fps ?? '…'} fps · fondo al ${Math.round(backdrop.scale * 100)} % (calidad ${backdrop.level + 1} de 5, ${backdrop.mode === 'auto' ? 'automática' : backdrop.mode === 'high' ? 'fija: la mejor' : 'fija: ligera'})`
+      : 'Imagen: sin WebGL (fondo fijo)',
+});
 const cards = new Map(); // playerId → elementos de su tarjeta
 let lastScreenKey = null;
 let lastMomentKey = null;
@@ -67,6 +74,11 @@ const backdrop = new Backdrop(backdropCanvas);
 if (backdrop.ok) {
   backdrop.setEnv(HOME_ENV, { instant: true });
   backdrop.onLightning = () => sound.play('thunder', 250 + Math.random() * 900);
+  // Calidad ligera: sin desenfoque en los cristales y menos confeti
+  backdrop.onQuality = (q) => {
+    document.body.classList.toggle('fx-lite', q.lite);
+    setConfettiLite(q.lite);
+  };
 } else {
   backdropCanvas.remove();
 }
@@ -328,8 +340,15 @@ function render() {
   // El navegador no deja sonar nada hasta que se toca la página: aviso hasta la primera tecla o clic.
   $('#sound-chip').hidden = sound.unlocked || !(view.settings.musicOn || view.settings.sfxOn);
   sound.configure({ musicOn: view.settings.musicOn, sfxOn: view.settings.sfxOn, volume: view.settings.volume });
+  if (backdrop.ok) backdrop.setMode(view.settings.quality);
+  else document.body.classList.add('fx-lite');
   if (!backdrop.ok) document.body.style.backgroundImage = envGradient(envFor(view));
-  direct(view);
+  // El realizador (sonido, entorno, confeti) es adorno: si falla, la pantalla tiene que pintarse igual.
+  try {
+    direct(view);
+  } catch (e) {
+    console.error('Realizador:', e);
+  }
   renderNetwork(view);
   renderScreen(view);
   renderPlayers(view);
@@ -451,7 +470,8 @@ function renderScreen(view) {
           folder: { name: folder.handle?.name ?? null, busy: folder.busy, report: folder.report, onChoose: () => loadFolder(false), onReread: () => loadFolder(true) },
           millionaireCount: [...trackStore.tracks.keys()].filter((k) => k.startsWith('mill:')).length,
           facesCount: faceStore.faces.length,
-          tracksCount: [...trackStore.tracks].reduce((n, [k, list]) => n + (k.startsWith('mill:') ? 0 : list.length), 0),
+          tracksCount: [...trackStore.tracks].reduce((n, [k, list]) => n + (k.startsWith('mill:') || k.startsWith('song:') ? 0 : list.length), 0),
+          songs: songsStatus(),
           onOpenFaces: () => openPanel(() => openFacesDialog({ store: faceStore, players: () => room.view().players, toast })),
           onOpenMusic: () =>
             openPanel(() =>
@@ -651,6 +671,14 @@ function renderApproval(view) {
       ),
     ),
   );
+}
+
+/** Canciones que pide la hoja (pulsador y Libre) y cuáles no están en la carpeta. */
+function songsStatus() {
+  const names = new Map();
+  for (const s of room.show.sections) for (const it of s.items) if (it.song) names.set(songKey(it.song), it.song);
+  const missing = [...names].filter(([k]) => !trackStore.tracks.get(`song:${k}`)?.length).map(([, name]) => name);
+  return { wanted: names.size, missing };
 }
 
 // ---------- Importar el concurso ----------

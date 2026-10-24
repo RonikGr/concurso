@@ -41,7 +41,7 @@ export const DEFAULT_SETTINGS = {
   testSeconds: 20,
   jokers: { fifty: 1, audience: 1, call: 1 },
   wordSeconds: 60, // Palabras secretas: segundos por turno
-  wordRounds: 2, // Palabras secretas: turnos por equipo
+  wordRounds: 3, // Palabras secretas: turnos por equipo
 };
 
 const RANKED_DEFAULT_POINTS = [3, 2, 1];
@@ -214,7 +214,19 @@ const COLUMNS = {
   estimacion: { section: ['seccion'], question: ['pregunta'], answer: ['respuesta'], unit: ['unidad'], mode: ['gana'] },
   contador: { section: ['seccion'], target: ['objetivo'], mode: ['modo'], hideAfter: ['desaparece a los', 'desaparece'] },
   reflejos: { section: ['seccion'], rounds: ['rondas'], mode: ['participan'] },
-  libre: { section: ['seccion'], title: ['prueba'], description: ['descripcion'], tool: ['herramienta'], who: ['participan'], points: ['puntos'] },
+  libre: {
+    section: ['seccion'],
+    title: ['prueba'],
+    description: ['descripcion'],
+    tool: ['herramienta'],
+    who: ['participan'],
+    points: ['puntos'],
+    pieces: ['piezas', 'aciertos de'],
+    song: ['cancion'],
+    songStart: ['desde segundo', 'desde'],
+    beat: ['golpe'],
+    silence: ['silencio'],
+  },
   palabras: { section: ['seccion'], word: ['palabra'], banned: ['prohibidas', 'palabras prohibidas'], mode: ['modo'] },
   agitar: { section: ['seccion'], seconds: ['segundos'] },
   apuesta: { section: ['seccion'], question: ['pregunta'], a: ['a'], b: ['b'], c: ['c'], d: ['d'], correct: ['correcta'] },
@@ -409,14 +421,9 @@ export function parseShowWorkbook(sheets) {
       let section = sectionByName.get(norm(values.section));
       if (isEmpty(values.section)) {
         if (ofType.length === 1) section = ofType[0];
+        else if (!ofType.length) continue; // ningún juego de este tipo esta vez: sus filas quedan de reserva
         else {
-          err(
-            info.sheet,
-            row,
-            ofType.length
-              ? `Escribe en la columna "Sección" a cuál pertenece: hay ${ofType.length} secciones de tipo ${info.label} (${ofType.map((s) => s.name).join(', ')}).`
-              : `No hay ninguna sección de tipo ${info.label} en la pestaña Concurso: añádela allí.`,
-          );
+          err(info.sheet, row, `Escribe en la columna "Sección" a cuál pertenece: hay ${ofType.length} secciones de tipo ${info.label} (${ofType.map((s) => s.name).join(', ')}).`);
           continue;
         }
       }
@@ -474,13 +481,13 @@ export function parseShowWorkbook(sheets) {
 const ITEM_PARSERS = {
   pulsador(v, err) {
     const question = text(v.question);
-    const song = parseSpotifyTrack(v.song);
-    if (!isEmpty(v.song) && !song) return err('La canción debe ser un enlace a una canción de Spotify (open.spotify.com/track/…).');
+    // Canción: el nombre de su archivo en la carpeta Canciones del concurso (la tele la pone al abrir el turno)
+    const song = text(v.song) || null;
     if (!question && !song) return err('Falta la pregunta (o una canción).');
     const showOnTv = parseYesNo(v.showOnTv, true);
     if (showOnTv === undefined) return err('"Mostrar en tele" debe ser sí o no.');
     const songStart = isEmpty(v.songStart) ? 0 : parseNumber(v.songStart);
-    if (songStart == null || songStart < 0) return err('"Desde segundo" debe ser un número de segundos.');
+    if (songStart == null || songStart < 0) return err('"Desde (s)" debe ser un número de segundos.');
     return { question, answer: text(v.answer), showOnTv, song, songStart, notes: text(v.notes) };
   },
 
@@ -602,12 +609,34 @@ const ITEM_PARSERS = {
     const title = text(v.title);
     if (!title) return err('Falta el nombre de la prueba.');
     const t = norm(v.tool);
-    const tool = !t || t === 'ninguna' ? 'none' : t.startsWith('crono') ? 'stopwatch' : t.startsWith('contador') ? 'counter' : null;
-    if (!tool) return err('"Herramienta" debe ser Ninguna, Cronómetro o Contador.');
+    const tool = !t || t === 'ninguna' ? 'none' : t.startsWith('crono') ? 'stopwatch' : t.startsWith('contador') ? 'counter' : t.startsWith('contrarreloj') ? 'trial' : null;
+    if (!tool) return err('"Herramienta" debe ser Ninguna, Cronómetro, Contador o Contrarreloj.');
     const w = norm(v.who);
     if (w && !['jugadores', 'equipos'].includes(w)) return err('"Participan" debe ser Jugadores o Equipos.');
     const points = isEmpty(v.points) ? section.points[0] : parseNumber(v.points);
     if (points == null) return err('"Puntos" debe ser un número.');
-    return { title, description: text(v.description), tool, teams: w === 'equipos', points };
+    const pieces = isEmpty(v.pieces) ? null : parseNumber(v.pieces);
+    if (pieces != null && (!Number.isInteger(pieces) || pieces < 1 || pieces > 12)) return err('"Piezas" debe ser un número entero de 1 a 12.');
+    // Con canción (p. ej. la bachata): suena desde «Desde»; si hay «Golpe», calla «Silencio» segundos antes y vuelve
+    // justo en el golpe (así se ve quién lo marca a tiempo).
+    const song = text(v.song) || null;
+    const songStart = isEmpty(v.songStart) ? 0 : parseNumber(v.songStart);
+    if (songStart == null || songStart < 0) return err('"Desde (s)" debe ser un número de segundos.');
+    const beat = isEmpty(v.beat) ? null : parseNumber(v.beat);
+    if (beat != null && (beat <= songStart || !song)) return err('"Golpe (s)" tiene que ir después de «Desde» y con canción.');
+    const silence = isEmpty(v.silence) ? (beat != null ? 3 : 0) : parseNumber(v.silence);
+    if (silence == null || silence < 0 || (beat != null && silence > beat - songStart)) return err('"Silencio (s)" debe ser un número de segundos (antes del golpe).');
+    return {
+      title,
+      description: text(v.description),
+      tool,
+      teams: w === 'equipos',
+      points,
+      pieces: tool === 'trial' ? pieces : null,
+      song,
+      songStart,
+      beat,
+      silence: beat != null ? silence : 0,
+    };
   },
 };

@@ -9,6 +9,12 @@ let canvas = null;
 let ctx = null;
 let parts = [];
 let running = false;
+let lite = false; // calidad ligera (fondo.js): la mitad de confeti
+
+/** Calidad ligera: menos partículas (la tele la pone cuando va justa). */
+export function setLite(on) {
+  lite = !!on;
+}
 const sprites = new Map(); // emoji → canvas pre-dibujado (dibujar texto en cada fotograma es lento)
 
 function ensureCanvas() {
@@ -41,6 +47,7 @@ function sprite(glyph) {
 }
 
 function spawn(x, y, { spread = Math.PI / 2.2, angle = -Math.PI / 2, speed = 18, glyph = Math.random() < 0.35 } = {}) {
+  if (lite && Math.random() < 0.5) return;
   const a = angle + (Math.random() - 0.5) * spread;
   const v = speed * (0.55 + Math.random() * 0.6) * devicePixelRatio;
   parts.push({
@@ -106,18 +113,20 @@ function frame() {
     p.x += p.vx + Math.sin(p.life * 0.08 + p.wobble) * (p.glyph ? 0.4 : 1.6);
     p.y += p.vy;
     p.rot += p.vr;
-    ctx.save();
-    ctx.translate(p.x, p.y);
-    ctx.rotate(p.rot);
+    // Posición y giro de una vez (más barato que save/translate/rotate/restore por partícula)
+    const cos = Math.cos(p.rot);
+    const sin = Math.sin(p.rot);
     if (p.glyph) {
+      ctx.setTransform(cos, sin, -sin, cos, p.x, p.y);
       ctx.drawImage(sprite(p.glyph), -p.size / 2, -p.size / 2, p.size, p.size);
     } else {
+      const k = Math.cos(p.life * 0.15 + p.wobble); // giro del papel
+      ctx.setTransform(cos, sin, -sin * k, cos * k, p.x, p.y);
       ctx.fillStyle = p.color;
-      ctx.scale(1, Math.cos(p.life * 0.15 + p.wobble)); // giro del papel
       ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
     }
-    ctx.restore();
   }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   if (parts.length) requestAnimationFrame(frame);
   else {
     running = false;

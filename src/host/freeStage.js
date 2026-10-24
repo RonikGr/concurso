@@ -4,6 +4,7 @@ import { fill, h } from '../shared/dom.js';
 import { avatarOf, getColor } from '../shared/appearance.js';
 import { FPHASE, TOOL } from '../core/free.js';
 import { kinetic, odometer } from './fx/motion.js';
+import { sound } from './fx/audio.js';
 
 /** 83 456 ms → "1:23,4" */
 export function formatClock(ms) {
@@ -16,10 +17,12 @@ export function formatClock(ms) {
 export function createFreeStage() {
   const root = h('section', { class: 'free-stage' });
   let raf = 0;
+  let songTimer = 0; // bachata: el letrero sigue la canción
   const lastCounts = new Map(); // id → último valor pintado del contador, para que la cifra ruede
 
   function render(view) {
     cancelAnimationFrame(raf);
+    clearTimeout(songTimer);
     const f = view.free;
     if (!f) return;
     root.dataset.phase = f.phase;
@@ -51,6 +54,9 @@ export function createFreeStage() {
       );
     }
 
+    if (f.tool === TOOL.TRIAL) return renderTrial(f, header);
+    if (f.tool === TOOL.NONE && f.song) return renderSong(f, header);
+
     // En marcha o parada: reloj en grande y cada participante.
     const clock = h('p', { class: `big-clock free-clock ${f.phase === FPHASE.STOPPED ? 'stopped' : ''}` });
     fill(
@@ -81,7 +87,93 @@ export function createFreeStage() {
     tick();
   }
 
-  return { root, render, stop: () => cancelAnimationFrame(raf) };
+  /** Contrarreloj (las botellas): quién sale, su reloj, sus intentos y los tiempos de los que ya han salido. */
+  function renderTrial(f, header) {
+    const cur = f.participants.find((p) => p.id === f.current);
+    const tr = f.trials?.[f.current];
+    const clock = h('p', { class: `big-clock free-clock ${f.trialRunning ? '' : 'stopped'}` });
+    const attempts = tr?.attempts ?? [];
+    fill(
+      root,
+      header,
+      h('h2', { class: 'free-title' }, f.title),
+      cur && f.phase === FPHASE.RUNNING
+        ? h('p', { class: 'trial-who', style: { '--pc': getColor(cur.color).bg } }, cur.icon || cur.face ? h('span', { class: 'emoji' }, avatarOf(cur)) : null, ' ', cur.name, f.trialRunning ? '' : ' · ¡prepárate!')
+        : null,
+      clock,
+      attempts.length
+        ? h(
+            'ol',
+            { class: 'trial-attempts' },
+            attempts.slice(-6).map((a, i, list) =>
+              h(
+                'li',
+                { class: i === list.length - 1 ? 'last' : '' },
+                h('span', { class: 'ta-n' }, `${attempts.length - list.length + i + 1}º`),
+                f.pieces ? h('span', { class: 'ta-pieces' }, Array.from({ length: f.pieces }, (_, k) => h('i', { class: k < a.n ? 'on' : '' }))) : null,
+                h('strong', {}, f.pieces ? `${a.n} de ${f.pieces}` : formatClock(a.t)),
+              ),
+            ),
+          )
+        : null,
+      h(
+        'ul',
+        { class: 'trial-times' },
+        f.participants.map((p) => {
+          const t = f.trials?.[p.id];
+          return h(
+            'li',
+            { class: p.id === f.current && f.trialRunning ? 'now' : t?.time != null ? 'done' : '', style: { '--pc': getColor(p.color).bg } },
+            h('span', {}, p.name),
+            h('strong', {}, t?.time != null ? (t.gaveUp ? 'se rindió' : formatClock(t.time)) : p.id === f.current && f.trialRunning ? 'en marcha' : '—'),
+          );
+        }),
+      ),
+    );
+    const tick = () => {
+      if (tr) clock.textContent = formatClock(tr.time ?? performance.now() - tr.tStart);
+      else clock.textContent = formatClock(0);
+      if (f.trialRunning) raf = requestAnimationFrame(tick);
+    };
+    tick();
+  }
+
+  /** Prueba con canción (la bachata): suena… se calla antes del golpe… ¡golpe! */
+  function renderSong(f, header) {
+    const status = h('p', { class: 'song-status display' });
+    fill(
+      root,
+      header,
+      h('h2', { class: 'free-title' }, f.title),
+      f.description ? h('p', { class: 'free-desc' }, f.description) : null,
+      status,
+      h('ul', { class: 'free-chips' }, f.participants.map((p) => chip(p))),
+    );
+    const show = (text, mode) => {
+      if (status.textContent !== text) status.textContent = text;
+      status.dataset.mode = mode;
+    };
+    const tick = () => {
+      if (f.phase !== FPHASE.RUNNING) return show('🎵 ¿Quién lo ha clavado?', 'end');
+      const pos = sound.songPosition(f.roundId);
+      if (pos == null || pos < f.songStart) show('🎵 Preparados…', 'ready');
+      else if (f.beat == null) show('💃 ¡A bailar!', 'dance');
+      else if (pos < f.beat - f.silence) show('💃 ¡A bailar!', 'dance');
+      else if (pos < f.beat) show('🤫 ¡Seguid sin música!', 'silence');
+      else show('💥 ¡GOLPE!', 'beat');
+      songTimer = setTimeout(tick, 40); // no rAF: el navegador lo frena si la ventana no se ve
+    };
+    tick();
+  }
+
+  return {
+    root,
+    render,
+    stop: () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(songTimer);
+    },
+  };
 }
 
 function chip(p) {
@@ -101,10 +193,10 @@ function results(f) {
       h(
         'li',
         { class: r.place === 1 ? 'first' : '', style: { '--pc': getColor(r.who.color).bg } },
-        h('span', { class: 'f-place' }, `${r.place}º`),
+        h('span', { class: 'f-place' }, r.place ? `${r.place}º` : '—'),
         h('span', { class: 'emoji' }, r.who.icon || r.who.face ? avatarOf(r.who) : ''),
         h('span', { class: 'es-name' }, r.who.name),
-        h('span', { class: 'es-value' }, f.tool === TOOL.STOPWATCH ? formatClock(r.value) : String(r.value)),
+        h('span', { class: 'es-value' }, f.tool === TOOL.STOPWATCH || f.tool === TOOL.TRIAL ? (r.value == null ? '—' : formatClock(r.value)) : String(r.value)),
         h('span', {}),
         h('strong', { class: 'es-points' }, f.awarded[r.id] ? `+${f.awarded[r.id]}` : ''),
       ),

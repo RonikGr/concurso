@@ -197,14 +197,24 @@ function extrasBox(ctx) {
           'p',
           { class: 'folder-report' },
           `✓ «${r.name}»: `,
-          [r.sheet ? `hoja «${r.sheet}»` : 'sin hoja', `millonario ${r.millionaire}/7`, `${r.faces} ${r.faces === 1 ? 'cara' : 'caras'}`, `${r.music} ${r.music === 1 ? 'canción' : 'canciones'} más`].join(' · '),
+          [r.sheet ? `hoja «${r.sheet}»` : 'sin hoja', `millonario ${r.millionaire}/7`, `${r.faces} ${r.faces === 1 ? 'cara' : 'caras'}`, `${r.music} ${r.music === 1 ? 'canción' : 'canciones'} más`, `${r.songs ?? 0} de las pruebas`].join(' · '),
           r.ignored.length ? h('span', { class: 'muted', title: r.ignored.join('\n') }, ` · ${r.ignored.length} sin usar`) : null,
+        )
+      : null,
+    // Canciones que pide la hoja (¿Qué canción es?, la bachata…): cuáles faltan en la carpeta «Canciones»
+    ctx.songs?.wanted
+      ? h(
+          'p',
+          { class: `folder-report ${ctx.songs.missing.length ? 'warn' : ''}` },
+          ctx.songs.missing.length
+            ? `🎵 Faltan ${ctx.songs.missing.length} de las ${ctx.songs.wanted} canciones de las pruebas en «Canciones»: ${ctx.songs.missing.join(', ')}`
+            : `🎵 Están las ${ctx.songs.wanted} canciones de las pruebas`,
         )
       : null,
     h(
       'p',
       { class: 'muted small' },
-      'En la carpeta: la hoja (.xlsx), «Millonario» (sus 7 canciones), «Caras» (fotos con los nombres en el del archivo) y «Música/<momento>». ',
+      'En la carpeta: la hoja (.xlsx), «Millonario» (sus 7 canciones), «Caras» (fotos con los nombres en el del archivo), «Música/<momento>» y «Canciones» (las de las pruebas, con el nombre que pone la hoja). ',
       'Todo se copia a este portátil: si se pierde la sala, sigue aquí.',
     ),
   );

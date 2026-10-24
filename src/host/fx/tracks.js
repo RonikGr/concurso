@@ -101,13 +101,13 @@ export class TrackStore extends EventTarget {
   }
 
   /**
-   * Añade canciones a un hueco. Los del millonario tienen una sola: la nueva sustituye a la que hubiera.
+   * Añade canciones a un hueco. Los del millonario y las canciones de las pruebas («song:…») tienen una sola: la nueva sustituye a la que hubiera.
    * @param source 'carpeta' si vienen de la carpeta del concurso (al volver a leerla se sustituyen)
    */
   async add(slot, files, { source = null, reload = true } = {}) {
     const audio = [...files].filter(isAudio);
     if (!audio.length) return 0;
-    const single = slot.startsWith('mill:');
+    const single = slot.startsWith('mill:') || slot.startsWith('song:'); // una canción por hueco
     const old = single ? (this.tracks.get(slot) ?? []).map((t) => t.id) : [];
     await tx('readwrite', (s) => {
       old.forEach((id) => s.delete(id));

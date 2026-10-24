@@ -9,6 +9,7 @@ import { PHASE } from '../../core/game.js';
 import { APHASE, isChoice } from '../../core/answers.js';
 import { FPHASE } from '../../core/free.js';
 import { millionaireCue } from '../../core/millionaireMusic.js';
+import { songFor, songToPrepare } from '../../core/songs.js';
 import { getCues } from './cueSettings.js';
 
 /** Entorno de una vista: el de la sección en juego; preparación, portada y final, la noche de luna. */
@@ -137,6 +138,9 @@ export function createDirector({ backdrop }) {
         getCues(),
       ),
     );
+    // Canciones de las pruebas (carpeta «Canciones»)
+    sound.prepareSong(songToPrepare(view));
+    sound.setSong(songFor(view));
     const own = sound.cueActive; // las canciones ya traen sus golpes
 
     if (!p) return;
@@ -194,11 +198,6 @@ export function createDirector({ backdrop }) {
         backdrop?.flash(0.5);
       }
       if (pa && a.answered > pa.answered && a.phase === APHASE.OPEN) sound.play('blip');
-      // Comodines: suena el de cada uno que se acaba de usar
-      if (pa) {
-        const count = (list, k) => list.filter((x) => x === k).length;
-        for (const k of ['fifty', 'audience', 'double']) if (count(a.jokers, k) > count(pa.jokers, k)) sound.play(k);
-      }
       if (a.phase === APHASE.CLOSED && pa?.phase === APHASE.OPEN) sound.play('bell');
       // El revelado (redoble, golpe, aciertos) lo programa answerStage, que sabe cuándo sale cada cosa: aquí, el destello.
       if (a.phase === APHASE.REVEALED && pa && pa.phase !== APHASE.REVEALED) setTimeout(() => backdrop?.flash(0.45), isChoice(a.kind) ? 2800 : 0);

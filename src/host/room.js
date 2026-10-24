@@ -48,6 +48,7 @@ export const DEFAULT_SETTINGS = {
   musicOn: true,
   sfxOn: true,
   volume: 70,
+  quality: 'auto', // imagen de la tele: 'auto' se ajusta sola para ir fluida; 'high' / 'low' la fijan
 };
 
 const CONTROL_PUSH_MS = 150; // agrupar cambios antes de mandar el estado completo al mando
@@ -499,6 +500,18 @@ export class HostRoom extends EventTarget {
       // Solo el mando: a quién se puede elegir y qué ganador propone la herramienta.
       pool: forControl ? pool.map(who) : null,
       suggestion: forControl ? r.suggestion(t) : null,
+      // Con canción (la bachata): la tele la pone y enseña el silencio y el golpe
+      song: r.item.song ?? null,
+      songStart: r.item.songStart ?? 0,
+      beat: r.item.beat ?? null,
+      silence: r.item.silence ?? 0,
+      startable: r.startable,
+      // Contrarreloj: quién sale ahora, cuántas piezas y el turno de cada uno
+      pieces: r.item.pieces ?? null,
+      current: r.current,
+      trialRunning: r.trialRunning,
+      trialElapsed: forControl && r.trialRunning ? t - r.trial.tStart : null, // el mando cuenta desde aquí
+      trials: r.tool === 'trial' ? Object.fromEntries(Object.entries(r.trials).map(([id, x]) => [id, { ...x, attempts: x.attempts.map((a) => ({ ...a })) }])) : null,
     };
   }
 
@@ -813,6 +826,11 @@ export class HostRoom extends EventTarget {
       return this.freeRound.setCounter(teamId, playerId || null);
     },
     freeStop: () => this.inFreePlay && this.freeRound.stop(now()),
+    // Contrarreloj: un intento con n piezas bien, quitar el último, ¡lo tiene! / se rinde, y que salga el siguiente
+    freeAttempt: ({ n }) => this.inFreePlay && this.freeRound.attempt(Number(n), now()),
+    freeUndoAttempt: () => this.inFreePlay && this.freeRound.undoAttempt(),
+    freeDone: ({ gaveUp = false }) => this.inFreePlay && this.freeRound.trialDone(now(), gaveUp === true || gaveUp === 'true'),
+    freeNext: () => this.inFreePlay && this.freeRound.trialNext(now()),
     freeAward: ({ ids = '' }) => {
       if (!this.inFreePlay) return false;
       const r = this.freeRound;

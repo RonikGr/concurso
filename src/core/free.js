@@ -4,11 +4,13 @@
 //     └───────────────(sin herramienta: award directo)──────────┘
 //
 // Herramientas: cronómetro (el presentador marca "eliminado" a quien cae; gana quien más aguanta),
-// contador (+1/−1 por participante; gana quien más hace) o ninguna (el presentador elige ganador).
-// Participan jugadores o equipos según la fila de la hoja.
+// contador (+1/−1 por participante; gana quien más hace), contrarreloj (salen de uno en uno; gana quien menos tarda;
+// cada intento puede apuntar cuántas piezas tiene bien, p. ej. «3 de 5 botellas») o ninguna (el presentador elige
+// ganador). Participan jugadores o equipos según la fila de la hoja. Con canción (p. ej. la bachata), «¡Empezar!» la
+// hace sonar aunque no haya herramienta.
 
 export const FPHASE = { SETUP: 'setup', RUNNING: 'running', STOPPED: 'stopped', AWARDED: 'awarded' };
-export const TOOL = { NONE: 'none', STOPWATCH: 'stopwatch', COUNTER: 'counter' };
+export const TOOL = { NONE: 'none', STOPWATCH: 'stopwatch', COUNTER: 'counter', TRIAL: 'trial' };
 
 export class FreeRound {
   /** @param item fila de la hoja: {title, description, tool, teams, points} */
@@ -22,6 +24,8 @@ export class FreeRound {
     this.out = {}; // cronómetro: id → ms aguantados al caer
     this.counts = {}; // contador: id → número
     this.counters = {}; // contador desde el móvil, con equipos: equipo → playerId que lleva su cuenta (lo elige el presentador)
+    this.trials = {}; // contrarreloj: id → {tStart, time, gaveUp, attempts: [{n, t}]}
+    this.current = null; // contrarreloj: a quién le toca (puede no haber empezado aún)
     this.winners = [];
     this.points = {}; // id → puntos dados
   }
@@ -41,11 +45,70 @@ export class FreeRound {
     return true;
   }
 
+  /** ¿Tiene «¡Empezar!»? (sin herramienta, solo si hay canción) */
+  get startable() {
+    return this.tool !== TOOL.NONE || !!this.item.song;
+  }
+
   start(now) {
-    if (this.phase !== FPHASE.SETUP || this.tool === TOOL.NONE || !this.participants.length) return false;
+    if (this.phase !== FPHASE.SETUP || !this.startable || !this.participants.length) return false;
     this.phase = FPHASE.RUNNING;
     this.tStart = now;
     this.counts = Object.fromEntries(this.participants.map((id) => [id, 0]));
+    if (this.tool === TOOL.TRIAL) {
+      this.current = this.participants[0];
+      this.trials = { [this.current]: { tStart: now, time: null, gaveUp: false, attempts: [] } };
+    }
+    return true;
+  }
+
+  // ---------- contrarreloj
+
+  /** El turno de quien está ahora (o null si aún no ha empezado). */
+  get trial() {
+    return this.current == null ? null : (this.trials[this.current] ?? null);
+  }
+
+  /** ¿Corre el reloj de alguien? */
+  get trialRunning() {
+    const t = this.trial;
+    return this.phase === FPHASE.RUNNING && !!t && t.time == null && !t.gaveUp;
+  }
+
+  /** Un intento: cuántas piezas tiene bien. Con todas bien, se para su reloj. */
+  attempt(n, now) {
+    if (this.tool !== TOOL.TRIAL || !this.trialRunning) return false;
+    const max = this.item.pieces ?? Infinity;
+    if (!Number.isInteger(n) || n < 0 || n > max) return false;
+    const t = this.trial;
+    t.attempts.push({ n, t: now - t.tStart });
+    if (n === max) this.trialDone(now);
+    return true;
+  }
+
+  /** Quitar el último intento (por si se apuntó mal). */
+  undoAttempt() {
+    if (this.tool !== TOOL.TRIAL || !this.trialRunning || !this.trial.attempts.length) return false;
+    this.trial.attempts.pop();
+    return true;
+  }
+
+  /** ¡Lo tiene! (o se rinde): su tiempo queda apuntado y pasa el siguiente (que empieza con «trialNext»). */
+  trialDone(now, gaveUp = false) {
+    if (this.tool !== TOOL.TRIAL || !this.trialRunning) return false;
+    const t = this.trial;
+    t.time = now - t.tStart;
+    t.gaveUp = gaveUp;
+    const next = this.participants.find((id) => !(id in this.trials));
+    if (next) this.current = next;
+    else this.stop(now);
+    return true;
+  }
+
+  /** Empieza el reloj del siguiente. */
+  trialNext(now) {
+    if (this.tool !== TOOL.TRIAL || this.phase !== FPHASE.RUNNING || this.trial) return false;
+    this.trials[this.current] = { tStart: now, time: null, gaveUp: false, attempts: [] };
     return true;
   }
 
@@ -103,6 +166,8 @@ export class FreeRound {
 
   stop(now) {
     if (this.phase !== FPHASE.RUNNING) return false;
+    // Contrarreloj parado a mitad: quien estaba en marcha no termina
+    if (this.trialRunning) Object.assign(this.trial, { time: now - this.trial.tStart, gaveUp: true });
     this.phase = FPHASE.STOPPED;
     this.tStop = now;
     return true;
@@ -118,6 +183,25 @@ export class FreeRound {
   /** Clasificación según la herramienta: [{id, value, place}] (mejor primero; empates comparten puesto). */
   ranking(now) {
     if (this.tool === TOOL.NONE) return this.participants.map((id) => ({ id, value: null, place: null }));
+    if (this.tool === TOOL.TRIAL) {
+      // Menos tiempo, mejor; quien no lo consiguió (o no salió), al final y sin puesto
+      const time = (id) => (this.trials[id] && !this.trials[id].gaveUp ? this.trials[id].time : null);
+      const rows = this.participants.map((id) => ({ id, value: time(id) })).sort((a, b) => (a.value ?? Infinity) - (b.value ?? Infinity));
+      let place = 0;
+      let last = null;
+      for (const r of rows) {
+        if (r.value == null) {
+          r.place = null;
+          continue;
+        }
+        if (r.value !== last) {
+          place++;
+          last = r.value;
+        }
+        r.place = place;
+      }
+      return rows;
+    }
     const value = (id) => (this.tool === TOOL.STOPWATCH ? this.timeOf(id, now) : (this.counts[id] ?? 0));
     const rows = this.participants.map((id) => ({ id, value: value(id) })).sort((a, b) => b.value - a.value);
     let place = 0;
@@ -156,8 +240,8 @@ export class FreeRound {
   }
 
   toJSON() {
-    const { roundId, phase, participants, tStart, tStop, out, counts, counters, winners, points } = this;
-    return { roundId, phase, participants, tStart, tStop, out, counts, counters, winners, points };
+    const { roundId, phase, participants, tStart, tStop, out, counts, counters, trials, current, winners, points } = this;
+    return { roundId, phase, participants, tStart, tStop, out, counts, counters, trials, current, winners, points };
   }
 
   static fromJSON(item, data) {

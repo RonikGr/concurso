@@ -342,7 +342,7 @@ describe('lectura del libro', () => {
     expect(items.Est).toEqual([{ question: '¿Km del Ebro?', answer: 910, unit: 'km', noOver: true }]);
     // Sin filas: 3 rondas para todos; cada ronda es una pregunta.
     expect(items.Ref).toEqual([1, 2, 3].map((round) => ({ round, rounds: 3, duel: false })));
-    expect(items.Fit).toEqual([{ title: 'Plancha', description: '', tool: 'stopwatch', teams: true, points: 2 }]);
+    expect(items.Fit).toEqual([{ title: 'Plancha', description: '', tool: 'stopwatch', teams: true, points: 2, pieces: null, song: null, songStart: 0, beat: null, silence: 0 }]);
     expect(show.sections.find((s) => s.name === 'Est').points).toEqual([3, 2, 1]); // clasificatoria por defecto
   });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classifyFolder, folderKey } from '../src/core/folder.js';
+import { classifyFolder, folderKey, songKey } from '../src/core/folder.js';
 
 const slots = [
   { id: 'lobby', label: 'Preparación' },
@@ -33,6 +33,8 @@ describe('carpeta del concurso', () => {
         e('Música/Halloween total/Preparación/no vale aquí.mp3'),
         e('Música/Otra sección/Marcador/x.mp3'),
         e('Música/Nada/x.mp3'),
+        e('Canciones/Propuesta Indecente.mp3'),
+        e('canciones/letra.txt'),
       ],
       { slots, sectionSlots: ['march', 'sfx:lock'], sections: ['Halloween total'] },
     );
@@ -40,6 +42,8 @@ describe('carpeta del concurso', () => {
     expect(Object.keys(r.millionaire).sort()).toEqual(['call', 'easy', 'hard']);
     expect(r.faces.map((f) => f.path.at(-1))).toEqual(['Rodri, Rodrigo.jpg', 'Ana.PNG']);
     expect(r.music.map((m) => m.slot)).toEqual(['lobby', 'march', 'Halloween total|sfx:lock']);
-    expect(r.ignored).toEqual(['millonario/notas.txt', 'Música/Halloween total/Preparación/no vale aquí.mp3', 'Música/Otra sección/Marcador/x.mp3', 'Música/Nada/x.mp3']);
+    expect(r.songs.map((x) => songKey(x.path.at(-1)))).toEqual(['propuestaindecente']);
+    expect(songKey('propuesta indecente')).toBe('propuestaindecente'); // así se escribe en la hoja (sin .mp3, da igual)
+    expect(r.ignored).toEqual(['millonario/notas.txt', 'Música/Halloween total/Preparación/no vale aquí.mp3', 'Música/Otra sección/Marcador/x.mp3', 'Música/Nada/x.mp3', 'canciones/letra.txt']);
   });
 });

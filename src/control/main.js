@@ -751,7 +751,7 @@ function countersCard(f) {
 
 function freePanel() {
   const f = view.free;
-  const toolLabel = { none: 'Sin herramienta', stopwatch: 'Cronómetro', counter: 'Contador' }[f.tool];
+  const toolLabel = { none: f.song ? 'Con canción' : 'Sin herramienta', stopwatch: 'Cronómetro', counter: 'Contador', trial: 'Contrarreloj' }[f.tool];
   const progress = view.itemCount > 1 ? `Prueba ${view.itemIndex + 1} de ${view.itemCount}` : '';
   const chosen = new Set(f.participants.map((p) => p.id));
   const label = (p) => [p.icon || p.face ? h('span', { class: 'c-mini emoji' }, avatarOf(p)) : null, ' ', p.name];
@@ -797,11 +797,19 @@ function freePanel() {
       ),
     );
     if (f.tool === 'counter' && f.byTeams && f.participants.length) body.push(countersCard(f));
-    if (f.tool !== 'none') {
-      body.push(h('button', { class: 'btn primary big', disabled: !chosen.size, onclick: () => cmd('freeStart') }, f.tool === 'stopwatch' ? '¡Empezar! (cronómetro)' : '¡Empezar!'));
+    if (f.startable) {
+      const first = f.participants[0]?.name;
+      const label = f.tool === 'stopwatch' ? '¡Empezar! (cronómetro)' : f.tool === 'trial' ? `¡Empezar! Sale ${first ?? '…'}` : f.tool === 'none' ? '🎵 ¡Que suene la canción!' : '¡Empezar!';
+      if (f.song) body.push(h('p', { class: 'muted small' }, `🎵 «${f.song}» desde el segundo ${f.songStart}${f.beat != null ? ` · se calla ${f.silence} s antes del golpe (${f.beat} s) y vuelve en el golpe` : ''}`));
+      body.push(h('button', { class: 'btn primary big', disabled: !chosen.size, onclick: () => cmd('freeStart') }, label));
     } else if (chosen.size) {
       body.push(winnersPicker(f));
     }
+  } else if (f.phase === 'running' && f.tool === 'trial') {
+    body.push(trialCard(f), btn('Parar la prueba', () => cmd('freeStop')));
+  } else if (f.phase === 'running' && f.tool === 'none') {
+    // Con canción: mientras suena (o al acabar), eliges a quien lo ha hecho bien
+    body.push(h('p', { class: 'c-live' }, '🎵 Suena la canción: al acabar, marca a quien lo ha hecho bien'), winnersPicker(f), btn('Parar la canción', () => cmd('freeStop')));
   } else if (f.phase === 'running') {
     if (f.tool === 'counter' && f.byTeams) body.push(countersCard(f)); // se puede cambiar quién cuenta en marcha
     body.push(
@@ -855,6 +863,55 @@ function freePanel() {
   ];
 }
 
+/** Contrarreloj: quién sale, su reloj, sus intentos (cuántas piezas tiene bien) y los tiempos de los demás. */
+let trialClockTimer = 0;
+function trialCard(f) {
+  clearInterval(trialClockTimer);
+  const cur = f.participants.find((p) => p.id === f.current);
+  const tr = f.trials?.[f.current];
+  const done = f.participants.filter((p) => f.trials?.[p.id]?.time != null);
+  const clock = h('strong', { class: 'c-clock' });
+  if (f.trialRunning) {
+    const start = performance.now() - f.trialElapsed;
+    const step = () => (clock.textContent = formatClockText(performance.now() - start));
+    step();
+    trialClockTimer = setInterval(step, 100);
+  }
+  const attempts = tr?.attempts ?? [];
+  return [
+    h(
+      'section',
+      { class: 'c-card center' },
+      h('p', { class: 'c-kicker' }, f.trialRunning ? 'En marcha' : 'Siguiente'),
+      h('h2', {}, cur ? cur.name : '—'),
+      f.trialRunning ? clock : null,
+      attempts.length ? h('p', { class: 'c-words' }, attempts.map((a, i) => h('span', {}, `${i + 1}º: ${a.n}${f.pieces ? `/${f.pieces}` : ''}`))) : null,
+    ),
+    f.trialRunning
+      ? [
+          f.pieces
+            ? h(
+                'section',
+                { class: 'c-card' },
+                h('p', { class: 'c-kicker' }, '¿Cuántas tiene bien en este intento?'),
+                h('div', { class: 'c-pieces' }, Array.from({ length: f.pieces + 1 }, (_, n) => btn(String(n), () => cmd('freeAttempt', { n }), n === f.pieces ? 'ok' : ''))),
+                attempts.length ? btn('↶ Quitar el último intento', () => cmd('freeUndoAttempt'), 'small') : null,
+              )
+            : null,
+          h('div', { class: 'c-grid2' }, btn('Se rinde', () => confirm(`¿${cur?.name} se rinde?`) && cmd('freeDone', { gaveUp: true }), 'bad'), btn('✓ ¡Lo tiene!', () => cmd('freeDone'), 'ok')),
+        ]
+      : h('button', { class: 'btn primary big', onclick: () => cmd('freeNext') }, `▶ Empieza ${cur?.name ?? ''}`),
+    done.length
+      ? h(
+          'section',
+          { class: 'c-card' },
+          h('p', { class: 'c-kicker' }, 'Tiempos'),
+          done.map((p) => h('div', { class: 'c-row' }, h('span', {}, p.name), h('strong', {}, f.trials[p.id].gaveUp ? 'se rindió' : formatClockText(f.trials[p.id].time)))),
+        )
+      : null,
+  ];
+}
+
 /** Elegir ganadores (viene marcado lo que propone la herramienta) y dar los puntos. */
 function winnersPicker(f) {
   if (freeWinners.roundId !== f.roundId) freeWinners = { roundId: f.roundId, ids: new Set(f.suggestion) };
@@ -869,7 +926,8 @@ function winnersPicker(f) {
       { class: 'c-checks' },
       f.participants.map((p) => {
         const r = valueOf(p.id);
-        const extra = f.tool === 'stopwatch' ? ` · ${formatClockText(r?.value ?? 0)}` : f.tool === 'counter' ? ` · ${r?.value ?? 0}` : '';
+        const extra =
+          f.tool === 'stopwatch' || (f.tool === 'trial' && r?.value != null) ? ` · ${formatClockText(r?.value ?? 0)}` : f.tool === 'trial' ? ' · sin tiempo' : f.tool === 'counter' ? ` · ${r?.value ?? 0}` : '';
         return h(
           'label',
           { class: 'c-check' },

@@ -119,3 +119,57 @@ describe('contador desde el móvil', () => {
     expect(r.setCounter('ana', 'bea')).toBe(false);
   });
 });
+
+describe('contrarreloj (p. ej. las botellas)', () => {
+  it('salen de uno en uno; los intentos apuntan las piezas; gana quien menos tarda', () => {
+    const r = new FreeRound(item('trial', { teams: true, pieces: 5 }), { roundId: 'f1' });
+    r.setParticipants(['rojos', 'azules']);
+    expect(r.start(1000)).toBe(true);
+    expect(r.current).toBe('rojos');
+    expect(r.attempt(6, 2000)).toBe(false); // más piezas de las que hay
+    expect(r.attempt(2, 11_000)).toBe(true);
+    expect(r.attempt(3, 21_000)).toBe(true);
+    expect(r.undoAttempt()).toBe(true);
+    r.attempt(5, 31_000); // todas bien: se para su reloj (30 s)
+    expect(r.trials.rojos).toMatchObject({ time: 30_000, gaveUp: false, attempts: [{ n: 2, t: 10_000 }, { n: 5, t: 30_000 }] });
+    // Le toca a los azules, pero su reloj no corre hasta «empezar»
+    expect(r.current).toBe('azules');
+    expect(r.trialRunning).toBe(false);
+    expect(r.attempt(1, 40_000)).toBe(false);
+    expect(r.trialNext(50_000)).toBe(true);
+    expect(r.trialNext(50_000)).toBe(false);
+    r.trialDone(70_000); // 20 s: el último → se para la prueba
+    expect(r.phase).toBe(FPHASE.STOPPED);
+    expect(r.ranking(99_000).map((x) => [x.id, x.value, x.place])).toEqual([
+      ['azules', 20_000, 1],
+      ['rojos', 30_000, 2],
+    ]);
+    expect(r.suggestion(99_000)).toEqual(['azules']);
+  });
+
+  it('quien se rinde (o se para a mitad) no tiene puesto', () => {
+    const r = new FreeRound(item('trial'), { roundId: 'f1' });
+    r.setParticipants(['ana', 'bea']);
+    r.start(0);
+    r.trialDone(5000, true); // Ana se rinde
+    r.trialNext(6000);
+    r.stop(9000); // Bea, parada a mitad
+    expect(r.ranking(9000).map((x) => [x.id, x.place])).toEqual([
+      ['ana', null],
+      ['bea', null],
+    ]);
+    expect(r.suggestion(9000)).toEqual([]);
+    const back = FreeRound.fromJSON(r.item, JSON.parse(JSON.stringify(r.toJSON())));
+    expect(back.trials).toEqual(r.trials);
+  });
+
+  it('sin herramienta pero con canción: «¡Empezar!» la hace sonar', () => {
+    const plain = new FreeRound(item('none'), { roundId: 'f1' });
+    plain.setParticipants(['ana']);
+    expect(plain.start(0)).toBe(false);
+    const song = new FreeRound(item('none', { song: 'bachata' }), { roundId: 'f2' });
+    song.setParticipants(['ana', 'bea']);
+    expect(song.start(0)).toBe(true);
+    expect(song.award(['bea'], 5000)).toEqual({ bea: 3 });
+  });
+});

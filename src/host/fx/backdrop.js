@@ -432,14 +432,45 @@ void main() {
 }
 `;
 
+/**
+ * Calidad del fondo, de mejor a más ligera: resolución del shader (fracción de la pantalla) y cada cuántos fotogramas
+ * se dibuja (2 = a 30 fps: la niebla y las partículas van lentas, no se nota). Desde «lite», la tele quita además el
+ * desenfoque de los cristales (body.fx-lite), que es lo más caro en una gráfica integrada: cada cristal se vuelve a
+ * desenfocar en cada fotograma porque el fondo se mueve.
+ */
+export const QUALITY_LEVELS = [
+  { scale: 0.6, every: 1, lite: false },
+  { scale: 0.5, every: 1, lite: true },
+  { scale: 0.42, every: 2, lite: true },
+  { scale: 0.34, every: 2, lite: true },
+  { scale: 0.26, every: 3, lite: true },
+];
+const SAMPLE = 90; // fotogramas por medida
+
 const NUMERIC = ['fogAmt', 'moon', 'bats', 'horizon'];
 const COLORS = ['top', 'bot', 'fog', 'glow', 'part'];
 const TRANSITION_MS = 1600;
 
 export class Backdrop {
-  constructor(canvas, { scale = 0.6 } = {}) {
+  #deltas;
+  #last;
+  #frameNo;
+  #goodRuns;
+  #lastDrop;
+
+  constructor(canvas) {
     this.canvas = canvas;
-    this.scale = scale;
+    // Calidad: 'auto' mide cómo de fluida va la tele y la ajusta sola; 'high' / 'low' la fijan.
+    this.mode = 'auto';
+    this.level = 0;
+    this.scale = QUALITY_LEVELS[0].scale;
+    this.fps = null; // fotogramas por segundo de la página (para la depuración)
+    this.onQuality = null; // (nivel) → la tele pone o quita body.fx-lite
+    this.#deltas = [];
+    this.#last = 0;
+    this.#frameNo = 0;
+    this.#goodRuns = 0;
+    this.#lastDrop = 0;
     this.gl = canvas.getContext('webgl', { antialias: false, alpha: false, powerPreference: 'high-performance' });
     this.ok = !!this.gl && this.#init();
     this.env = null;
@@ -478,6 +509,50 @@ export class Backdrop {
     this.from = structuredClone(this.cur);
     this.to = target;
     this.tStart = performance.now();
+  }
+
+  /** 'auto' | 'high' | 'low' */
+  setMode(mode) {
+    if (!['auto', 'high', 'low'].includes(mode) || mode === this.mode) return;
+    this.mode = mode;
+    this.#deltas = [];
+    this.#setLevel(mode === 'high' ? 0 : mode === 'low' ? 3 : 0);
+  }
+
+  #setLevel(level) {
+    level = Math.max(0, Math.min(QUALITY_LEVELS.length - 1, level));
+    if (level === this.level && this.scale === QUALITY_LEVELS[level].scale) return;
+    this.level = level;
+    this.scale = QUALITY_LEVELS[level].scale;
+    if (this.ok) this.#resize();
+    this.onQuality?.(QUALITY_LEVELS[level]);
+  }
+
+  /**
+   * Calidad automática: cada 90 fotogramas compara lo que tarda uno (mediana) con el ritmo de la pantalla (lo más
+   * rápido que se ha visto: 60 Hz, 50 Hz…). Si va a trompicones, baja un nivel; si va sobrada un buen rato, sube uno
+   * (pero no enseguida después de bajar, para no ir y venir).
+   */
+  #measure(now) {
+    const d = now - this.#last;
+    this.#last = now;
+    if (this.mode !== 'auto' || d <= 0 || d > 250) return; // pestaña oculta o parón puntual: no cuenta
+    this.#deltas.push(d);
+    if (this.#deltas.length < SAMPLE) return;
+    const sorted = [...this.#deltas].sort((a, b) => a - b);
+    this.#deltas = [];
+    const refresh = sorted[Math.floor(sorted.length * 0.1)];
+    const median = sorted[Math.floor(sorted.length / 2)];
+    const slow = sorted[Math.floor(sorted.length * 0.9)];
+    this.fps = Math.round(1000 / median);
+    if (median > refresh * 1.35 || slow > refresh * 2.2) {
+      this.#goodRuns = 0;
+      this.#lastDrop = now;
+      this.#setLevel(this.level + 1);
+    } else if (this.level > 0 && slow < refresh * 1.25 && ++this.#goodRuns >= 8 && now - this.#lastDrop > 30_000) {
+      this.#goodRuns = 0;
+      this.#setLevel(this.level - 1);
+    }
   }
 
   /** Destello (relámpago o momento de impacto). */
@@ -540,7 +615,7 @@ export class Backdrop {
   }
 
   #resize() {
-    // Media resolución: la niebla es suave y así la tele va fluida.
+    // Resolución reducida (según la calidad): la niebla es suave y así la tele va fluida.
     const w = Math.round(innerWidth * this.scale);
     const h = Math.round(innerHeight * this.scale);
     this.canvas.width = w;
@@ -550,7 +625,10 @@ export class Backdrop {
 
   #frame(now) {
     requestAnimationFrame((t) => this.#frame(t));
+    this.#measure(now);
     if (!this.cur) return;
+    // En las calidades ligeras, el fondo no se dibuja en todos los fotogramas
+    if (++this.#frameNo % QUALITY_LEVELS[this.level].every !== 0 && !this.to && this.flashLevel < 0.05) return;
     let dim = 0;
     if (this.to) {
       const k = Math.min(1, (now - this.tStart) / TRANSITION_MS);
