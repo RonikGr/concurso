@@ -10,6 +10,7 @@ import { SCREEN } from '../core/runner.js';
 import { WPHASE } from '../core/words.js';
 import { SPHASE } from '../core/shake.js';
 import { BPHASE } from '../core/bet.js';
+import { SPHASE as SQ } from '../core/squid.js';
 import { COLORS, ICONS } from '../shared/appearance.js';
 import { BOT_PREFIX, botAnswer, botMillionaireChoice, botName, botPressAt, isBot, pick, randInt, shuffle, teamFor } from '../core/bots.js';
 
@@ -122,6 +123,7 @@ export class BotPlayers {
       this.#shake(id);
       this.#bet(id);
       this.#punish(id);
+      this.#squid(id);
     }
     this.#hurry = false;
   }
@@ -273,6 +275,87 @@ export class BotPlayers {
       room.punish.options.map((_, i) => i),
     ).slice(0, 3);
     picks.forEach((i, k) => this.#later(randInt(this.#rng, 800, 3000) + k * 400, () => this.#play(id, 'castigo', null, 'toggle', i)));
+  }
+
+  // ---------- Squid Games: cada bot juega a su manera (y a veces la pifia)
+  #squid(id) {
+    const g = this.#room.games.squid;
+    const r = g.inPlay ? g.round : null;
+    if (!r || !r.players.includes(id)) return;
+    const game = this.#room.runner.item?.game;
+    const send = (action, value = null) => this.#play(id, 'squid', r.roundId, action, value);
+    const alive = () => g.round === r && r.phase === SQ.RUNNING;
+    // El panal: elegir sobre antes de empezar
+    if (game === 'panal' && r.phase === SQ.READY && this.#once(`sqpick:${id}:${r.roundId}`)) {
+      this.#later(randInt(this.#rng, 500, 3000), () => g.round === r && send('pick', randInt(this.#rng, 0, 3)));
+    }
+    if (r.phase !== SQ.RUNNING) return;
+    if (game === 'luzroja' && this.#once(`sqrl:${id}:${r.roundId}`)) {
+      // Avanza en verde; en cada luz roja, de vez en cuando se le escapa el dedo
+      let p = 0;
+      const pace = 0.35 + this.#rng() * 0.6; // algunos no llegan a tiempo
+      const clumsy = this.#rng() * 0.3;
+      let lastRed = null;
+      const step = () => {
+        if (!alive()) return;
+        const t = now();
+        if (t >= r.tOpen) {
+          const { light, since } = r.lightAt(t);
+          if (light === 'green') p = Math.min(100, p + 300 * r.speed * pace);
+          else if (since !== lastRed && t - since > 600) {
+            lastRed = since;
+            if (this.#rng() < clumsy) send('fault', t);
+          }
+          send('p', p);
+        }
+        setTimeout(step, 300);
+      };
+      step();
+    }
+    if (game === 'panal' && this.#once(`sqpanal:${id}:${r.roundId}`)) {
+      let p = 0;
+      let cracks = 0;
+      const step = () => {
+        if (!alive()) return;
+        if (now() >= r.tOpen) {
+          p = Math.min(100, p + randInt(this.#rng, 1, 5));
+          if (this.#rng() < 0.03) cracks++;
+          const state = cracks >= 3 ? 2 : p >= 100 ? 1 : 0;
+          send('trace', [p, cracks, state]);
+          if (state) return;
+        }
+        setTimeout(step, 400);
+      };
+      step();
+    }
+    if (game === 'puente' && r.current === id && this.#once(`sqbr:${id}:${r.roundId}:${r.pos}`)) {
+      const wait = Math.max(0, r.tOpen - now()) + randInt(this.#rng, 1500, 4000);
+      this.#later(wait, () => alive() && r.current === id && send('choose', randInt(this.#rng, 0, 1)));
+    }
+    if (game === 'cuerda' && this.#once(`sqtug:${id}:${r.roundId}`)) {
+      let taps = 0;
+      const rate = 4 + this.#rng() * 5; // toques por segundo
+      const step = () => {
+        if (!alive()) return;
+        if (now() >= r.tOpen) {
+          taps += rate * 0.3 * (0.7 + this.#rng() * 0.6);
+          send('taps', Math.round(taps));
+        }
+        setTimeout(step, 300);
+      };
+      step();
+    }
+    if (game === 'canicas') {
+      const d = r.duelOf(id);
+      if (!d || d.loser) return;
+      const turn = `${r.roundId}:${d.marbles[d.a]}:${d.marbles[d.b]}:${d.hider}:${d.hidden != null}`;
+      if (d.hider === id && d.hidden == null && this.#once(`sqhide:${id}:${turn}`)) {
+        this.#later(Math.max(0, r.tOpen - now()) + randInt(this.#rng, 800, 2500), () => alive() && send('hide', randInt(this.#rng, 1, Math.min(d.marbles[id], 5))));
+      }
+      if (d.hider !== id && d.hidden != null && this.#once(`sqguess:${id}:${turn}`)) {
+        this.#later(randInt(this.#rng, 800, 2500), () => alive() && d.hidden != null && send('guess', [randInt(this.#rng, 0, 1), randInt(this.#rng, 1, Math.min(d.marbles[id], 4))]));
+      }
+    }
   }
 
   // ---------- Libre con contador: el bot que cuenta suma de vez en cuando

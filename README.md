@@ -116,6 +116,23 @@ conectado por HDMI); cada jugador usa su móvil como pulsador, sin instalar nada
 15. **La gran apuesta** (para el final): el portavoz de cada equipo (o cada uno, sin equipos) apuesta desde el móvil
     cuántos puntos se juega, entre 0 y los que tiene (mínimo 5). «Cerrar apuestas» → sale la pregunta y responden →
     «Revelar»: quien acierta gana lo apostado y quien falla lo pierde.
+16. **Squid Games**: cinco juegos seguidos desde el móvil en los que la gente se va eliminando. Al empezar, cada uno
+    lleva un número (alguien se lleva el 456). Cada eliminado mete los puntos de la sección en la hucha y, al final,
+    los supervivientes se la reparten. Cada juego se empieza desde el mando (o Espacio) con una cuenta 3-2-1:
+    - **Luz roja, luz verde**: en verde, mantén el botón para avanzar; en rojo, ni tocarlo ni moverte (el sensor del
+      móvil lo nota; en iPhone, «Activar el sensor» antes de empezar). La tele dice «¡Luz roja!» en voz alta. Quien
+      llega a la meta se salva; quien se mueve o no llega a tiempo, fuera.
+    - **El panal**: cada uno elige un sobre (círculo, triángulo, estrella o paraguas) y repasa la forma con el dedo.
+      Salirse agrieta la galleta: a la tercera grieta, rota y fuera. Quien no la termina a tiempo, también.
+    - **El puente de cristal**: salen de uno en uno; izquierda o derecha en cada tramo. El que falla cae y el siguiente
+      ya conoce ese tramo. Si no eliges en 15 s, te empujan. Cuando alguien llega, cruzan todos los que quedan.
+    - **Tira y afloja**: dos bandos al azar; todos tocan lo más rápido que pueden (cuenta la media del bando). El bando
+      que pierde, fuera entero.
+    - **Canicas**: duelos de pares o nones con 10 canicas cada uno; quien se queda sin ninguna, fuera.
+    - Nunca caen todos: si un juego fuera a dejar a todos fuera, se salvan los que mejor lo han hecho. En el mando ves
+      lo secreto (el camino bueno del puente, cuántas canicas esconde cada uno), puedes elegir por quien tenga el
+      móvil roto en el puente, terminar un juego antes y revivir o eliminar a mano entre juegos. R repite el juego.
+    - En la pestaña **Squid** de la hoja eliges qué juegos y en qué orden, sus segundos y los tramos del puente.
 
 En el móvil de cada concursante, bajo su nombre, se ve en qué sección está (nº de sección, tipo, pregunta y puntos en
 juego) y su equipo con el puesto. Tocando sus puntos se abre el **marcador** (equipos y concursantes, en directo) sin

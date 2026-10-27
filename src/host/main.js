@@ -20,6 +20,7 @@ import { createFreeStage } from './freeStage.js';
 import { createMillionaireStage } from './millionaireStage.js';
 import { createWordsStage } from './wordsStage.js';
 import { createShakeStage } from './shakeStage.js';
+import { createSquidStage } from './squidStage.js';
 import { createBetStage } from './betStage.js';
 import { WPHASE } from '../core/words.js';
 import { SPHASE } from '../core/shake.js';
@@ -66,6 +67,7 @@ let freeStage = null;
 let millionaireStage = null;
 let wordsStage = null;
 let shakeStage = null;
+let squidStage = null;
 let betStage = null;
 let qrs = null; // {join, joinMini, control}
 let lastScreenSignature = null;
@@ -324,6 +326,7 @@ function renderShell() {
   millionaireStage = createMillionaireStage();
   wordsStage = createWordsStage();
   shakeStage = createShakeStage();
+  squidStage = createSquidStage();
   betStage = createBetStage();
 
   clear(app).append(
@@ -456,6 +459,7 @@ function renderScreen(view) {
     // Lo que «falta» de un reloj cambia en cada vista: la pantalla ya lo calcula con su hora, no hay que repintar por ello
     words: view.words && { ...view.words, endsInMs: null },
     shake: view.shake && { ...view.shake, opensInMs: null, endsInMs: null },
+    squid: view.squid && { ...view.squid, now: null, g: view.squid.g && { ...view.squid.g, turnEndsInMs: null } },
     punish: view.punish && { ...view.punish, spin: view.punish.spin && { ...view.punish.spin, ago: null } },
     // La apertura programada no cambia ningún dato: hay que repintar igualmente cuando llega.
     started: [
@@ -478,6 +482,7 @@ function renderScreen(view) {
   wordsStage.stop();
   betStage.stop();
   if (!view.shake) shakeStage.stop(); // la carrera se repinta cada 300 ms: solo se reinicia al salir de ella
+  if (!view.squid) squidStage.stop(); // igual: Squid Games actualiza su escena en su sitio
   // Los sonidos programados (suspense, podio) se anulan al cambiar de momento, no en cada repintado.
   const momentKey = [screenKey(view), view.answer?.roundId, view.answer?.phase, view.game?.phase, view.free?.phase].join('|');
   if (momentKey !== lastMomentKey) sound.cancel();
@@ -531,6 +536,7 @@ function renderScreen(view) {
         [view.words, wordsStage],
         [view.shake, shakeStage],
         [view.bet, betStage],
+        [view.squid, squidStage],
       ]) {
         if (!data) continue;
         st.render(view);
@@ -794,6 +800,11 @@ document.addEventListener('keydown', (e) => {
         const p = room.games.agitar.round.phase;
         if (p === SPHASE.READY) run('shakeStart');
         else if (p === SPHASE.DONE) run('nextItem');
+      } else if (room.games.squid.inPlay) {
+        // Squid Games: empezar el juego; acabado (o en la hucha), al siguiente. En marcha, nada (que no se corte sin querer).
+        const sq = room.games.squid;
+        if (sq.round?.phase === 'ready') run('squidStart');
+        else if (!sq.round) run('nextItem');
       } else if (room.games.apuesta.inPlay) {
         const p = room.games.apuesta.round.phase;
         run(p === BPHASE.BETTING ? 'betClose' : p === BPHASE.QUESTION ? 'betReveal' : 'nextItem');

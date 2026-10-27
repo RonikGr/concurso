@@ -94,4 +94,13 @@ describe('protocolo', () => {
     expect(CONNECTION_OPTIONS.serialization).toBe('binary');
     expect(CONNECTION_OPTIONS.reliable).toBe(true);
   });
+
+  it('juegos (play): el valor es un número o unos pocos números', () => {
+    const play = (value) => parsePlayerMessage({ t: MSG.PLAY, seq: 1, game: 'squid', roundId: 'r', action: 'trace', value });
+    expect(play(3)?.value).toBe(3);
+    expect(play([40, 1, 0])?.value).toEqual([40, 1, 0]);
+    expect(play([1, 2, 3, 4, 5])).toBeNull();
+    expect(play(['x'])).toBeNull();
+    expect(play('hola')).toBeNull();
+  });
 });

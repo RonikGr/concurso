@@ -29,6 +29,7 @@ import { AwayLog } from '../core/awayLog.js';
 import { WordsGame } from './games/words.js';
 import { ShakeGame } from './games/shake.js';
 import { BetGame } from './games/bet.js';
+import { SquidGame } from './games/squid.js';
 import { PunishmentVote } from '../core/punishments.js';
 import { saveRoom } from './persistence.js';
 import { matchFace } from '../core/faces.js';
@@ -127,7 +128,12 @@ export class HostRoom extends EventTarget {
       now,
       pub: (p) => publicPlayer(p),
     };
-    this.games = { palabras: new WordsGame(ctx, saved?.games?.palabras), agitar: new ShakeGame(ctx), apuesta: new BetGame(ctx) };
+    this.games = {
+      palabras: new WordsGame(ctx, saved?.games?.palabras),
+      agitar: new ShakeGame(ctx),
+      apuesta: new BetGame(ctx),
+      squid: new SquidGame(ctx, saved?.games?.squid),
+    };
     for (const g of Object.values(this.games)) Object.assign(this.#actions, g.actions());
     this.#playKey = this.runner.playKey;
     this.#syncAnswerRound();
@@ -549,6 +555,7 @@ export class HostRoom extends EventTarget {
       words: this.games.palabras.inPlay ? this.games.palabras.view() : null,
       shake: this.games.agitar.inPlay ? this.games.agitar.view() : null,
       bet: this.games.apuesta.inPlay ? this.games.apuesta.view() : null,
+      squid: this.games.squid.inPlay ? this.games.squid.view() : null,
       punish: this.punishView(),
       pointsForCorrect: this.pointsForCorrect,
       pointsForWrong: this.pointsForWrong,
@@ -627,6 +634,7 @@ export class HostRoom extends EventTarget {
       words: this.games.palabras.inPlay ? this.games.palabras.view({ forControl: true }) : null,
       shake: this.games.agitar.inPlay ? this.games.agitar.view() : null,
       bet: this.games.apuesta.inPlay ? this.games.apuesta.view({ forControl: true }) : null,
+      squid: this.games.squid.inPlay ? this.games.squid.view({ forControl: true }) : null,
       punish: this.punishView(),
       hasPunish: this.hasPunish,
       pointsForCorrect: v.pointsForCorrect,
@@ -1048,6 +1056,7 @@ export class HostRoom extends EventTarget {
     this.itemResults = {};
     this.punish = new PunishmentVote(show.punishments ?? []);
     this.games.palabras.resetDecks();
+    this.games.squid.reset();
     this.lastImport = { ...report, title: show.title, sections: show.sections.length, teams: show.teams.length };
     this.#afterChange();
     return true;
@@ -1616,6 +1625,7 @@ export class HostRoom extends EventTarget {
       words: this.games.palabras.inPlay && !benched ? this.games.palabras.viewFor(player) : null,
       shake: this.games.agitar.inPlay && !benched ? this.games.agitar.viewFor(player) : null,
       bet: this.games.apuesta.inPlay && !benched ? this.games.apuesta.viewFor(player) : null,
+      squid: this.games.squid.inPlay ? this.games.squid.viewFor(player) : null, // también quien mira (eliminado o presentador)
       punish: this.punishView(player),
       turns: benched ? null : this.#turnsFor(player),
       benched, // el presentador, en una sección donde no juega
@@ -1838,7 +1848,7 @@ export class HostRoom extends EventTarget {
       settings: this.settings,
       jokersUsed: this.jokers.toJSON(),
       itemResults: this.itemResults,
-      games: { palabras: this.games.palabras.toJSON() },
+      games: { palabras: this.games.palabras.toJSON(), squid: this.games.squid.toJSON() },
       punish: this.punish.toJSON(),
       spokespeople: Object.fromEntries(this.spokespeople),
       turnOrders: this.turnOrders,

@@ -59,6 +59,7 @@ function snapshot(view) {
     },
     rules: !!view.introRules,
     step: view.screen === SCREEN.SETUP ? view.setupStep : view.versus ? 'versus' : null,
+    squid: view.squid && { game: view.squid.game, phase: view.squid.phase },
     words: view.words && { round: view.words.roundId, phase: view.words.phase, n: view.words.results.length, last: view.words.results.at(-1)?.result ?? null, score: view.words.score },
     shake: view.shake && { round: view.shake.roundId, phase: view.shake.phase },
     bet: view.bet && { round: view.bet.roundId, phase: view.bet.phase, win: view.bet.owners.some((o) => o.result > 0) },
@@ -91,6 +92,7 @@ function musicScene(n) {
   if (n.screen === SCREEN.FINAL) return 'waltz';
   const { game: g, answer: a, free: f, millionaire: m } = n;
   // Juegos nuevos: tensión mientras corre el tiempo; revelado al acabar
+  if (n.squid) return n.squid.game === 'hucha' ? 'reveal' : n.squid.phase === 'running' ? 'tension' : n.squid.phase === 'done' ? 'suspense' : 'explore';
   if (n.words) return n.words.phase === 'running' ? 'tension' : n.words.phase === 'done' ? 'reveal' : 'explore';
   if (n.shake) return n.shake.phase === 'running' ? 'tension' : n.shake.phase === 'done' ? 'reveal' : 'explore';
   if (n.bet) return n.bet.phase === 'revealed' ? 'reveal' : n.bet.phase === 'question' ? 'tension' : 'suspense';

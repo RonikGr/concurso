@@ -131,7 +131,8 @@ export function parsePlayerMessage(msg) {
       return msg.state === 'back' && isNum(msg.ms) && msg.ms >= 0 ? { t: msg.t, state: 'back', ms: Math.min(msg.ms, 3_600_000) } : null;
     case MSG.PLAY:
       if (!isNum(msg.seq) || !isStr(msg.game, 20) || !isStr(msg.action, 20)) return null;
-      if (msg.value != null && !isNum(msg.value)) return null;
+      // value: un número o unos pocos (p. ej. Squid Games: [avance, grietas, estado], [pares/nones, apuesta])
+      if (msg.value != null && !isNum(msg.value) && !(Array.isArray(msg.value) && msg.value.length <= 4 && msg.value.every(isNum))) return null;
       return { t: msg.t, seq: msg.seq, game: msg.game, roundId: optStr(msg.roundId, 80), action: msg.action, value: msg.value ?? null };
     case MSG.FREE_COUNT:
       return isNum(msg.seq) && isStr(msg.roundId, 80) && [-1, 0, 1].includes(msg.delta) ? { t: msg.t, seq: msg.seq, roundId: msg.roundId, delta: msg.delta } : null;

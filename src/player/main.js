@@ -15,6 +15,7 @@ import { SyncClient } from './syncClient.js';
 import { createAnswerPad } from './answerPad.js';
 import { createMillionairePad } from './millionairePad.js';
 import { createGamesPad } from './gamesPad.js';
+import { createSquidPad } from './squidPad.js';
 import { envGradient, HOME_ENV } from '../shared/environments.js';
 import { keepScreenAwake } from '../shared/wakeLock.js';
 
@@ -90,6 +91,22 @@ const gamesPad = createGamesPad({
   vibrate: (p) => vibrate(p),
 });
 $('#screen-game').append(gamesPad.root);
+
+// Squid Games: cada juego con su pantalla (con la hora de la tele para las luces y los relojes)
+const squidPad = createSquidPad({
+  send: (action, roundId, value = null) => {
+    const seq = ++buzzSeq;
+    ackKinds.set(seq, 'play');
+    connection?.send({ t: MSG.PLAY, seq, game: 'squid', roundId, action, value });
+  },
+  toLocal: (tHost) => sync.toLocal(tHost),
+  toHost: (tLocal) => {
+    const e = sync.estimate();
+    return e ? tLocal + e.offset : null;
+  },
+  vibrate: (p) => vibrate(p),
+});
+$('#screen-game').append(squidPad.root);
 
 const ANSWER_REJECTED = {
   cheat: '🚨 Saliste de la app con la pregunta abierta: tu respuesta no cuenta.',
@@ -316,11 +333,19 @@ function handleMessage(msg, tRecv) {
       if (standingsDialog.open) renderStandings();
       // Concurso en pausa (para seguir otro día): solo el aviso
       $('#paused-pad').hidden = !msg.paused;
+      if (!msg.squid || msg.paused) squidPad.hide();
       if (msg.paused) {
         gamesPad.hide();
         pad.hide();
         millPad.hide();
         for (const id of ['#buzzer', '#free-pad', '#turn-pad']) $(id).hidden = true;
+      } else if (msg.squid) {
+        gamesPad.hide();
+        pad.hide();
+        millPad.hide();
+        for (const id of ['#buzzer', '#free-pad', '#turn-pad']) $(id).hidden = true;
+        squidPad.show();
+        squidPad.render(msg.squid, stateReceivedAt);
       } else if (msg.words || msg.shake || msg.bet || msg.punish) {
         pad.hide();
         millPad.hide();
@@ -744,8 +769,10 @@ function renderSectionBar(state) {
   bar.hidden = !s;
   if (!s) return;
   const unit = state.words ? 'Turno' : state.shake ? 'Carrera' : state.bet ? 'Apuesta' : ({ contador: 'Ronda', reflejos: 'Ronda', libre: 'Prueba' }[state.answer?.kind ?? (state.free ? 'libre' : '')] ?? 'Pregunta');
-  const item = s.itemIndex == null ? '' : s.itemCount ? `${unit} ${s.itemIndex + 1} de ${s.itemCount}` : `${unit} ${s.itemIndex + 1}`;
-  const pts = state.bet ? 'apuesta tus puntos' : s.points?.length > 1 ? `${s.points.join('·')} pts` : `${s.points?.[0] ?? 1} ${s.points?.[0] === 1 ? 'pt' : 'pts'}${state.words ? ' por palabra' : ''}`;
+  let item = s.itemIndex == null ? '' : s.itemCount ? `${unit} ${s.itemIndex + 1} de ${s.itemCount}` : `${unit} ${s.itemIndex + 1}`;
+  // Squid Games: «Juego 2 de 5» (la última «pregunta» es el reparto de la hucha)
+  if (state.squid) item = state.squid.game === 'hucha' ? 'La hucha' : `Juego ${state.squid.step} de ${state.squid.steps - 1}`;
+  const pts = state.squid ? `${s.points?.[0] ?? 1} pts a la hucha por eliminado` : state.bet ? 'apuesta tus puntos' : s.points?.length > 1 ? `${s.points.join('·')} pts` : `${s.points?.[0] ?? 1} ${s.points?.[0] === 1 ? 'pt' : 'pts'}${state.words ? ' por palabra' : ''}`;
   $('#section-top').textContent = [`Sección ${s.index + 1} de ${s.count}`, s.label, item].filter(Boolean).join(' · ');
   $('#section-name').textContent = `${s.name} · ${pts}`;
   $('#section-desc').textContent = s.description ?? '';

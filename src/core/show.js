@@ -3,6 +3,7 @@
 //
 // Las cabeceras se reconocen sin distinguir mayúsculas, tildes ni el orden de las columnas.
 import { COLORS } from '../shared/appearance.js';
+import { SQUID_GAMES, SQUID_ORDER } from './squid.js';
 import { ENVIRONMENTS } from '../shared/environments.js';
 import { TURN_TYPES } from './turns.js';
 import { MILLIONAIRE_POINTS } from './millionaireMusic.js';
@@ -20,6 +21,7 @@ export const SECTION_TYPES = {
   palabras: { label: 'Palabras secretas', sheet: 'Palabras', ranked: false, presenterPlays: false, needsItems: true },
   agitar: { label: 'Agita el móvil', sheet: 'Agitar', ranked: true, presenterPlays: true, needsItems: false },
   apuesta: { label: 'La gran apuesta', sheet: 'Apuesta', ranked: false, presenterPlays: false, needsItems: true },
+  squid: { label: 'Squid Games', sheet: 'Squid', ranked: false, presenterPlays: false, needsItems: false },
 };
 
 /** Palabras secretas: cómo se hace adivinar cada palabra. */
@@ -231,6 +233,7 @@ const COLUMNS = {
   palabras: { section: ['seccion'], word: ['palabra'], banned: ['prohibidas', 'palabras prohibidas'], mode: ['modo'] },
   agitar: { section: ['seccion'], seconds: ['segundos'] },
   apuesta: { section: ['seccion'], question: ['pregunta'], a: ['a'], b: ['b'], c: ['c'], d: ['d'], correct: ['correcta'] },
+  squid: { section: ['seccion'], game: ['juego'], seconds: ['segundos'], steps: ['tramos', 'pasos'] },
   castigos: { text: ['castigo'] },
 };
 
@@ -247,6 +250,7 @@ const TYPE_ALIASES = [
   ['palabras', ['palabras secretas', 'palabras', 'mimica', 'tabu']],
   ['agitar', ['agita el movil', 'agitar', 'agita']],
   ['apuesta', ['la gran apuesta', 'apuesta']],
+  ['squid', ['squid games', 'squid game', 'squid', 'el juego del calamar', 'juego del calamar']],
 ];
 
 export function parseSectionType(value) {
@@ -459,6 +463,11 @@ export function parseShowWorkbook(sheets) {
       s.items = rows.flatMap((row) => Array.from({ length: row.rounds }, (_, i) => ({ round: i + 1, rounds: row.rounds, duel: row.duel })));
     }
     if (s.type === 'agitar' && !s.items.length) s.items = [{ seconds: 10 }]; // sin filas: una ronda de 10 s
+    if (s.type === 'squid') {
+      // Sin filas: los 5 juegos en su orden. Al final, siempre, el reparto de la hucha.
+      if (!s.items.length) s.items = SQUID_ORDER.map((game) => ({ game, seconds: SQUID_GAMES[game].seconds, steps: null }));
+      s.items.push({ game: 'hucha' });
+    }
     if (s.type === 'palabras' && s.items.length) {
       // Las filas son las tarjetas; los «puntos» del recorrido, los turnos: cada equipo N veces, alternando
       // (sin equipos, 6 turnos que van rotando entre la gente).
@@ -597,6 +606,18 @@ const ITEM_PARSERS = {
   },
 
   /** La gran apuesta: una pregunta de opciones por fila (como el Test). */
+  /** Squid Games: un juego por fila (en el orden en que se juegan). */
+  squid(v, err) {
+    const g = norm(v.game).replace(/^(el|la|los|las) /, ''); // «El panal» = «panal»
+    const game = g.startsWith('luz') ? 'luzroja' : /^(panal|dalgona|galleta)/.test(g) ? 'panal' : g.startsWith('puente') ? 'puente' : /^(tira|cuerda)/.test(g) ? 'cuerda' : g.startsWith('canica') ? 'canicas' : null;
+    if (!game) return err('"Juego" debe ser Luz roja, El panal, El puente, Tira y afloja o Canicas.');
+    const seconds = isEmpty(v.seconds) ? SQUID_GAMES[game].seconds : parseNumber(v.seconds);
+    if (seconds == null || seconds < 5 || seconds > 600) return err('"Segundos" debe ser un número entre 5 y 600.');
+    const steps = isEmpty(v.steps) ? null : parseNumber(v.steps);
+    if (steps != null && (!Number.isInteger(steps) || steps < 2 || steps > 16)) return err('"Tramos" debe ser un número entero de 2 a 16.');
+    return { game, seconds, steps: game === 'puente' ? steps : null };
+  },
+
   apuesta(v, err) {
     const question = text(v.question);
     if (!question) return err('Falta la pregunta.');

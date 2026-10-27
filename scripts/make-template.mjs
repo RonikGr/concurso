@@ -32,6 +32,7 @@ const TYPES = [
   { type: 'Palabras secretas', sheet: 'Palabras', what: 'Mímica, Tabú, descríbelo o tararéalo: uno del equipo la hace y los suyos adivinan.' },
   { type: 'Agita el móvil', sheet: 'Agitar', what: 'Carrera: gana quien más agite el móvil en los segundos que digas.' },
   { type: 'La gran apuesta', sheet: 'Apuesta', what: 'Para el final: cada equipo apuesta sus puntos y luego responde.' },
+  { type: 'Squid Games', sheet: 'Squid', what: 'Juegos seguidos desde el móvil en los que la gente se va eliminando; los supervivientes se reparten la hucha.' },
 ];
 
 // Formato que se repite
@@ -68,7 +69,7 @@ const SHEETS = [
       {
         title: 'Puntos',
         width: 10,
-        help: 'Por acierto (p. ej. 1). Por puestos: 3,2,1. Test: fácil, media, difícil (2,5,10). Palabras: por palabra.',
+        help: 'Por acierto (p. ej. 1). Por puestos: 3,2,1. Test: fácil, media, difícil (2,5,10). Palabras: por palabra. Squid: lo que mete cada eliminado en la hucha.',
       },
       { title: 'El presentador juega', width: 12, list: yesNo, help: 'Vacío = lo normal del tipo.' },
       { title: 'Por turnos', width: 11, list: yesNo, help: 'Sí = uno de cada equipo por pregunta (Verdad, Estimación, Contador).' },
@@ -94,7 +95,8 @@ const SHEETS = [
       [15, 'Sí', 'La galleta', 'Libre', null, 'Con las manos atadas a la espalda: el primero que se coma la galleta, gana.', 3, null],
       [16, 'Sí', 'Botellas en orden', 'Libre', null, 'Adivina el orden de las 5 botellas: en cada intento te decimos cuántas están bien. Gana el más rápido.', 5, null],
       [17, 'Sí', 'Fit o Fat', 'Libre', null, 'Pruebas físicas.', 3, 'Sí', null, 'Noche de luna'],
-      [18, 'Sí', 'La gran apuesta', 'La gran apuesta', null, 'Apostad lo que tenéis. Aquí se decide todo.', null, null],
+      [18, 'Sí', 'Squid Games', 'Squid Games', null, 'Cinco juegos seguidos: quien falla, fuera. Los que sobreviven se reparten la hucha.', 2, null],
+      [19, 'Sí', 'La gran apuesta', 'La gran apuesta', null, 'Apostad lo que tenéis. Aquí se decide todo.', null, null],
     ],
     // Las que no se juegan, en rojo (de un vistazo)
     cf: [
@@ -426,6 +428,17 @@ const SHEETS = [
       ['¿Qué actor fue Drácula en la película de 1931?', 'Boris Karloff', 'Christopher Lee', 'Bela Lugosi', 'Vincent Price', 'C'],
     ],
     cf: ['A', 'B', 'C', 'D'].map((l, i) => ({ col: 2 + i, when: `$F{r}="${l}"`, style: GOOD })),
+  },
+  {
+    name: 'Squid',
+    tab: 'FFFF2E88',
+    columns: [
+      { title: 'Juego', width: 22, list: ['Luz roja', 'El panal', 'El puente', 'Tira y afloja', 'Canicas'], help: 'Uno por fila, en el orden en que se juegan. Sin filas = los 5.' },
+      { title: 'Segundos', width: 10, help: 'Cuánto dura (en el puente, el tiempo para elegir cada tramo). Vacío = lo normal.' },
+      { title: 'Tramos', width: 9, help: 'Solo el puente: cuántos tramos tiene. Vacío = según cuántos quedan vivos.' },
+      sectionCol,
+    ],
+    rows: [['Luz roja', 60], ['El panal', 90], ['El puente', 15], ['Tira y afloja', 20], ['Canicas', 150]],
   },
   {
     name: 'Castigos',

@@ -306,6 +306,7 @@ function gameTabBody() {
       if (view.section?.type === 'test' && view.playable && !view.introRules) return [sectionCard(), bigNext('Explicar cómo se juega →'), navRow()];
       return [sectionCard(), bigNext(view.playable ? 'Empezar sección →' : 'Saltar esta sección →'), navRow()];
     case 'play':
+      if (view.squid) return squidPanel();
       if (view.words) return wordsPanel();
       if (view.shake) return shakePanel();
       if (view.bet) return betPanel();
@@ -417,6 +418,71 @@ function betPanel() {
   if (b.phase === 'betting') return [head, owners, h('button', { class: 'btn primary big', onclick: () => cmd('betClose') }, b.allBet ? 'Cerrar apuestas y ver la pregunta →' : 'Cerrar apuestas (faltan) →'), navRow()];
   if (b.phase === 'question') return [head, owners, h('button', { class: 'btn primary big', onclick: () => cmd('betReveal') }, b.allAnswered ? 'Revelar →' : 'Revelar (no han respondido todos) →'), navRow()];
   return [head, owners, h('button', { class: 'btn primary big', onclick: () => cmd('nextItem') }, 'Siguiente →'), navRow()];
+}
+
+/** Squid Games: empezar cada juego, ver lo secreto (el camino del puente, las canicas escondidas) y corregir a mano. */
+function squidPanel() {
+  const q = view.squid;
+  const g = q.g;
+  const n = (x) => `Nº ${String(x.number ?? '').padStart(3, '0')} ${x.name}`;
+  const head = h(
+    'section',
+    { class: 'c-card' },
+    h('p', { class: 'c-kicker' }, q.game === 'hucha' ? 'Squid Games · La hucha' : `Squid Games · Juego ${q.step} de ${q.steps - 1}`),
+    h('h2', {}, `${q.icon} ${q.label}`),
+    h('p', { class: 'muted' }, q.rule),
+    h('p', {}, `🐷 ${q.pot} pts en la hucha · ${q.alive.length} vivos · ${q.perHead} por eliminado`),
+  );
+  const fixes = (allowed) =>
+    allowed
+      ? h(
+          'section',
+          { class: 'c-card' },
+          h('p', { class: 'c-kicker' }, 'Corregir a mano'),
+          q.alive.map((p) => h('div', { class: 'c-row' }, h('span', {}, n(p)), btn('💀 Eliminar', () => confirm(`¿Eliminar a ${p.name}?`) && cmd('squidEliminate', { id: p.id }), 'bad small'))),
+          q.fallen.map((p) => h('div', { class: 'c-row' }, h('span', { class: 'muted' }, `💀 ${n(p)}`), btn('↩ Revivir', () => cmd('squidRevive', { id: p.id }), 'small'))),
+        )
+      : null;
+  if (q.game === 'hucha') {
+    return [head, h('section', { class: 'c-card center' }, h('h2', {}, q.alive.length ? `+${q.share} para cada superviviente` : 'No sobrevive nadie'), h('p', {}, q.alive.map(n).join(' · '))), bigNext('Al marcador →'), fixes(true), navRow()];
+  }
+  if (!g || q.phase === 'ready') {
+    const extra = q.game === 'panal' && g ? h('p', { class: 'muted' }, `${g.picked.length} de ${g.players.length} han elegido sobre`) : null;
+    return [head, extra, h('button', { class: 'btn primary big', onclick: () => cmd('squidStart') }, '▶ ¡Empezar! (3, 2, 1…)'), fixes(true), navRow()];
+  }
+  if (q.phase === 'done') {
+    const gone = g.players.filter((p) => p.out);
+    return [
+      head,
+      h('section', { class: 'c-card' }, h('p', { class: 'c-kicker' }, g.skipped ? 'Se ha saltado (poca gente)' : `Fuera en este juego: ${gone.length}`), h('p', {}, gone.map(n).join(' · ') || '¡Nadie!')),
+      bigNext(q.step < q.steps - 1 ? 'Siguiente juego →' : 'La hucha →'),
+      h('div', { class: 'c-row' }, btn('Repetir este juego', () => confirm('¿Repetir el juego? Vuelven los que cayeron en él.') && cmd('restart'))),
+      fixes(true),
+      navRow(),
+    ];
+  }
+  // En marcha: lo que pasa (y lo secreto)
+  const live = [];
+  const byId = new Map(g.players.map((p) => [p.id, p]));
+  if (q.game === 'luzroja') live.push(h('p', {}, `🏁 ${g.crossed.length} a salvo · 💀 ${Object.keys(g.fallen).length} fuera · ${g.players.length - g.crossed.length - Object.keys(g.fallen).length} en juego`));
+  if (q.game === 'panal') live.push(h('p', {}, g.players.map((p) => `${p.name}: ${g.state[p.id] === 'done' ? '✅' : g.state[p.id] === 'broken' ? '💀' : `${Math.round(g.progress[p.id] ?? 0)} %`}`).join(' · ')));
+  if (q.game === 'puente') {
+    const cur = g.current && byId.get(g.current);
+    live.push(
+      h('p', {}, `Camino bueno: ${g.safe.map((x, i) => `${i + 1}${x === 'L' ? '⬅️' : '➡️'}`).join(' ')}`),
+      h('p', {}, cur ? `Elige ${n(cur)} (tramo ${g.pos + 1} de ${g.steps})` : '…'),
+      cur ? h('div', { class: 'c-grid2' }, btn('Elige por él: ⬅️', () => cmd('squidChoose', { side: 'L' })), btn('Elige por él: ➡️', () => cmd('squidChoose', { side: 'R' }))) : null,
+    );
+  }
+  if (q.game === 'cuerda') live.push(h('p', {}, `○ ${g.totals.A} toques · △ ${g.totals.B} toques`));
+  if (q.game === 'canicas') {
+    live.push(
+      ...g.duels.map((d) =>
+        h('p', { class: d.loser ? 'muted' : '' }, `${byId.get(d.a)?.name} ${d.marbles[d.a]} – ${d.marbles[d.b]} ${byId.get(d.b)?.name}${d.loser ? ' · 💀 ' + byId.get(d.loser)?.name : d.hidden != null ? ` · esconde ${byId.get(d.hider)?.name}: ${d.hidden}` : ''}`),
+      ),
+    );
+  }
+  return [head, h('section', { class: 'c-card' }, h('p', { class: 'c-kicker' }, 'En marcha'), ...live), btn('Terminar ya este juego', () => confirm('¿Terminar ya? Quien no lo haya superado queda fuera.') && cmd('squidStop')), navRow()];
 }
 
 /** Castigos: la votación (tras presentar los equipos). */

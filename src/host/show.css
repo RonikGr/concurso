@@ -3277,3 +3277,458 @@ body.splash-on {
 .paused-join p {
   margin: 0.2rem 0;
 }
+
+/* ------------------------------------------------------------------ Squid Games */
+.squid-stage {
+  --sq-pink: #ff2e88;
+  --sq-teal: #1fb5a5;
+  display: grid;
+  gap: 0.8rem;
+  width: 100%;
+  padding: 0.6rem 1rem;
+  text-align: center;
+}
+
+.sq-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  font-weight: 800;
+}
+
+.sq-shapes {
+  color: var(--sq-pink);
+  letter-spacing: 0.3em;
+  font-size: 1.4rem;
+}
+
+.sq-kicker {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.sq-pot {
+  padding: 0.3rem 0.9rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sq-pink) 25%, rgb(7 5 13 / 0.7));
+  border: 2px solid var(--sq-pink);
+}
+
+.sq-icon,
+.sq-pig {
+  margin: 0;
+  font-size: 5rem;
+  line-height: 1;
+}
+
+.sq-pig {
+  font-size: 8rem;
+  animation: throb 1.2s ease-in-out infinite;
+}
+
+.sq-title {
+  margin: 0;
+  font-size: clamp(3rem, min(7vw, 11vh), 6rem);
+  color: var(--sq-pink);
+  text-shadow: 0 0 0.35em color-mix(in srgb, var(--sq-pink) 60%, transparent);
+}
+
+.sq-rule {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.sq-intro,
+.sq-done,
+.sq-hucha,
+.sq-scene {
+  display: grid;
+  justify-items: center;
+  gap: 0.8rem;
+}
+
+.sq-roster {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.45rem;
+}
+
+.sq-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.8rem 0.25rem 0.3rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sq-teal) 30%, rgb(7 5 13 / 0.75));
+  border: 2px solid color-mix(in srgb, var(--pc) 70%, transparent);
+  font-size: 1.15rem;
+}
+
+.sq-badge.out {
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
+.sq-ava {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--pc);
+}
+
+.sq-ava img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sq-num {
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+
+.sq-roster.small .sq-badge {
+  font-size: 0.95rem;
+}
+
+.sq-roster.out .sq-badge {
+  border-color: var(--danger);
+}
+
+.sq-plus {
+  color: var(--ok);
+}
+
+.sq-top {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  min-height: 6rem;
+}
+
+.sq-count {
+  margin: 0;
+  font-size: 5rem;
+  color: var(--accent);
+}
+
+.sq-clock {
+  width: 5.5rem;
+  height: 5.5rem;
+}
+
+.sq-clock.small {
+  width: 4rem;
+  height: 4rem;
+}
+
+.sq-clock span {
+  font-size: 2rem;
+}
+
+.sq-clock.small span {
+  font-size: 1.5rem;
+}
+
+/* Luz roja, luz verde */
+.sq-light {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 1.6rem;
+  border-radius: 1.2rem;
+  font-size: 2.6rem;
+  background: rgb(7 5 13 / 0.7);
+  border: 4px solid var(--muted);
+  transition:
+    background 120ms,
+    border-color 120ms;
+}
+
+.sq-light[data-light='green'] {
+  background: color-mix(in srgb, #2fbf71 45%, rgb(7 5 13 / 0.6));
+  border-color: #2fbf71;
+}
+
+.sq-light[data-light='red'] {
+  background: color-mix(in srgb, #e53935 55%, rgb(7 5 13 / 0.6));
+  border-color: #ff5252;
+  box-shadow: 0 0 3rem rgb(255 40 40 / 0.5);
+}
+
+.sq-doll {
+  font-size: 3.5rem;
+  transition: transform 300ms var(--ease-out);
+}
+
+.sq-light[data-light='green'] .sq-doll {
+  transform: scaleX(-1) rotate(-8deg); /* de espaldas */
+}
+
+.sq-lanes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.3rem;
+  width: min(70rem, 94vw);
+}
+
+.sq-lanes li {
+  display: grid;
+  grid-template-columns: 3.2rem 1fr;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sq-lane {
+  position: relative;
+  height: 2.2rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgb(255 255 255 / 0.05), rgb(255 255 255 / 0.12));
+}
+
+.sq-runner {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--p, 0%) * 0.94);
+  translate: 0 -50%;
+  display: grid;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 50%;
+  background: var(--pc);
+  transition: left 250ms linear;
+}
+
+.sq-goal {
+  position: absolute;
+  right: 0.3rem;
+  top: 50%;
+  translate: 0 -50%;
+}
+
+.sq-lanes li.out {
+  opacity: 0.4;
+}
+
+.sq-lanes li.safe .sq-lane {
+  box-shadow: inset 0 0 0 2px var(--ok);
+}
+
+/* El panal */
+.sq-cookies {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 16rem));
+  justify-content: center;
+  gap: 0.7rem;
+  width: min(80rem, 94vw);
+}
+
+.sq-cookie {
+  display: grid;
+  justify-items: center;
+  gap: 0.3rem;
+  padding: 0.7rem;
+  border-radius: 1rem;
+  background: radial-gradient(circle at 50% 30%, #d9a441, #a8701c 70%);
+  color: #2a1600;
+}
+
+.sq-cookie .sq-badge {
+  color: var(--text);
+}
+
+.sq-shape {
+  font-size: 2.6rem;
+}
+
+.sq-meter {
+  display: flex;
+  gap: 0.4rem;
+  font-size: 1.3rem;
+}
+
+.sq-cookie[data-state='broken'] {
+  filter: grayscale(1) brightness(0.7);
+}
+
+.sq-cookie[data-state='done'] {
+  box-shadow: 0 0 0 4px var(--ok);
+}
+
+/* El puente de cristal */
+.sq-bridge-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.sq-shore {
+  font-size: 2.2rem;
+}
+
+.sq-step {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: center;
+}
+
+.sq-step small {
+  color: var(--muted);
+}
+
+.sq-step.here {
+  outline: 3px solid var(--accent);
+  outline-offset: 0.3rem;
+  border-radius: 0.4rem;
+}
+
+.sq-panel {
+  display: grid;
+  place-items: center;
+  width: clamp(2.6rem, 6vw, 4.4rem);
+  height: clamp(2.6rem, 6vw, 4.4rem);
+  border-radius: 0.4rem;
+  font-size: 1.6rem;
+}
+
+.sq-panel.glass {
+  background: linear-gradient(135deg, rgb(180 230 255 / 0.35), rgb(180 230 255 / 0.12));
+  border: 2px solid rgb(200 240 255 / 0.6);
+}
+
+.sq-panel.solid {
+  background: linear-gradient(135deg, #7fe3ff, #2a9fd6);
+  border: 2px solid #c8f4ff;
+}
+
+.sq-panel.broken {
+  background: rgb(7 5 13 / 0.6);
+  border: 2px dashed var(--danger);
+}
+
+.sq-panel.last {
+  animation: pop-in 500ms var(--ease-spring);
+}
+
+.sq-turn {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.sq-last {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.sq-last.ok {
+  color: var(--ok);
+}
+
+.sq-last.ko {
+  color: var(--danger);
+}
+
+/* Tira y afloja */
+.sq-rope {
+  position: relative;
+  width: min(60rem, 90vw);
+  height: 1.2rem;
+  border-radius: 999px;
+  background: repeating-linear-gradient(60deg, #c8a165 0 0.6rem, #a07a40 0.6rem 1.2rem);
+}
+
+.sq-pit {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  font-size: 2rem;
+  opacity: 0.6;
+}
+
+.sq-knot {
+  position: absolute;
+  left: var(--x, 50%);
+  top: 50%;
+  translate: -50% -50%;
+  font-size: 2.4rem;
+  transition: left 250ms linear;
+}
+
+.sq-sides {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  width: min(80rem, 94vw);
+}
+
+.sq-side-name {
+  margin: 0 0 0.4rem;
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.sq-side.A .sq-side-name {
+  color: var(--sq-pink);
+}
+
+.sq-side.B .sq-side-name {
+  color: var(--sq-teal);
+}
+
+/* Canicas */
+.sq-duels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 26rem));
+  justify-content: center;
+  gap: 0.7rem;
+  width: min(84rem, 94vw);
+}
+
+.sq-duel {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.7rem;
+  border-radius: 1rem;
+  background: rgb(7 5 13 / 0.6);
+  border: 2px solid color-mix(in srgb, var(--sq-teal) 60%, transparent);
+  text-align: left;
+}
+
+.sq-duel.over {
+  border-color: var(--danger);
+}
+
+.sq-duel-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.sq-marbles {
+  color: #9be7ff;
+  letter-spacing: 0.05em;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.sq-marbles b {
+  color: var(--text);
+  font-size: 1.2rem;
+}

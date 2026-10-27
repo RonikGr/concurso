@@ -72,7 +72,7 @@ Jugador → tele: `hello {v, role:'player', playerId, name, color, icon, teamId}
 `joker {seq, roundId, kind, target?}` (millonario; target = a quién se llama), `freeCount {seq, roundId, delta}` (Libre con contador: +1/−1 desde el móvil elegido; responde
 `answerAck`), `turnOrder {order}` (portavoz: orden de su equipo en una sección por turnos), `away {state: out|back, ms?}`
 (antitrampas: salió de la app / volvió y cuánto estuvo fuera), `play {seq, game, roundId, action, value}` (juegos de la
-fase 10: game = palabras | agitar | apuesta | castigo; responde `answerAck`), `sync {id, t0}`, `syncReport {offset, err, rtt, samples}`.
+fase 10 y Squid Games: game = palabras | agitar | apuesta | castigo | squid; responde `answerAck`), `sync {id, t0}`, `syncReport {offset, err, rtt, samples}`.
 
 Tele → jugador: `welcome {you, adjusted}`, `state {room, title, playerCount, minPlayers, taken, teams, teamsLocked, you,
 screen, section, game, winner, answer, free, standings}` (`section` = nombre, tipo, descripción, puntos, nº de sección y de
@@ -91,6 +91,7 @@ setSpokesperson, setTurnOrder, mShow, mSeat, mMark, mUnmark, mReveal, mCallStart
 freeParticipants, freeCounter, freeStart, freeOut, freeRevive, freeCount, freeStop, freeAward,
 wordsStart, wordsOk, wordsPass, wordsFoul, wordsUndo, wordsStop, shakeStart, shakeStop, betClose, betReveal, betSet, betAnswer,
 punishClose, punishReopen, punishSpin, toggleSection, pause, resume,
+squidStart, squidStop, squidRevive, squidEliminate, squidChoose,
 lockTeams, moveTeam, adjustScore, adjustTeamBonus, resetScores, removePlayer, approveControl, denyControl, updateSettings.
 
 - Emparejar mando: la tele (preparación) enseña un QR a `control.html?sala=CÓDIGO#k=CLAVE` (la clave tras `#` no sale del
@@ -261,6 +262,25 @@ jugador (null si está en el banquillo) y les pasa los `play` (`#onPlay`; `casti
   El enlace «Descargar plantilla» lleva `?v=` para que el navegador no dé una vieja de su caché. `next` / `prev` / fin de sección saltan las quitadas; nº de sección y total cuentan solo las que se juegan.
 - Los concursantes de prueba también juegan: hacen la tarjeta si les toca (65 % aciertan), pitan a veces, agitan a su
   ritmo, apuestan y responden si son portavoces y votan 3 castigos.
+
+### Squid Games (fase 12)
+
+Lógica pura con tests en `core/squid.js` (y `core/dalgona.js`, las formas del panal y el repaso). `SquidState`: números
+(1–456, alguien el 456), vivos, caídos `{id, game, pot}` y hucha. Una ronda por juego (`RedLightRound`, `DalgonaRound`,
+`GlassBridgeRound`, `TugRound`, `MarblesRound`; `createSquidRound`): ready → running (3-2-1, `COUNTDOWN_MS`) → done
+(`out`). `spareBest`: si fueran a caer todos, se salvan los de mejor marca. Pestaña «Squid» (Juego, Segundos, Tramos) →
+`section.items` = juegos + `{game: 'hucha'}` al final (sin filas, los 5).
+- Tele: `host/games/squid.js` (`SquidGame`, como los de la fase 10 + `reset()`): al entrar en el primer juego juegan los
+  conectados que no presentan; persiste por sección `{state, before[playKey] (para R), results[playKey] (vista final),
+  awards}` en `games.squid`. Elimina al acabar cada juego (`perHead` = puntos de la sección por cabeza a la hucha);
+  en la hucha reparte `share` a los vivos (`adjustScore`). Órdenes squidStart, squidStop, squidRevive, squidEliminate
+  {id} (no en marcha), squidChoose {side} (puente: por quien está delante). Fin antes de tiempo (`#earlyEnd`).
+  Pantalla `squidStage.js` (escena montada por clave; lo continuo se actualiza en su sitio; luces por temporizador y
+  «¡Luz roja!» con la voz del navegador). Mando `squidPanel` (con lo secreto). Bots en `#squid`.
+- Móvil `player/squidPad.js` (`state.squid`, también para quien mira o cayó): `play {game: 'squid', action}`: luzroja
+  p (avance), fault (hora de la tele o −1: pulsar o sensor en rojo pasados 450 ms); panal pick, trace [%, grietas,
+  0|1|2]; puente choose 0/1; cuerda taps; canicas hide n, guess [0 pares | 1 nones, apuesta]. `value` admite hasta 4
+  números (protocol.js). Horas de la tele → locales con `sync.toLocal` (sin sincronizar, desde `view.now`).
 
 ### Pruebas con canción y contrarreloj (fase 11)
 
@@ -455,6 +475,7 @@ jugador (null si está en el banquillo) y les pasa los `play` (`#onPlay`; `casti
    animado, revelados con suspense, podio con confeti, wake lock, tarjetas compactas para 20 jugadores. ✔
 10. Juegos de fiesta: Palabras secretas, Agita el móvil, La gran apuesta; castigos con ruleta; elegir los juegos. ✔
 11. Pruebas físicas y con música: canciones desde la carpeta (¿Qué canción es?, bachata con silencio antes del golpe),
-    contrarreloj con intentos (botellas); calidad automática de la imagen de la tele. ✔
+    contrarreloj con intentos (botellas); calidad automática de la imagen de la tele. ✔ Parar y seguir otro día. ✔
+12. Squid Games: Luz roja, El panal, El puente, Tira y afloja y Canicas, con eliminados y hucha. ✔
 
 Hoja de ruta posterior: mandos físicos (Gamepad API), imagen pixelada, rosco, dibuja y adivina.
