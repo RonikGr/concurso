@@ -111,6 +111,8 @@ export class HostRoom extends EventTarget {
     this.presenterIds = new Set(saved?.presenterIds ?? []);
     // Quién sale de la app (en cualquier momento): avisos y recuento para el mando
     this.awayLog = new AwayLog(saved?.awayLog);
+    // Concurso en pausa para seguir otro día: {at: fecha} (lo guardado no caduca mientras tanto)
+    this.paused = saved?.paused ?? null;
     // Castigos para quien pierda: se votan tras presentar los equipos; en el final, la ruleta
     this.punish = new PunishmentVote(this.show.punishments ?? [], saved?.punish);
     this.answerRound = null;
@@ -533,6 +535,7 @@ export class HostRoom extends EventTarget {
       versus: this.versusStep,
       introRules: this.introRules,
       bots: { count: this.bots.ids.length, auto: this.bots.auto }, // concursantes de prueba
+      paused: this.paused, // en pausa para seguir otro día: la tele enseña «Continuará…»
       sectionLabel: r.section ? SECTION_TYPES[r.section.type].label : '',
       playable: isPlayable(r.section),
       item: r.item,
@@ -580,6 +583,7 @@ export class HostRoom extends EventTarget {
     const pub = (p) => p && { id: p.id, name: p.name, icon: p.icon, face: p.face ?? null, color: p.color, teamId: p.teamId };
     return {
       code: v.code,
+      paused: v.paused,
       network: this.network,
       connectFailures: this.connectFailures ?? null,
       title: v.title,
@@ -922,7 +926,18 @@ export class HostRoom extends EventTarget {
       this.turnOrders[sec] = { ...this.turnOrders[sec], [teamId]: normalizeOrder(String(order).split(','), this.#members(teamId).map((m) => m.id)) };
       return true;
     },
-    // Antitrampas: el presentador perdona a quien salió de la app (vuelve a poder responder o pulsar)
+    // Parar el concurso (para seguir otro día) y seguir. Todo está ya guardado: esto solo cambia lo que se ve y que
+    // lo guardado no caduque.
+    pause: () => {
+      if (this.paused) return false;
+      this.paused = { at: Date.now() };
+      return true;
+    },
+    resume: () => {
+      if (!this.paused) return false;
+      this.paused = null;
+      return true;
+    },
     // ¿Qué juegos jugamos? (en la preparación): quitar o poner una sección
     toggleSection: ({ id, on }) => {
       if (this.runner.screen !== SCREEN.SETUP) return 'Los juegos se eligen en la preparación.';
@@ -943,6 +958,7 @@ export class HostRoom extends EventTarget {
       return true;
     },
 
+    // Antitrampas: el presentador perdona a quien salió de la app (vuelve a poder responder o pulsar)
     forgive: ({ playerId }) => {
       let ok = false;
       if (this.inAnswerPlay) ok = this.answerRound.forgive(playerId);
@@ -1046,6 +1062,15 @@ export class HostRoom extends EventTarget {
   // ------------------------------------------------------------------ Mensajes de los jugadores
 
   #onHello(playerId, msg) {
+    // Ya empezado, alguien nuevo con el nombre de un jugador desconectado: es él con otro móvil (o con el suyo
+    // borrado). Recupera su identidad de antes (puntos, equipo…) y vuelve a entrar con ella.
+    if (!this.roster.get(playerId) && !msg.presenter && this.runner.screen !== SCREEN.SETUP) {
+      const back = this.roster.returningByName(msg.name);
+      if (back) {
+        const { id, name, color, icon, teamId } = back; // vuelve tal como era (no con el aspecto del móvil nuevo)
+        return { ok: false, error: { code: ERROR_CODE.ADOPT, playerId: id, name, color, icon, teamId, message: `¡Hola de nuevo, ${name}! Sigues con tus puntos.` } };
+      }
+    }
     const res = this.roster.join({ playerId, name: msg.name, color: msg.color, icon: msg.icon, teamId: msg.teamId });
     if (!res.ok) {
       return { ok: false, error: { code: ERROR_CODE.ROOM_FULL, message: `La sala está llena (máximo ${MAX_PLAYERS} jugadores).` } };
@@ -1594,6 +1619,7 @@ export class HostRoom extends EventTarget {
       punish: this.punishView(player),
       turns: benched ? null : this.#turnsFor(player),
       benched, // el presentador, en una sección donde no juega
+      paused: !!this.paused,
     };
   }
 
@@ -1819,6 +1845,7 @@ export class HostRoom extends EventTarget {
       setupStep: this.setupStep,
       presenterIds: [...this.presenterIds],
       awayLog: this.awayLog.toJSON(),
+      paused: this.paused,
     });
   }
 

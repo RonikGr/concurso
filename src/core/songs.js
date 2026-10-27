@@ -13,7 +13,7 @@ import { songKey } from './folder.js';
  *  - Libre con canción (la bachata): suena desde «¡Empezar!»; calla antes del golpe y vuelve en el golpe; acaba 4 s después.
  */
 export function songFor(view) {
-  if (view.screen !== SCREEN.PLAY || view.peekScoreboard) return null;
+  if (view.screen !== SCREEN.PLAY || view.peekScoreboard || view.paused) return null;
   const f = view.free;
   if (f?.song) {
     const track = songKey(f.song);

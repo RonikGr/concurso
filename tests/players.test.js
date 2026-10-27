@@ -206,3 +206,20 @@ describe('Roster con equipos', () => {
     expect(restored.teamStandings()[0]).toMatchObject({ score: 4 });
   });
 });
+describe('vuelve con otro móvil', () => {
+  it('reconoce al jugador desconectado por su nombre, si no hay duda', () => {
+    const r = new Roster();
+    r.join({ playerId: 'a', name: 'Ana', color: 'rojo', icon: 'zorro' });
+    r.join({ playerId: 'b', name: 'ana', color: 'azul', icon: 'panda' }); // → «ana (2)»
+    r.join({ playerId: 'c', name: 'Luis', color: 'verde', icon: 'rana' });
+    expect(r.returningByName('Luis')).toBeNull(); // sigue conectado: no es él
+    r.setConnected('c', false);
+    expect(r.returningByName('  luis ')?.id).toBe('c');
+    r.setConnected('a', false);
+    expect(r.returningByName('ANA')?.id).toBe('a'); // el nombre exacto
+    r.setConnected('a', true);
+    r.setConnected('b', false);
+    expect(r.returningByName('Ana')?.id).toBe('b'); // «ana (2)», sin el (2)
+    expect(r.returningByName('Pepe')).toBeNull();
+  });
+});

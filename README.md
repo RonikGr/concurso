@@ -121,6 +121,15 @@ En el móvil de cada concursante, bajo su nombre, se ve en qué sección está (
 juego) y su equipo con el puesto. Tocando sus puntos se abre el **marcador** (equipos y concursantes, en directo) sin
 salir de lo que está pasando: «Volver al juego» lo cierra.
 
+**Parar y seguir otro día:** **⏸ Parar por hoy** (en la barra de la tele o en el mando, pestaña Secciones). La tele
+enseña «Continuará…» con el marcador y por dónde ibais, y los móviles «Concurso en pausa». Todo queda guardado en el
+portátil y, mientras esté en pausa, no caduca: otro día, al abrir la tele, **▶ Seguir el concurso** (o Espacio en la
+pantalla de pausa) y seguís justo donde lo dejasteis. Los jugadores vuelven con el mismo código y su mismo nombre: si
+el móvil ha perdido sus datos (Safari los borra a los 7 días) o es otro móvil, la tele lo reconoce por el nombre y
+sigue con sus puntos y su equipo. Para seguir en **otro ordenador**: **💾 Copia en archivo** y, allí, **📂 Seguir un
+concurso guardado** (en la preparación) o **📂 Abrir una copia guardada** (al abrir la tele). Las canciones y las caras
+no van en la copia: vuelve a leer la carpeta del concurso.
+
 **Probar sin móviles:** en la barra de la tele (abajo; mueve el ratón si no se ve), **🤖 Pruebas**: «+1», «+5» o
 «Llenar los huecos» mete concursantes de prueba («🤖 Lola», «🤖 Paco»…) con equipo, icono y color, y juegan solos al
 azar: pulsan, responden, votan, eligen en el millonario, votan en el Público, ordenan su equipo si son portavoces y

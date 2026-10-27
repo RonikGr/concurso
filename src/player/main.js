@@ -314,7 +314,14 @@ function handleMessage(msg, tRecv) {
       // El fondo del móvil lleva los colores del entorno de la sección (el mismo que la tele).
       document.body.style.setProperty('--env-bg', envGradient(msg.section?.env ?? HOME_ENV));
       if (standingsDialog.open) renderStandings();
-      if (msg.words || msg.shake || msg.bet || msg.punish) {
+      // Concurso en pausa (para seguir otro día): solo el aviso
+      $('#paused-pad').hidden = !msg.paused;
+      if (msg.paused) {
+        gamesPad.hide();
+        pad.hide();
+        millPad.hide();
+        for (const id of ['#buzzer', '#free-pad', '#turn-pad']) $(id).hidden = true;
+      } else if (msg.words || msg.shake || msg.bet || msg.punish) {
         pad.hide();
         millPad.hide();
         for (const id of ['#buzzer', '#free-pad', '#turn-pad']) $(id).hidden = true;
@@ -490,6 +497,15 @@ function handleError(msg) {
   else if (msg.code === ERROR_CODE.REMOVED) showMessage('Fuera de la sala', msg.message, 'Volver a entrar', () => join(roomCode));
   else if (msg.code === ERROR_CODE.REPLACED) showMessage('Abierto en otra pestaña', msg.message, 'Jugar aquí', () => join(roomCode));
   else if (msg.code === ERROR_CODE.VERSION) showMessage('Versión distinta', msg.message, 'Recargar', () => location.reload());
+  else if (msg.code === ERROR_CODE.ADOPT && typeof msg.playerId === 'string') {
+    // Ya jugaba con este nombre (otro móvil, o este con los datos borrados): sigue con sus puntos y su equipo
+    Object.assign(profile, { playerId: msg.playerId, color: msg.color ?? profile.color, icon: msg.icon ?? profile.icon, teamId: msg.teamId ?? null });
+    profile.lookChosen = true;
+    saveProfile();
+    welcomedRoom = roomCode; // nada de bienvenida otra vez: ya estaba dentro
+    toast(msg.message ?? '¡Hola de nuevo!');
+    join(roomCode);
+  }
   else showMessage('Error', msg.message ?? 'Error desconocido.');
 }
 

@@ -81,7 +81,7 @@ sin salir del juego) (foto completa y personalizada; `game` = `playerView()` sol
 pulsador; `answer` solo en una pregunta de respuestas), `hb {h0}` cada 2 s, `buzzAck {seq, result}`,
 `answerAck {seq, result, message?}` (respuestas y comodines), `syncReply {id, t0, t1, t2}`,
 `faces {images: {faceId: dataURL}}` (fotos de los jugadores reconocidos, también al mando; los jugadores llevan `face`),
-`error {code, message}` (`room-full`, `version`, `removed`, `replaced`, `control-denied`).
+`error {code, message}` (`room-full`, `version`, `removed`, `replaced`, `control-denied`, `adopt`: vuelve alguien que ya jugaba).
 
 Mando ↔ tele: `hello {v, role:'control', controlId, token, deviceName}` → `controlStatus {status: pending|approved}`;
 luego `controlState {view}` (vista completa con respuestas, agrupada cada 150 ms) y `cmd {id, action, args}` →
@@ -90,7 +90,7 @@ scoreboard, toSetup, showQuestion, showAnswer, open, correct, wrong, restart, un
 setSpokesperson, setTurnOrder, mShow, mSeat, mMark, mUnmark, mReveal, mCallStart, mCallEnd, mAudienceCancel, mAudienceEnd,
 freeParticipants, freeCounter, freeStart, freeOut, freeRevive, freeCount, freeStop, freeAward,
 wordsStart, wordsOk, wordsPass, wordsFoul, wordsUndo, wordsStop, shakeStart, shakeStop, betClose, betReveal, betSet, betAnswer,
-punishClose, punishReopen, punishSpin, toggleSection,
+punishClose, punishReopen, punishSpin, toggleSection, pause, resume,
 lockTeams, moveTeam, adjustScore, adjustTeamBonus, resetScores, removePlayer, approveControl, denyControl, updateSettings.
 
 - Emparejar mando: la tele (preparación) enseña un QR a `control.html?sala=CÓDIGO#k=CLAVE` (la clave tras `#` no sale del
@@ -212,6 +212,14 @@ mientras la página no se pinta (ventana oculta o minimizada).
   DNS): si la wifi no deja la conexión directa, hace falta un TURN propio en `TURN_SERVERS`. La tele avisa
   (`connectFailures`, banda «📶 Un móvil intenta entrar…») cuando una llamada llega pero no se abre en 15 s o su ICE falla.
   La tele, al volver a primer plano o recuperar la red, reconecta con el servidor de enlace sin esperar.
+- **Pausa para seguir otro día** (órdenes `pause` / `resume`; `sala.paused = {at}`, persistido): la tele enseña
+  `pausedScreen` encima de todo (screenKey 'pausa', música lobby, sin canciones de prueba), los móviles «Concurso en
+  pausa» (`state.paused`) y el mando `pausedPanel`. En pausa lo guardado no caduca (un año; si no, 12 h). Al abrir la
+  tele, `showRecover` dice por dónde iba y el marcador. Copia en archivo: `roomToFile` / `roomFromFile` (persistence.js,
+  JSON `{kind: 'concurso-del-ano/partida', room}`) → `adoptSavedRoom` + `startRoom`.
+- **Vuelve con otro móvil:** ya empezado, un `hello` con un `playerId` desconocido y el nombre de un jugador
+  desconectado (`Roster.returningByName`: exacto, o sin el «(2)»; solo si no hay duda) → error `adopt {playerId, name,
+  color, icon, teamId}`: el móvil se queda esa identidad y vuelve a entrar (sigue con sus puntos y su equipo).
 - Recarga del presentador: estado en localStorage (`concurso.host.v1`, caduca a las 12 h) → "Recuperar sala". Se vuelve
   a registrar el mismo ID; si PeerJS lo tiene ocupado (`unavailable-id`) se reintenta cada 2 s.
 - Una vez establecidas, las conexiones son P2P: si cae el servidor PeerJS solo fallan las conexiones nuevas.

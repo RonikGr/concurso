@@ -13,7 +13,7 @@ import { SCREEN } from '../core/runner.js';
 import { parseShowWorkbook } from '../core/show.js';
 import { songKey } from '../core/folder.js';
 import { HostRoom } from './room.js';
-import { clearSavedRoom, loadSavedRoom } from './persistence.js';
+import { adoptSavedRoom, clearSavedRoom, currentSavedRoom, loadSavedRoom, roomFromFile, roomToFile } from './persistence.js';
 import { createStage } from './stage.js';
 import { createAnswerStage } from './answerStage.js';
 import { createFreeStage } from './freeStage.js';
@@ -26,7 +26,19 @@ import { SPHASE } from '../core/shake.js';
 import { BPHASE } from '../core/bet.js';
 import { MPHASE } from '../core/millionaire.js';
 import { APHASE } from '../core/answers.js';
-import { coverScreen, finalScreen, introScreen, punishVoteScreen, rouletteScreen, scoreboardScreen, setupScreen, versusScreen } from './screens.js';
+import {
+  coverScreen,
+  finalScreen,
+  introScreen,
+  pausedDate,
+  pausedScreen,
+  pausedWhere,
+  punishVoteScreen,
+  rouletteScreen,
+  scoreboardScreen,
+  setupScreen,
+  versusScreen,
+} from './screens.js';
 import { openSettingsDialog } from './settingsDialog.js';
 import { createDebugPanel } from './debugPanel.js';
 import { Backdrop } from './fx/backdrop.js';
@@ -167,8 +179,30 @@ function boot() {
 }
 
 function showRecover(saved) {
-  const minutes = Math.max(1, Math.round((Date.now() - saved.savedAt) / 60000));
   const n = saved.players.length;
+  const minutes = Math.max(1, Math.round((Date.now() - saved.savedAt) / 60000));
+  const when = saved.paused ? `en pausa desde ${pausedDate(saved.paused.at)}` : minutes < 90 ? `de hace ${minutes} min` : `del ${pausedDate(saved.savedAt).slice(3)}`;
+  // Por dónde iba (las secciones que se juegan, como en la tele)
+  const sections = saved.show?.sections ?? [];
+  const skipped = new Set(saved.runner?.skipped ?? []);
+  const played = sections.filter((x) => !skipped.has(x.id));
+  const current = sections[saved.runner?.sectionIndex ?? 0];
+  const where = pausedWhere({
+    screen: saved.runner?.screen ?? 'setup',
+    sectionNumber: Math.max(1, played.findIndex((x) => x.id === current?.id) + 1),
+    sectionCount: played.length,
+    sectionName: current?.name,
+  });
+  // Marcador: equipos (sus jugadores + puntos de equipo) o los tres primeros
+  const teams = (saved.show?.teams ?? []).map((t) => ({
+    name: t.name,
+    score: saved.players.filter((p) => p.teamId === t.id).reduce((sum, p) => sum + p.score, 0) + (saved.teamBonus?.[t.id] ?? 0),
+  }));
+  const scores = (teams.length ? teams : [...saved.players].slice(0, 3)).sort((x, y) => y.score - x.score).map((x) => `${x.name} ${x.score}`);
+  const startNew = () => {
+    if (saved.paused && !confirm('El concurso en pausa se perderá (salvo que guardes antes una copia en archivo). ¿Empezar uno nuevo?')) return;
+    newRoom();
+  };
   clear(app).append(
     h(
       'main',
@@ -177,15 +211,17 @@ function showRecover(saved) {
       h(
         'p',
         { class: 'lead' },
-        'Hay una sala guardada ',
+        saved.paused ? '⏸ Hay un concurso ' : 'Hay una sala guardada ',
         h('strong', { class: 'code-inline' }, saved.code),
-        ` con ${n} ${n === 1 ? 'jugador' : 'jugadores'}, de hace ${minutes} min.`,
+        ` con ${n} ${n === 1 ? 'jugador' : 'jugadores'}, ${when}.`,
       ),
+      saved.runner?.screen && saved.runner.screen !== 'setup' ? h('p', {}, 'Íbamos por: ', h('strong', {}, where), scores.length ? ` · ${scores.join(' · ')}` : '') : null,
       h(
         'div',
         { class: 'actions' },
-        h('button', { class: 'btn primary', autofocus: true, onclick: () => startRoom(saved) }, 'Recuperar sala'),
-        h('button', { class: 'btn', onclick: newRoom }, 'Sala nueva'),
+        h('button', { class: 'btn primary', autofocus: true, onclick: () => startRoom(saved) }, saved.paused ? '▶ Seguir el concurso' : 'Recuperar sala'),
+        h('button', { class: 'btn', onclick: startNew }, saved.paused ? 'Empezar uno nuevo' : 'Sala nueva'),
+        h('button', { class: 'btn', onclick: openSavedCopy }, '📂 Abrir una copia guardada'),
       ),
     ),
   );
@@ -317,6 +353,8 @@ function renderShell() {
         h('button', { class: 'btn', onclick: () => debug.toggle(room) }, 'Depuración'),
         h('button', { class: 'btn', onclick: () => openSettingsDialog(room) }, 'Ajustes'),
         h('button', { class: 'btn', onclick: toggleFullscreen }, 'Pantalla completa'),
+        h('button', { class: 'btn', onclick: confirmPause }, '⏸ Parar por hoy'),
+        h('button', { class: 'btn', onclick: saveCopy }, '💾 Copia en archivo'),
         h('button', { class: 'btn', onclick: confirmResetScores }, 'Marcadores a 0'),
         h('button', { class: 'btn danger', onclick: confirmNewRoom }, 'Cerrar sala y crear otra'),
       ),
@@ -452,6 +490,10 @@ function renderScreen(view) {
   lastScreenKey = key;
   screen.dataset.screen = view.peekScoreboard ? 'scoreboard' : view.screen;
   if (view.peekScoreboard) return fill(screen, scoreboardScreen(view));
+  if (view.paused) {
+    screen.dataset.screen = 'paused';
+    return fill(screen, pausedScreen(view, { joinQr: qrs.join, joinUrlText: qrs.joinUrlText, onResume: () => run('resume'), onSaveCopy: saveCopy }));
+  }
 
   switch (view.screen) {
     case SCREEN.SETUP:
@@ -462,6 +504,7 @@ function renderScreen(view) {
           controlQr: qrs.control,
           joinUrlText: qrs.joinUrlText,
           onFile: importFile,
+          onOpenSaved: openSavedCopy,
           onStart: () => run('next'),
           onLockTeams: (locked) => run('lockTeams', { locked }),
           onMoveTeam: (playerId, teamId) => run('moveTeam', { playerId, teamId }),
@@ -723,6 +766,14 @@ document.addEventListener('keydown', (e) => {
     run(e.key === 'Enter' ? 'approveControl' : 'denyControl', { controlId: pending.id });
     return;
   }
+  // En pausa: Espacio sigue el concurso; el resto de teclas, nada
+  if (room.paused) {
+    if (e.code === 'Space') {
+      e.preventDefault();
+      run('resume');
+    }
+    return;
+  }
   if (splash) {
     e.preventDefault();
     if (e.code === 'ArrowLeft') return run('prev');
@@ -805,6 +856,39 @@ addEventListener('mousemove', () => {
 
 function confirmResetScores() {
   if (confirm('¿Poner todos los marcadores a 0?')) run('resetScores');
+}
+
+function confirmPause() {
+  if (confirm('¿Parar el concurso por hoy? Queda guardado tal cual en este portátil para seguir otro día (también desde el mando). Los móviles verán «En pausa».')) run('pause');
+}
+
+/** Descarga una copia de la partida (para seguirla en otro ordenador o por si se borra este navegador). */
+function saveCopy() {
+  const saved = currentSavedRoom();
+  if (!saved) return toast('Aún no hay nada guardado.');
+  const day = new Date().toISOString().slice(0, 10);
+  const a = h('a', { href: URL.createObjectURL(roomToFile(saved)), download: `concurso-${saved.code}-${day}.json` });
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+  toast('Copia descargada: con «📂 Seguir un concurso guardado» se abre en cualquier ordenador.');
+}
+
+/** Abre una copia guardada (archivo .json de «Copia en archivo»): la tele sigue esa partida. */
+function openSavedCopy() {
+  const input = h('input', { type: 'file', accept: '.json,application/json' });
+  input.addEventListener('change', async () => {
+    const file = input.files[0];
+    if (!file) return;
+    const saved = roomFromFile(await file.text());
+    if (!saved) return toast('Ese archivo no es una copia de un concurso.');
+    const what = `«${saved.show?.title ?? 'Concurso'}» (sala ${saved.code}, ${saved.players.length} jugadores)`;
+    if (room && room.runner.screen !== SCREEN.SETUP && !confirm(`¿Abrir ${what}? El concurso de ahora se cerrará.`)) return;
+    room?.destroy();
+    room = null;
+    adoptSavedRoom(saved);
+    startRoom(saved);
+  });
+  input.click();
 }
 
 function confirmNewRoom() {

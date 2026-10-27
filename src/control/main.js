@@ -294,6 +294,7 @@ function gameTab() {
 }
 
 function gameTabBody() {
+  if (view.paused) return pausedPanel();
   switch (view.screen) {
     case 'setup':
       return setupPanel();
@@ -1298,7 +1299,30 @@ function sectionsTab() {
       ),
     ),
     soundCard(),
+    view.paused
+      ? null
+      : btn('⏸ Parar el concurso por hoy', () => {
+          if (!confirm('¿Parar por hoy? Queda guardado en el portátil tal cual: otro día, al abrir la tele, «Seguir el concurso».')) return;
+          cmd('pause');
+          tab = 'game';
+        }),
     view.screen !== 'setup' ? btn('Volver a preparación', () => confirm('¿Volver a la pantalla de preparación?') && cmd('toSetup')) : null,
+  ];
+}
+
+/** Concurso en pausa (para seguir otro día). */
+function pausedPanel() {
+  const connected = view.players.filter((p) => p.connected).length;
+  return [
+    h(
+      'section',
+      { class: 'c-card center' },
+      h('p', { class: 'c-kicker' }, '⏸ En pausa'),
+      h('h2', {}, 'Continuará…'),
+      h('p', { class: 'muted' }, 'Todo queda guardado en el portátil de la tele. Otro día, al abrirla, sale «▶ Seguir el concurso».'),
+      h('p', {}, `${connected} de ${view.players.length} conectados · sala ${view.code}`),
+    ),
+    h('button', { class: 'btn primary big', onclick: () => cmd('resume') }, '▶ Seguir el concurso'),
   ];
 }
 

@@ -72,6 +72,7 @@ function importBox(view, ctx) {
       { class: 'import-actions' },
       h('button', { class: 'btn', onclick: () => fileInput.click() }, 'Cargar concurso (.xlsx)'),
       h('a', { class: 'btn', href: TEMPLATE_URL, download: 'plantilla-concurso.xlsx' }, 'Descargar plantilla'),
+      ctx.onOpenSaved ? h('button', { class: 'btn', onclick: ctx.onOpenSaved }, '📂 Seguir un concurso guardado') : null,
       fileInput,
     ),
     h('p', { class: 'muted small' }, 'También puedes arrastrar el archivo a esta pantalla.'),
@@ -669,5 +670,74 @@ export function rouletteScreen(view) {
     h('div', { class: 'roulette-box' }, h('span', { class: 'roulette-pointer' }, '▼'), wheel),
     result,
     p.spin ? null : h('p', { class: 'muted' }, 'Pulsa Espacio (o «Girar» en el mando) para girar la ruleta'),
+  );
+}
+
+// ---------------------------------------------------------------------------------------- En pausa (seguir otro día)
+
+/** «el sábado 25 de octubre a las 23:40» */
+export function pausedDate(at) {
+  const d = new Date(at);
+  const day = d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }).replace(',', '');
+  const time = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  return `el ${day} a las ${time}`;
+}
+
+/** Por dónde iba el concurso: «Sección 7 de 15 · Reloj interno», «Antes de empezar»… */
+export function pausedWhere({ screen, sectionNumber, sectionCount, sectionName }) {
+  if (screen === 'setup') return 'Antes de empezar';
+  if (screen === 'cover') return 'En la portada';
+  if (screen === 'final') return 'En el final';
+  return `Sección ${sectionNumber} de ${sectionCount}${sectionName ? ` · ${sectionName}` : ''}`;
+}
+
+/**
+ * Concurso en pausa: «Continuará…», cuándo se paró, por dónde iba, el marcador y cómo volver a entrar.
+ * @param ctx {joinQr, joinUrlText, onResume, onSaveCopy}
+ */
+export function pausedScreen(view, ctx) {
+  const connected = view.players.filter((p) => p.connected).length;
+  const teams = view.standings.map((s) => ({ name: s.team.name, color: s.team.color, score: s.score })).sort((a, b) => b.score - a.score);
+  const top = [...view.players].sort((a, b) => b.score - a.score).slice(0, teams.length ? 0 : 5);
+  const rows = teams.length ? teams : top;
+  return h(
+    'div',
+    { class: 'paused anim-in' },
+    h('p', { class: 'paused-kicker' }, `⏸ En pausa desde ${pausedDate(view.paused.at)}`),
+    kinetic('h1', 'paused-title display', 'Continuará…'),
+    h('p', { class: 'paused-where' }, 'Íbamos por: ', h('strong', {}, pausedWhere({ screen: view.screen, sectionNumber: view.sectionNumber, sectionCount: view.sectionCount, sectionName: view.section?.name }))),
+    rows.length
+      ? h(
+          'ol',
+          { class: 'paused-standings' },
+          rows.map((r, i) =>
+            h(
+              'li',
+              { style: { '--pc': getColor(r.color).bg } },
+              h('span', { class: 'ps-place' }, `${i + 1}º`),
+              r.icon || r.face ? h('span', { class: 'emoji' }, avatarOf(r)) : null,
+              h('span', { class: 'ps-name' }, r.name),
+              h('strong', {}, `${r.score} pts`),
+            ),
+          ),
+        )
+      : null,
+    h(
+      'div',
+      { class: 'paused-join' },
+      ctx.joinQr,
+      h(
+        'div',
+        {},
+        h('p', {}, 'Para volver: entrad con el código ', h('strong', { class: 'code-inline' }, view.code), ' y vuestro mismo nombre.'),
+        h('p', { class: 'muted' }, `${ctx.joinUrlText} · ${connected} de ${view.players.length} conectados`),
+      ),
+    ),
+    h(
+      'div',
+      { class: 'stage-actions' },
+      h('button', { class: 'btn primary huge', onclick: ctx.onResume }, '▶ Seguir el concurso ', h('kbd', {}, 'Espacio')),
+      h('button', { class: 'btn', onclick: ctx.onSaveCopy }, '💾 Guardar copia en un archivo'),
+    ),
   );
 }

@@ -39,6 +39,7 @@ export const ERROR_CODE = {
   REMOVED: 'removed',
   REPLACED: 'replaced',
   CONTROL_DENIED: 'control-denied',
+  ADOPT: 'adopt', // vuelve alguien que ya jugaba (por su nombre): {playerId} = su identidad de antes, que recupera
 };
 
 const isStr = (v, max) => typeof v === 'string' && v.length > 0 && v.length <= max;

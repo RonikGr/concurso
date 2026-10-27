@@ -34,6 +34,7 @@ export function screenKey(view) {
               : view.punish?.step === 'roulette'
                 ? 'ruleta'
                 : '';
+  if (view.paused) return 'pausa'; // «Continuará…» encima de todo
   return [view.peekScoreboard ? 'peek' : view.screen, view.sectionIndex, sub].join('|');
 }
 
@@ -82,6 +83,7 @@ function snapshot(view) {
 
 /** Estilo de música de cada momento (ver music.js). */
 function musicScene(n) {
+  if (n.key === 'pausa') return 'lobby';
   if (n.screen === SCREEN.SETUP) return n.step === 'title' ? 'title' : 'lobby';
   if (n.screen === SCREEN.COVER && n.step === 'versus') return 'versus';
   if (n.screen === SCREEN.COVER || n.screen === SCREEN.INTRO) return 'organ';

@@ -142,6 +142,20 @@ export class Roster {
     return { ok: true, player, isNew: !existing, renamed: resolved.renamed, appearanceChanged: resolved.appearanceChanged };
   }
 
+  /**
+   * Alguien que vuelve con otro móvil, o con el mismo pero sin sus datos (Safari los borra a los 7 días sin entrar en
+   * la web): el jugador desconectado que tenía ese nombre, para que siga con sus puntos y su equipo. Solo si no hay
+   * duda: primero el nombre exacto; si no, el mismo sin el «(2)» que le puso la sala. Si no, null.
+   */
+  returningByName(name) {
+    const key = nameKey(sanitizeName(name));
+    const offline = this.list().filter((p) => !p.connected);
+    const exact = offline.filter((p) => nameKey(p.name) === key);
+    if (exact.length) return exact.length === 1 ? exact[0] : null;
+    const base = offline.filter((p) => nameKey(p.name.replace(/ \(\d+\)$/, '')) === key);
+    return base.length === 1 ? base[0] : null;
+  }
+
   /** Cambio de nombre/icono/color/equipo desde el móvil. */
   updateProfile(playerId, wanted) {
     const player = this.players.get(playerId);
