@@ -4,7 +4,7 @@
 import './squidPad.css';
 import { fill, h } from '../shared/dom.js';
 import { BRIDGE_REVEAL_MS, CHANT, chantTimes } from '../core/squid.js';
-import { DALGONA_SHAPES, createTrace, isBroken, isDone, shapePoints, traceLift, traceMove, traceProgress } from '../core/dalgona.js';
+import { DALGONA_SHAPES, LAPS, createTrace, isBroken, isDone, restoreTrace, shapePoints, traceLift, traceMove, traceProgress } from '../core/dalgona.js';
 import { cookie, logo, numText, shape } from '../shared/squidArt.js';
 
 const RED_GRACE_MS = 450; // como en core/squid.js: al ponerse en rojo, un momento para soltar
@@ -373,18 +373,15 @@ export function createSquidPad({ send, toLocal, toHost, vibrate = () => {} }) {
     if (s.state === 'spared') return h('div', { class: 'sq-msg win' }, h('div', { class: 'sq-broken-cookie' }, cookie(s.shape ?? 'circulo', 5)), h('p', { class: 'sq-msg-title' }, '¡Por los pelos!'), h('p', { class: 'sq-msg-text' }, 'Se ha roto… pero en este juego ya ha caído el máximo: te salvas.'));
     if (s.state === 'broken') return h('div', { class: 'sq-msg out' }, h('div', { class: 'sq-broken-cookie' }, cookie(s.shape ?? 'circulo', 5)), h('p', { class: 'sq-msg-title' }, '¡Se ha roto!'), h('p', { class: 'sq-msg-text' }, 'Te has salido demasiado de la línea.'));
     if (!s.shape) return msg('🍪', 'Sin galleta', 'Mira la tele.');
-    if (!mine.trace) {
-      // si se recargó el móvil a mitad, sigue por donde iba (lo que dice la tele: más o menos, el trozo ya repasado)
-      mine.trace = createTrace(s.shape);
-      const k = Math.floor((mine.trace.points.length * (s.progress ?? 0)) / 100);
-      for (let i = 0; i < k; i++) mine.trace.done[i] = true;
-      mine.trace.count = k;
-      mine.trace.cracks = s.cracks ?? 0;
-    }
+    // si se recargó el móvil a mitad, sigue por donde iba (lo que dice la tele: más o menos, lo ya repasado)
+    if (!mine.trace) mine.trace = s.progress || s.cracks ? restoreTrace(s.shape, s.progress ?? 0, s.cracks ?? 0) : createTrace(s.shape);
     const t = mine.trace;
     const sh = DALGONA_SHAPES[s.shape];
     const canvas = h('canvas', { class: 'sq-canvas' });
     const pct = h('strong', { class: 'sq-pct' });
+    const lapEl = h('span', { class: 'sq-lap' });
+    const slow = h('p', { class: 'sq-slow', hidden: true }, '🐢 ¡Más despacio!');
+    let slowUntil = 0;
     const hearts = h('span', { class: 'sq-hearts' });
     const left = h('span', { class: 'sq-left' });
     const size = Math.round(Math.min(innerWidth - 24, innerHeight * 0.56, 520));
@@ -428,10 +425,20 @@ export function createSquidPad({ send, toLocal, toHost, vibrate = () => {} }) {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.drawImage(base, 0, 0);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      // lo tallado: más claro y hundido
-      ctx.fillStyle = '#fff3cf';
+      // lo tallado: más claro y hundido; cada pasada terminada, la línea entera más honda
+      if (t.lap > 0) {
+        ctx.strokeStyle = t.lap >= 2 ? '#5c3208' : '#7a440c';
+        ctx.lineWidth = size * (0.014 + t.lap * 0.006);
+        ctx.lineJoin = ctx.lineCap = 'round';
+        for (const path of sh.paths) {
+          ctx.beginPath();
+          path.forEach(([x, y], i) => (i ? ctx.lineTo(x * size, y * size) : ctx.moveTo(x * size, y * size)));
+          ctx.stroke();
+        }
+      }
+      ctx.fillStyle = t.lap === 0 ? '#fff3cf' : t.lap === 1 ? '#ffe08a' : '#ffffff';
       points.forEach(([x, y], i) => {
-        if (!t.done[i]) return;
+        if (!t.done[i] && !isDone(t)) return;
         ctx.beginPath();
         ctx.arc(x * size, y * size, size * 0.012, 0, Math.PI * 2);
         ctx.fill();
@@ -463,6 +470,10 @@ export function createSquidPad({ send, toLocal, toHost, vibrate = () => {} }) {
         ctx.stroke();
       }
       pct.textContent = `${Math.floor(traceProgress(t) * 100)} %`;
+      lapEl.textContent = `Pasada ${Math.min(LAPS, t.lap + 1)} de ${LAPS}`;
+      const cracked = performance.now() < slowUntil;
+      if (!cracked) slow.textContent = '🐢 ¡Más despacio!';
+      slow.hidden = !t.fast && !cracked;
       fill(hearts, ...Array.from({ length: 3 }, (_, i) => h('i', { class: i < t.cracks ? 'cracked' : '' })));
     };
     const report = () => send('trace', s.roundId, [Math.floor(traceProgress(t) * 100), t.cracks, isDone(t) ? 1 : isBroken(t) ? 2 : 0]);
@@ -473,12 +484,19 @@ export function createSquidPad({ send, toLocal, toHost, vibrate = () => {} }) {
     };
     const move = (list) => {
       const before = t.cracks;
+      const lapBefore = t.lap;
       for (const ev of list) {
         finger = at(ev);
-        traceMove(t, ...finger);
+        traceMove(t, ...finger, ev.timeStamp);
       }
+      if (t.lap > lapBefore && !isDone(t)) vibrate([60, 60, 60]); // otra pasada
       if (t.cracks > before) {
         mine.crackAt.push([...finger, t.cracks]);
+        if (t.lastCrack === 'fast') {
+          // el aviso se queda un momento aunque ya vaya despacio
+          slowUntil = performance.now() + 1500;
+          slow.textContent = '💥 ¡Demasiado deprisa! Se ha agrietado';
+        }
         vibrate(140);
         canvas.animate([{ transform: 'translateX(-5px)' }, { transform: 'translateX(5px)' }, { transform: 'none' }], { duration: 200 });
       }
@@ -521,8 +539,9 @@ export function createSquidPad({ send, toLocal, toHost, vibrate = () => {} }) {
       { class: 'sq-play sq-panal' },
       h('div', { class: 'sq-row' }, h('span', { class: 'sq-game-no' }, `${sh.icon} ${sh.label}`), left),
       canvas,
-      h('div', { class: 'sq-row' }, pct, hearts),
-      h('p', { class: 'sq-msg-text small' }, 'Repasa la línea con el dedo, despacio. Cada vez que te sales, la galleta se agrieta: a la tercera, se rompe.'),
+      slow,
+      h('div', { class: 'sq-row' }, pct, lapEl, hearts),
+      h('p', { class: 'sq-msg-text small' }, `Repasa la línea ${LAPS} veces, despacio. Si te sales o vas demasiado deprisa, la galleta se agrieta: a la tercera, se rompe.`),
       countdown(() => (open = true)),
     );
   }

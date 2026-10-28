@@ -33,6 +33,7 @@ const TYPES = [
   { type: 'Agita el móvil', sheet: 'Agitar', what: 'Carrera: gana quien más agite el móvil en los segundos que digas.' },
   { type: 'La gran apuesta', sheet: 'Apuesta', what: 'Para el final: cada equipo apuesta sus puntos y luego responde.' },
   { type: 'Squid Games', sheet: 'Squid', what: 'Juegos seguidos desde el móvil en los que la gente se va eliminando; los supervivientes se reparten la hucha.' },
+  { type: 'Lobos contra vampiros', sheet: '—', what: 'El colofón: el juego del pañuelo. Uno del primer equipo (lobos) contra uno del segundo (vampiros), hasta que salen todos; tú dices quién gana cada duelo. Sin pestaña: no tiene preguntas.' },
 ];
 
 // Formato que se repite
@@ -88,15 +89,16 @@ const SHEETS = [
       [8, 'Sí', 'Agita el móvil', 'Agita el móvil', null, '¡Agita hasta que te duela el brazo!', '3,2,1', 'Sí'],
       [9, 'Sí', '¿Qué canción es?', 'Pulsador', null, 'Suena una canción: el primero que pulse, responde.', 2, 'No'],
       [10, 'Sí', 'Reloj interno', 'Parar el contador', null, 'Para el reloj lo más cerca posible del objetivo.', '3,2,1', null],
-      [11, 'Sí', 'Twerking de pimpón', 'Libre', null, 'Caja con pelotas a la cadera, por la espalda: ¡sácalas todas a golpe de twerking antes que tu rival!', 3, null],
+      [11, 'Sí', 'Twerking de pimpón', 'Libre', null, 'Caja con pelotas a la cadera, por la espalda: ¡sácalas todas a golpe de twerking antes que tu rival!', 3, null, null, 'Discoteca'],
       [12, 'Sí', 'Reflejos', 'Duelo de reflejos', null, 'Cuando se ponga en verde… ¡pulsa!', '3,2,1', null],
       [13, 'Sí', 'Marca el golpe', 'Libre', null, 'Suena la canción: bailad y marcad el golpe a la vez. El presentador da a cada uno una nota del 1 al 10.', 2, null],
       [14, 'Sí', 'Dos verdades y una mentira', 'Dos verdades y una mentira', null, '¿Cuál es la mentira?', 1, null],
       [15, 'Sí', 'La galleta', 'Libre', null, 'Con las manos atadas a la espalda: el primero que se coma la galleta, gana.', 3, null],
       [16, 'Sí', 'Botellas en orden', 'Libre', null, 'Adivina el orden de las 5 botellas: en cada intento te decimos cuántas están bien. Gana el más rápido.', 5, null],
       [17, 'Sí', 'Fit o Fat', 'Libre', null, 'Pruebas físicas.', 3, 'Sí', null, 'Noche de luna'],
-      [18, 'Sí', 'Squid Games', 'Squid Games', null, 'Cinco juegos seguidos: quien falla, fuera. Los que sobreviven se reparten la hucha.', 3, null],
+      [18, 'Sí', 'Squid Games', 'Squid Games', null, 'Cuatro juegos seguidos: quien falla, fuera. Los que sobreviven se reparten la hucha.', 5, null],
       [19, 'Sí', 'La gran apuesta', 'La gran apuesta', null, 'Apostad lo que tenéis. Aquí se decide todo.', null, null],
+      [20, 'Sí', 'Lobos contra vampiros', 'Lobos contra vampiros', null, 'El colofón: el juego del pañuelo. Uno de cada equipo, al sillón… ¡y a por el pañuelo!', 10, 'Sí', null, 'Luna llena'],
     ],
     // Las que no se juegan, en rojo (de un vistazo)
     cf: [
@@ -108,12 +110,12 @@ const SHEETS = [
     name: 'Equipos',
     tab: 'FF1E63D6',
     columns: [
-      { title: 'Equipo', width: 26, help: 'Un equipo por fila. Borra todas para jugar sin equipos.' },
+      { title: 'Equipo', width: 26, help: 'Un equipo por fila. Borra todas para jugar sin equipos. En «Lobos contra vampiros», el 1º son los lobos y el 2º los vampiros.' },
       { title: 'Color', width: 14, list: COLORS.filter((c) => c.id !== 'gris').map((c) => c.name), help: 'Opcional. Cada equipo, uno distinto.' },
     ],
     rows: [
-      ['Zombies', 'Rojo'],
-      ['Hombres Lobo', 'Azul'],
+      ['Hombres lobo', 'Azul'],
+      ['Vampiros', 'Rojo'],
     ],
   },
   {
@@ -328,7 +330,7 @@ const SHEETS = [
         list: ['Ninguna', 'Cronómetro', 'Contador', 'Contrarreloj', 'Nota'],
         help: 'Cronómetro: gana quien más aguanta. Contador: +1/−1. Contrarreloj: de uno en uno, gana el más rápido. Nota: das a cada uno del 1 al 10 (sus puntos). Ninguna: eliges tú.',
       },
-      { title: 'Participan', width: 12, list: ['Jugadores', 'Equipos'], help: '¿Juega cada uno o cada equipo (uno por equipo)?' },
+      { title: 'Participan', width: 12, list: ['Jugadores', 'Equipos'], help: 'Jugadores: eliges quién sale (de cada equipo) y los puntos son para él (y suman a su equipo). Equipos: los puntos van al equipo.' },
       { title: 'Puntos', width: 9, help: 'Vacío = los de la sección. Con Nota no cuenta: los puntos son la nota.' },
       { title: 'Piezas', width: 9, help: 'Contrarreloj: en cada intento apuntas cuántas tiene bien (p. ej. 5 botellas).' },
       { title: 'Canción', width: 18, help: 'Opcional: archivo en «Canciones» (sin .mp3), p. ej. Golpe Cancion n1. Suena entera al «¡Empezar!».' },
@@ -338,19 +340,19 @@ const SHEETS = [
     rows: [
       ['Guerra de globos', '3 de cada equipo con un globo en el tobillo. Gana el equipo al que le quede algún globo.', 'Ninguna', 'Equipos', null, null, null, null, 'Guerra de globos'],
       ['La revancha', '¡Otra vez! Globos nuevos y los mismos tres… o tres distintos.', 'Ninguna', 'Equipos', null, null, null, null, 'Guerra de globos'],
-      ['Twerking de pimpón', 'Uno por equipo. La caja a la cadera, por la espalda: gana quien saque todas las pelotas primero.', 'Ninguna', 'Equipos', null, null, null, null, 'Twerking de pimpón'],
-      ['Twerking: la revancha', 'Otro de cada equipo, la caja llena otra vez.', 'Ninguna', 'Equipos', null, null, null, null, 'Twerking de pimpón'],
-      ['La galleta', 'Uno por equipo, manos atadas a la espalda y la galleta en la mesa. ¡A comer!', 'Ninguna', 'Equipos', null, null, null, null, 'La galleta'],
-      ['La galleta: segunda carrera', 'Otros dos, otra galleta.', 'Ninguna', 'Equipos', null, null, null, null, 'La galleta'],
+      // «Jugadores» con equipos: el presentador marca en el mando quién sale de cada equipo y los puntos son para él
+      ['Twerking de pimpón', 'Uno por equipo. La caja a la cadera, por la espalda: gana quien saque todas las pelotas primero.', 'Ninguna', 'Jugadores', null, null, null, null, 'Twerking de pimpón'],
+      ['Twerking: la revancha', 'Otro de cada equipo, la caja llena otra vez.', 'Ninguna', 'Jugadores', null, null, null, null, 'Twerking de pimpón'],
+      ['La galleta', 'Uno por equipo, manos atadas a la espalda y la galleta en la mesa. ¡A comer!', 'Ninguna', 'Jugadores', null, null, null, null, 'La galleta'],
+      ['La galleta: segunda carrera', 'Otros dos, otra galleta.', 'Ninguna', 'Jugadores', null, null, null, null, 'La galleta'],
       ['Botellas en orden', 'Uno por equipo, primero uno y luego el otro. Ordena las 5 botellas como las tiene escondidas el presentador.', 'Contrarreloj', 'Equipos', null, 5, null, null, 'Botellas en orden'],
       // Marca el golpe: suena la canción entera; el presentador da a cada uno una nota del 1 al 10.
       ['Golpe 1', 'En pareja: bailad la canción y marcad el golpe a la vez. Nota del 1 al 10.', 'Nota', 'Jugadores', null, null, 'Golpe Cancion n1', 0, 'Marca el golpe'],
       ['Golpe 2', 'Otra canción, otro golpe: ¡a clavarlo!', 'Nota', 'Jugadores', null, null, 'Golpe Cancion n2', 0, 'Marca el golpe'],
       ['Golpe 3', 'La final: la más difícil.', 'Nota', 'Jugadores', null, null, 'Golpe Cancion n3', 0, 'Marca el golpe'],
       ['Plancha', 'Aguanta en plancha. Gana el último.', 'Cronómetro', 'Jugadores', null, null, null, null, 'Fit o Fat'],
-      ['Flexiones', 'Más flexiones en un minuto.', 'Contador', 'Equipos', 5, null, null, null, 'Fit o Fat'],
+      ['Flexiones', 'Más flexiones en un minuto.', 'Contador', 'Jugadores', 5, null, null, null, 'Fit o Fat'],
       ['Sentadillas', 'Más sentadillas en un minuto (bajando hasta abajo).', 'Contador', 'Jugadores', null, null, null, null, 'Fit o Fat'],
-      ['La silla invisible', 'Espalda en la pared, como sentado en una silla. Gana el último.', 'Cronómetro', 'Jugadores', null, null, null, null, 'Fit o Fat'],
       ['Flamenco a ciegas', 'A la pata coja y con los ojos cerrados. Gana el último en apoyar el pie.', 'Cronómetro', 'Jugadores', null, null, null, null, 'Fit o Fat'],
       ['La momia', 'Envolved a un compañero en papel higiénico en un minuto. Gana la mejor momia.', 'Ninguna', 'Equipos', 5, null, null, null, 'Fit o Fat'],
       ['Manzana colgante', 'Muerde la manzana que cuelga de un hilo, sin manos. El primero, gana.', 'Ninguna', 'Jugadores', null, null, null, null, 'Fit o Fat'],
@@ -431,12 +433,12 @@ const SHEETS = [
     name: 'Squid',
     tab: 'FFFF2E88',
     columns: [
-      { title: 'Juego', width: 22, list: ['Luz roja', 'El panal', 'El puente', 'Tira y afloja', 'Canicas'], help: 'Uno por fila, en el orden en que se juegan. Sin filas = los 5.' },
+      { title: 'Juego', width: 22, list: ['Luz roja', 'El panal', 'El puente', 'Tira y afloja', 'Canicas'], help: 'Uno por fila, en el orden en que se juegan. Sin filas = todos menos Canicas.' },
       { title: 'Segundos', width: 10, help: 'Cuánto dura (en el puente, el tiempo para elegir cada tramo). Vacío = lo normal.' },
       { title: 'Tramos', width: 9, help: 'Solo el puente: cuántos tramos tiene. Vacío = según cuántos quedan vivos.' },
       sectionCol,
     ],
-    rows: [['Luz roja', 60], ['El panal', 75], ['Tira y afloja', 20], ['Canicas', 90], ['El puente', 20]],
+    rows: [['Luz roja', 60], ['El panal', 60], ['Tira y afloja', 20], ['El puente', 20]],
   },
   {
     name: 'Castigos',
@@ -498,7 +500,7 @@ typesHeader.font = { bold: true, color: { argb: 'FFFFFFFF' } };
 typesHeader.eachCell((c) => (c.fill = fill(DARK)));
 TYPES.forEach((t, i) => {
   const row = start.getRow(START.length + 2 + i);
-  row.values = [t.type, `pestaña «${t.sheet}»`, t.what];
+  row.values = [t.type, t.sheet === '—' ? 'no tiene pestaña' : `pestaña «${t.sheet}»`, t.what];
   row.getCell(1).font = { bold: true };
   if (i % 2) row.eachCell((c) => (c.fill = fill('FFF4F1FA')));
 });

@@ -18,12 +18,16 @@ export const MOODS = {
   bosque: { root: 40, scale: [0, 2, 3, 5, 7, 9, 10], tempo: 0.95, wave: 'triangle', cutoff: 900, amb: ['wind', 'owl'] },
   calabazas: { root: 43, scale: [0, 2, 3, 5, 7, 8, 11], tempo: 1.15, wave: 'sawtooth', cutoff: 800, amb: ['fire'] },
   laboratorio: { root: 36, scale: [0, 2, 4, 6, 8, 10], tempo: 1.05, wave: 'square', cutoff: 600, amb: ['bubbles'] },
-  mansion: { root: 35, scale: [0, 2, 3, 5, 7, 8, 11], tempo: 0.9, wave: 'square', cutoff: 650, amb: ['rain'] },
+  mansion: { root: 35, scale: [0, 2, 3, 5, 7, 8, 11], tempo: 0.9, wave: 'square', cutoff: 650, amb: [] },
   telarana: { root: 42, scale: [0, 1, 3, 6, 7, 9], tempo: 1, wave: 'triangle', cutoff: 750, amb: ['wind'] },
   aquelarre: { root: 38, scale: [0, 1, 4, 5, 7, 8, 10], tempo: 1.2, wave: 'sawtooth', cutoff: 900, amb: ['fire'], drums: true },
   cripta: { root: 37, scale: [0, 2, 3, 5, 7, 8, 10], tempo: 0.85, wave: 'sine', cutoff: 1200, amb: ['wind'] },
   millonario: { root: 40, scale: [0, 2, 3, 5, 7, 8, 10], tempo: 1, wave: 'sawtooth', cutoff: 1100, amb: [] },
-  tormenta: { root: 33, scale: [0, 1, 3, 5, 7, 8, 10], tempo: 0.9, wave: 'sawtooth', cutoff: 480, amb: ['rain', 'wind'] },
+  tormenta: { root: 33, scale: [0, 1, 3, 5, 7, 8, 10], tempo: 0.9, wave: 'sawtooth', cutoff: 480, amb: ['wind'] }, // sin lluvia (molestaba)
+  // Discoteca (twerking): rápida, con batería y pentatónica menor (si la sección no trae su canción)
+  discoteca: { root: 41, scale: [0, 3, 5, 7, 10], tempo: 1.3, wave: 'square', cutoff: 1600, amb: [], drums: true },
+  // Luna llena (el pañuelo: lobos contra vampiros): épica, con tambores, viento y búhos
+  lunallena: { root: 38, scale: [0, 2, 3, 5, 7, 8, 10], tempo: 1.15, wave: 'sawtooth', cutoff: 850, amb: ['wind', 'owl'], drums: true },
   // Squid Games: su propia música (en vez de la de Halloween) para cada momento
   squid: {
     root: 50,

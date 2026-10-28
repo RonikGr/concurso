@@ -48,10 +48,13 @@ export function createGamesPad({ send, vibrate = () => {} }) {
     receivedAt = stateReceivedAt;
     // (en Agitar, el total y el puesto llegan a cada momento: el móvil ya lleva su cuenta, no hace falta repintar)
     const sh = state.shake && { roundId: state.shake.roundId, phase: state.shake.phase, place: state.shake.phase === 'done' ? state.shake.place : null, points: state.shake.points };
-    const sig = JSON.stringify([state.words, sh, state.bet, state.punish && { ...state.punish, spin: state.punish.spin?.index ?? null }, shake.granted]);
+    // (en el pañuelo, lo que falta para el «¡YA!» cambia en cada estado: basta con saber si hay salida)
+    const hk = state.hanky && { ...state.hanky, current: state.hanky.current && { ...state.hanky.current, goInMs: state.hanky.current.goInMs != null } };
+    const sig = JSON.stringify([state.words, sh, state.bet, hk, state.punish && { ...state.punish, spin: state.punish.spin?.index ?? null }, shake.granted]);
     if (sig === signature) return;
     signature = sig;
     clearInterval(ticker);
+    if (state.hanky) return fill(root, hanky(state.hanky));
     if (state.words) return fill(root, words(state.words));
     if (state.shake) return fill(root, shakeView(state.shake));
     if (state.bet) return fill(root, bet(state.bet));
@@ -140,6 +143,49 @@ export function createGamesPad({ send, vibrate = () => {} }) {
       h('small', {}, 'sacudidas'),
     );
     return [head, permit, tapZone];
+  }
+
+  // ---------- El pañuelo (lobos contra vampiros): el móvil solo avisa; lo que cuenta es correr
+  let hankyBuzzed = null; // a qué llamada ya se ha vibrado
+  function hanky(k) {
+    const ICON = { wolf: '🐺', vampire: '🧛' };
+    const head = h('p', { class: 'ap-label' }, k.side ? `${ICON[k.side]} Eres de los ${k.teams[k.side]}` : 'Lobos contra vampiros');
+    const score = h('p', { class: 'gp-hk-score' }, `${ICON.wolf} ${k.score.wolf} – ${k.score.vampire} ${ICON.vampire}`);
+    if (k.finished) {
+      const won = k.champion === k.side;
+      const text = k.champion === 'tie' ? '¡Empate!' : won ? '¡Habéis ganado! 🎉' : `Ganan los ${k.teams[k.champion]}`;
+      return [head, h('p', { class: `ap-big ${won ? 'win' : ''}` }, text), score];
+    }
+    const c = k.current;
+    if (!c) return [head, h('p', { class: 'ap-big' }, '¿Quién saldrá?'), h('p', { class: 'ap-sub' }, 'Atento a la tele: puede tocarte a ti. Uno de cada equipo, al sillón; a la señal, a por el pañuelo y de vuelta.'), score];
+    const pair = h('p', { class: 'gp-hk-pair' }, `${ICON.wolf} ${c.wolf}  contra  ${c.vampire} ${ICON.vampire}`);
+    if (c.mine && c.step !== 'done' && hankyBuzzed !== c.calledAt) {
+      hankyBuzzed = c.calledAt;
+      vibrate([200, 100, 200, 100, 400]);
+    }
+    if (c.step === 'done') {
+      const won = c.winner === c.mine;
+      const winnerName = c[c.winner];
+      return [head, pair, h('p', { class: `ap-big ${c.mine ? (won ? 'win' : 'lose') : ''}` }, c.mine ? (won ? `🏆 ¡Has ganado! +${k.points}` : `¡Casi! Gana ${winnerName}`) : `Gana ${winnerName} ${ICON[c.winner]}`), score];
+    }
+    if (c.step === 'running') {
+      // Cuenta atrás hasta el «¡YA!» (con lo que faltaba cuando llegó el estado)
+      const big = h('p', { class: 'ap-count' });
+      const end = receivedAt + (c.goInMs ?? 0);
+      let went = false;
+      const step = () => {
+        const left = Math.ceil((end - performance.now()) / 1000);
+        big.textContent = left > 0 ? String(left) : c.mine ? '¡CORRE!' : '¡YA!';
+        if (left <= 0 && !went) {
+          went = true;
+          if (c.mine) vibrate(600);
+        }
+      };
+      step();
+      ticker = setInterval(step, 100);
+      return [head, pair, big, h('p', { class: 'ap-sub' }, c.mine ? 'Coge el pañuelo y vuelve al sillón antes que tu rival.' : '¡Anima a los tuyos!'), score];
+    }
+    return [head, c.mine ? h('p', { class: 'ap-big win' }, '¡TE TOCA!') : null, pair, h('p', { class: 'ap-sub' }, c.mine ? 'Siéntate en el sillón y espera la señal de la tele.' : 'Al sillón… ¡atentos a la señal!'), score];
   }
 
   // ---------- La gran apuesta

@@ -307,6 +307,7 @@ function gameTabBody() {
       return [sectionCard(), bigNext(view.playable ? 'Empezar sección →' : 'Saltar esta sección →'), navRow()];
     case 'play':
       if (view.squid) return squidPanel();
+      if (view.hanky) return hankyPanel();
       if (view.words) return wordsPanel();
       if (view.shake) return shakePanel();
       if (view.bet) return betPanel();
@@ -390,6 +391,91 @@ function shakePanel() {
   if (s.phase === 'ready') return [head, h('button', { class: 'btn primary big', onclick: () => cmd('shakeStart') }, '¡Empezar! (3, 2, 1…)'), navRow()];
   if (s.phase === 'done') return [head, h('section', { class: 'c-card' }, list), h('button', { class: 'btn primary big', onclick: () => cmd('nextItem') }, 'Siguiente →'), h('div', { class: 'c-row' }, btn('Repetir la ronda', () => confirm('¿Repetir esta ronda? Se quitan sus puntos.') && cmd('restart'))), navRow()];
   return [head, h('section', { class: 'c-card' }, h('div', { class: 'c-row' }, liveClock(Math.max(0, s.endsInMs ?? 0))), list), btn('Parar ya', () => cmd('shakeStop'))];
+}
+
+/**
+ * El pañuelo (lobos contra vampiros): sortear la pareja o elegirla en secreto (tocando uno de cada equipo), dar la
+ * salida y decir quién ha cogido el pañuelo. Lo elegido en secreto se guarda fuera del pintado.
+ */
+let hankyDraft = { wolf: null, vampire: null };
+function hankyPanel() {
+  const k = view.hanky;
+  const c = k.current;
+  const ICON = { wolf: '🐺', vampire: '🧛' };
+  const name = (side) => k.teams[side]?.name ?? (side === 'wolf' ? 'Hombres lobo' : 'Vampiros');
+  const head = h(
+    'section',
+    { class: 'c-card center' },
+    h('p', { class: 'c-kicker' }, `${view.section.name} · ${k.finished ? 'Terminado' : k.number ? `Duelo ${k.number} de ${k.total}` : `${k.total} duelos`}`),
+    h('h2', {}, `${ICON.wolf} ${k.score.wolf} – ${k.score.vampire} ${ICON.vampire}`),
+    h('p', { class: 'muted' }, `${name('wolf')} contra ${name('vampire')} · ${k.points} puntos por duelo ganado`),
+  );
+  const history = k.duels.length
+    ? h('section', { class: 'c-card' }, h('p', { class: 'c-kicker' }, 'Duelos'), k.duels.map((d, i) => h('div', { class: 'c-row' }, h('span', {}, `${i + 1}. ${d.wolf} – ${d.vampire}`), h('strong', {}, `${ICON[d.winner]} ${d.winner === 'wolf' ? d.wolf : d.vampire}`))))
+    : null;
+  const undo = c?.step === 'done' ? btn('↶ Deshacer el último resultado', () => cmd('hankyUndo'), 'small') : null;
+  if (k.finished)
+    return [head, h('section', { class: 'c-card center' }, h('h2', {}, k.champion === 'tie' ? '¡Empate!' : `¡Ganan los ${name(k.champion)}! ${ICON[k.champion]}`)), history, h('button', { class: 'btn primary big', onclick: () => cmd('nextItem') }, 'Al marcador →'), undo, navRow()];
+
+  // Elegir la pareja: sorteo o en secreto
+  const picker = () => {
+    hankyDraft = { wolf: k.wolves.some((p) => p.id === hankyDraft.wolf) ? hankyDraft.wolf : null, vampire: k.vampires.some((p) => p.id === hankyDraft.vampire) ? hankyDraft.vampire : null };
+    const chips = (side, people) =>
+      h(
+        'div',
+        { class: 'c-chips' },
+        people.map((p) =>
+          h(
+            'button',
+            {
+              class: `c-chip ${hankyDraft[side] === p.id ? 'picking' : k.candidates?.[side]?.includes(p.id) ? '' : 'done'}`,
+              onclick: () => {
+                hankyDraft = { ...hankyDraft, [side]: hankyDraft[side] === p.id ? null : p.id };
+                lastSignature = null;
+                render();
+              },
+            },
+            `${p.name}${p.fought ? ` ·${p.fought}` : ''}`,
+          ),
+        ),
+      );
+    const ready = hankyDraft.wolf && hankyDraft.vampire;
+    return [
+      h('button', { class: 'btn primary big', onclick: () => cmd('hankyDraw') }, `🎲 Sortear el ${c ? 'siguiente ' : ''}duelo`),
+      h(
+        'section',
+        { class: 'c-card' },
+        h('p', { class: 'c-kicker' }, '🤫 O elige tú la pareja (nadie lo sabe hasta la tele)'),
+        h('p', { class: 'c-team-head', style: { '--tc': getColor(k.teams.wolf?.color ?? 'azul').bg } }, `${ICON.wolf} ${name('wolf')}`),
+        chips('wolf', k.wolves),
+        h('p', { class: 'c-team-head', style: { '--tc': getColor(k.teams.vampire?.color ?? 'rojo').bg } }, `${ICON.vampire} ${name('vampire')}`),
+        chips('vampire', k.vampires),
+        h(
+          'button',
+          {
+            class: 'btn ok',
+            disabled: !ready,
+            onclick: () => {
+              cmd('hankyChoose', { wolf: hankyDraft.wolf, vampire: hankyDraft.vampire });
+              hankyDraft = { wolf: null, vampire: null };
+            },
+          },
+          'Llamar a esta pareja',
+        ),
+        h('p', { class: 'muted small' }, 'Los apagados ya han salido. Con un equipo más pequeño, alguno repite.'),
+      ),
+    ];
+  };
+
+  if (!c || c.step === 'done') {
+    const result = c ? h('section', { class: 'c-card center' }, h('p', { class: 'c-kicker' }, 'Último duelo'), h('h2', {}, `${ICON[c.winner]} Gana ${c[c.winner].name}`), h('p', { class: 'muted' }, `${c.wolf.name} contra ${c.vampire.name}`)) : null;
+    return [head, result, undo, ...picker(), history, navRow()];
+  }
+  const pair = h('section', { class: 'c-card center' }, h('p', { class: 'c-kicker' }, c.step === 'called' ? 'Al sillón' : '¡En carrera!'), h('h2', {}, `${ICON.wolf} ${c.wolf.name}`), h('p', {}, 'contra'), h('h2', {}, `${c.vampire.name} ${ICON.vampire}`));
+  const winners = h('div', { class: 'c-grid2' }, btn(`${ICON.wolf} Gana ${c.wolf.name}`, () => cmd('hankyWin', { side: 'wolf' }), 'ok'), btn(`${ICON.vampire} Gana ${c.vampire.name}`, () => cmd('hankyWin', { side: 'vampire' }), 'ok'));
+  if (c.step === 'called')
+    return [head, pair, h('button', { class: 'btn primary big', onclick: () => cmd('hankyGo') }, '▶ ¡Preparados… YA! (3, 2, 1)'), h('div', { class: 'c-row' }, btn('Cambiar la pareja', () => cmd('hankyCancel'))), winners, history, navRow()];
+  return [head, pair, h('p', { class: 'c-live' }, '¿Quién ha vuelto antes con el pañuelo?'), winners, h('div', { class: 'c-row' }, btn('Salida nula (repetir)', () => cmd('hankyFalse'))), history];
 }
 
 /** La gran apuesta: tú ves las apuestas y respuestas de todos; puedes apostar o responder por un equipo. */
@@ -837,31 +923,34 @@ function freePanel() {
   let body = [];
   if (f.phase === 'setup') {
     const send = (ids) => cmd('freeParticipants', { ids: [...ids].join(',') });
+    const check = (p) =>
+      h(
+        'label',
+        { class: 'c-check' },
+        h('input', {
+          type: 'checkbox',
+          checked: chosen.has(p.id),
+          onchange: (e) => {
+            if (e.target.checked) chosen.add(p.id);
+            else chosen.delete(p.id);
+            send(chosen);
+          },
+        }),
+        label(p),
+      );
+    // Cada uno con equipos (p. ej. «uno por equipo» que se lleva los puntos él): agrupados por equipo
+    const groups = !f.byTeams && view.teams.length ? [...view.teams.map((t) => ({ team: t, list: f.pool.filter((p) => p.teamId === t.id) })), { team: null, list: f.pool.filter((p) => !teamOf(p.teamId)) }].filter((g) => g.list.length) : null;
     body.push(
       h(
         'section',
         { class: 'c-card' },
-        h('p', { class: 'c-kicker' }, f.byTeams ? '¿Qué equipos participan?' : '¿Quién participa?'),
-        h(
-          'div',
-          { class: 'c-checks' },
-          f.pool.map((p) =>
-            h(
-              'label',
-              { class: 'c-check' },
-              h('input', {
-                type: 'checkbox',
-                checked: chosen.has(p.id),
-                onchange: (e) => {
-                  if (e.target.checked) chosen.add(p.id);
-                  else chosen.delete(p.id);
-                  send(chosen);
-                },
-              }),
-              label(p),
-            ),
-          ),
-        ),
+        h('p', { class: 'c-kicker' }, f.byTeams ? '¿Qué equipos participan?' : groups ? '¿Quién sale de cada equipo? (los puntos son para él)' : '¿Quién participa?'),
+        groups
+          ? groups.map((g) => [
+              h('p', { class: 'c-team-head', style: { '--tc': getColor(g.team?.color ?? 'gris').bg } }, g.team?.name ?? 'Sin equipo'),
+              h('div', { class: 'c-checks' }, g.list.map(check)),
+            ])
+          : h('div', { class: 'c-checks' }, f.pool.map(check)),
         h('div', { class: 'c-row' }, btn('Todos', () => send(f.pool.map((p) => p.id))), btn('Ninguno', () => send([]))),
       ),
     );
@@ -1137,23 +1226,37 @@ function answerPanel() {
   ];
 }
 
-/** Duelo de reflejos: el presentador elige a los dos que juegan. */
+/**
+ * Duelo de reflejos: el presentador toca a los dos que juegan; con el segundo, queda fijado. Lo elegido se guarda
+ * fuera del pintado (antes eran dos desplegables y el repintado borraba el primero mientras se elegía el segundo).
+ */
+let duelDraft = [];
 function duelPicker(a) {
   const players = view.players.filter((p) => p.connected);
   const [first, second] = a.duelPick;
-  const select = (id, selected) =>
-    h(
-      'select',
-      { class: 'c-select', id },
-      h('option', { value: '' }, '—'),
-      players.map((p) => h('option', { value: p.id, selected: p.id === selected?.id }, p.name)),
-    );
+  duelDraft = duelDraft.filter((id) => players.some((p) => p.id === id));
+  const toggle = (id) => {
+    duelDraft = duelDraft.includes(id) ? duelDraft.filter((x) => x !== id) : [...duelDraft, id].slice(-2);
+    if (duelDraft.length === 2) {
+      cmd('setDuel', { a: duelDraft[0], b: duelDraft[1] });
+      duelDraft = [];
+    }
+    lastSignature = null;
+    render();
+  };
+  const fixed = first && second ? [first.id, second.id] : [];
   return h(
     'div',
     { class: 'c-card' },
     h('p', { class: 'c-kicker' }, first && second ? `Duelo: ${first.name} contra ${second.name}` : 'Elige a los dos del duelo'),
-    h('div', { class: 'c-row' }, select('duel-a', first), select('duel-b', second)),
-    btn('Fijar duelo', () => cmd('setDuel', { a: document.getElementById('duel-a').value, b: document.getElementById('duel-b').value })),
+    h('p', { class: 'c-hint' }, duelDraft.length ? `${players.find((p) => p.id === duelDraft[0])?.name ?? ''} contra… (toca al segundo)` : 'Toca a dos jugadores: el duelo se fija al tocar el segundo.'),
+    h(
+      'div',
+      { class: 'c-chips' },
+      players.map((p) =>
+        h('button', { class: `c-chip ${duelDraft.includes(p.id) ? 'picking' : fixed.includes(p.id) ? 'on' : ''}`, onclick: () => toggle(p.id) }, p.name),
+      ),
+    ),
   );
 }
 

@@ -47,6 +47,13 @@ describe('carpeta del concurso', () => {
     expect(r.ignored).toEqual(['millonario/notas.txt', 'Música/Halloween total/Preparación/no vale aquí.mp3', 'Música/Otra sección/Marcador/x.mp3', 'Música/Nada/x.mp3', 'canciones/letra.txt']);
   });
 
+  it('vídeos de una sección: por el nombre del archivo o de su subcarpeta', () => {
+    const e = (path) => ({ path: path.split('/'), lastModified: 1 });
+    const r = classifyFolder([e('Vídeos/Twerking de pimpón.mp4'), e('Vídeos/La galleta/esqueleto.webm'), e('Vídeos/notas.txt')]);
+    expect(r.videos.map((v) => v.key)).toEqual(['twerkingdepimpon', 'lagalleta']);
+    expect(r.ignored).toEqual(['Vídeos/notas.txt']);
+  });
+
   it('sonidos de Squid Games: en su carpeta o sueltos en Música, por el nombre', () => {
     const e = (path) => ({ path: path.split('/'), lastModified: 1 });
     const r = classifyFolder([e('Música/Heart Beat.mp3'), e('Música/Glass Breeaking.m4a'), e('Squid/Muñeca gira.mp3'), e('Squid/muñeca canta.mp3'), e('Squid/Respiración.m4a'), e('Música/raro.mp3')]);

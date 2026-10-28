@@ -11,6 +11,7 @@ import { SQUID_SFX } from './squidSound.js';
 import { splitSong } from '../../core/voicing.js';
 
 const CROSSFADE = 0.7; // s (constante de tiempo del fundido entre estilos)
+const SHORT_TRACK_S = 15; // un archivo más corto en un momento de música es un efecto: suena una vez
 const CUE_LEVEL = 0.75; // volumen de las canciones del millonario (como la música, sin reverberación)
 
 class SoundEngine extends EventTarget {
@@ -768,7 +769,8 @@ class SoundEngine extends EventTarget {
       gain.gain.value = 0;
       this.ctx.createMediaElementSource(audio).connect(gain).connect(this.musicBus);
       p = { audio, gain, pausedAt: 0, slot };
-      audio.addEventListener('ended', () => this.#nextTrack(p));
+      // Un archivo corto (un efecto puesto en un momento de música) suena una vez: no se repite
+      audio.addEventListener('ended', () => audio.duration >= SHORT_TRACK_S && this.#nextTrack(p));
       this.#players.set(slot, p);
       this.#nextTrack(p, false);
     } else if (performance.now() - p.pausedAt > 180_000 && !this.#isLadder(slot)) {
@@ -998,6 +1000,28 @@ const SFX = {
   },
   call(s, t) {
     for (let r = 0; r < 2; r++) for (let i = 0; i < 12; i++) tone(s, s.sfxBus, { freq: i % 2 ? 480 : 440, t: t + r * 0.6 + i * 0.03, peak: 0.06, decay: 0.03 });
+  },
+  /** El pañuelo: aullido de lobo (sube, aguanta y cae, con vibrato de dos voces desafinadas). */
+  howl(s, t) {
+    for (const det of [-9, 9]) {
+      tone(s, s.sfxBus, { type: 'sine', freq: 280, slideTo: 540, slideTime: 0.7, t, attack: 0.35, peak: 0.1, decay: 1.5, detune: det });
+      tone(s, s.sfxBus, { type: 'triangle', freq: 540, slideTo: 330, slideTime: 1.1, t: t + 0.85, attack: 0.08, peak: 0.08, decay: 1.4, detune: det });
+    }
+  },
+  /** El pañuelo: siseo de vampiro y chillido de murciélago. */
+  hiss(s, t) {
+    noiseHit(s, s.sfxBus, t, { type: 'highpass', freq: 4500, peak: 0.14, attack: 0.06, decay: 0.7 });
+    for (let i = 0; i < 3; i++) tone(s, s.sfxBus, { type: 'square', freq: 2100, slideTo: 3200, slideTime: 0.05, t: t + 0.35 + i * 0.09, peak: 0.03, decay: 0.06 });
+  },
+  /** El pañuelo: silbato de salida (dos pitidos). */
+  whistle(s, t) {
+    for (const [at, dur] of [
+      [0, 0.12],
+      [0.18, 0.45],
+    ]) {
+      tone(s, s.sfxBus, { type: 'square', freq: 2850, t: t + at, attack: 0.01, peak: 0.045, decay: dur });
+      noiseHit(s, s.sfxBus, t + at, { freq: 2900, q: 6, peak: 0.08, decay: dur });
+    }
   },
   /** Redoble de caja antes de un revelado (2,4 s, crece hasta el golpe). */
   drumroll(s, t) {

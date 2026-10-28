@@ -457,6 +457,33 @@
   gap: 0.35rem;
 }
 
+.sq-lap {
+  font-weight: 800;
+  opacity: 0.85;
+}
+
+/* Panal: la aguja va demasiado deprisa */
+.sq-slow {
+  margin: 0.3rem 0 0;
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  background: #e8344e;
+  color: #fff;
+  font-weight: 900;
+  text-align: center;
+  animation: sq-slow-pulse 0.5s ease-in-out infinite alternate;
+}
+
+.sq-slow[hidden] {
+  display: none;
+}
+
+@keyframes sq-slow-pulse {
+  to {
+    transform: scale(1.06);
+  }
+}
+
 .sq-hearts i {
   width: 1.4rem;
   height: 1.4rem;

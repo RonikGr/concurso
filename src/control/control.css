@@ -563,6 +563,52 @@ body.offline .c-net {
   flex: none;
 }
 
+/* Participantes agrupados por equipo */
+.c-team-head {
+  margin: 0.6rem 0 0.3rem;
+  padding-left: 0.5rem;
+  border-left: 0.35rem solid var(--tc);
+  font-weight: 800;
+}
+
+/* Duelo de reflejos: tocar a dos */
+.c-hint {
+  margin: 0 0 0.5rem;
+  color: var(--muted, #b9aecb);
+  font-size: 0.9rem;
+}
+
+.c-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.c-chip {
+  min-height: 2.6rem;
+  padding: 0.3rem 0.9rem;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+}
+
+.c-chip.on {
+  border-color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 25%, var(--surface-2));
+}
+
+.c-chip.done {
+  opacity: 0.5;
+}
+
+.c-chip.picking {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 30%, var(--surface-2));
+}
+
 .btn.small {
   min-height: 2.2rem;
   padding: 0.2em 0.7em;

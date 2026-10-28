@@ -62,6 +62,7 @@ function snapshot(view) {
     squid: view.squid && { game: view.squid.game, phase: view.squid.phase },
     words: view.words && { round: view.words.roundId, phase: view.words.phase, n: view.words.results.length, last: view.words.results.at(-1)?.result ?? null, score: view.words.score },
     shake: view.shake && { round: view.shake.roundId, phase: view.shake.phase },
+    hanky: view.hanky && { step: view.hanky.finished ? 'final' : (view.hanky.current?.step ?? 'wait') },
     bet: view.bet && { round: view.bet.roundId, phase: view.bet.phase, win: view.bet.owners.some((o) => o.result > 0) },
     punish: view.punish && { step: view.punish.step, closed: view.punish.closed, votes: view.punish.tally.reduce((s, x) => s + x, 0), spin: view.punish.spin?.at ?? null },
     millionaire: view.millionaire && {
@@ -76,6 +77,7 @@ function snapshot(view) {
     free: f && {
       round: f.roundId,
       phase: f.phase,
+      tool: f.tool,
       out: f.participants?.filter((p) => p.out != null).length ?? 0,
       count: f.participants?.reduce((s, p) => s + (p.count ?? 0), 0) ?? 0,
     },
@@ -85,7 +87,8 @@ function snapshot(view) {
 /** Estilo de música de cada momento (ver music.js). */
 function musicScene(n) {
   if (n.key === 'pausa') return 'lobby';
-  if (n.screen === SCREEN.SETUP) return n.step === 'title' ? 'title' : 'lobby';
+  // la canción del título sigue sonando mientras se conecta la gente (sin cortarse al cambiar de pantalla)
+  if (n.screen === SCREEN.SETUP) return n.step === 'title' || n.step === 'join' ? 'title' : 'lobby';
   if (n.screen === SCREEN.COVER && n.step === 'versus') return 'versus';
   if (n.screen === SCREEN.COVER || n.screen === SCREEN.INTRO) return 'organ';
   if (n.screen === SCREEN.SCOREBOARD || n.screen === 'peek') return 'march';
@@ -99,6 +102,8 @@ function musicScene(n) {
     if (phase === 'running') return game === 'luzroja' || game === 'puente' ? 'hush' : 'tension';
     return 'explore';
   }
+  // El pañuelo: suspense en el sillón, tensión en la carrera, revelado con el ganador (sus sonidos, en hankyStage)
+  if (n.hanky) return { called: 'suspense', running: 'tension', done: 'reveal', final: 'reveal' }[n.hanky.step] ?? 'explore';
   if (n.words) return n.words.phase === 'running' ? 'tension' : n.words.phase === 'done' ? 'reveal' : 'explore';
   if (n.shake) return n.shake.phase === 'running' ? 'tension' : n.shake.phase === 'done' ? 'reveal' : 'explore';
   if (n.bet) return n.bet.phase === 'revealed' ? 'reveal' : n.bet.phase === 'question' ? 'tension' : 'suspense';
@@ -288,7 +293,8 @@ export function createDirector({ backdrop }) {
     const f = n.free;
     const pf = p.free?.round === f?.round ? p.free : null;
     if (f && pf) {
-      if (f.phase === FPHASE.RUNNING && pf.phase !== FPHASE.RUNNING) sound.play('go');
+      // (con Nota hay cuenta atrás: el «¡ya!» lo pone freeStage al acabarla)
+      if (f.phase === FPHASE.RUNNING && pf.phase !== FPHASE.RUNNING && f.tool !== 'score') sound.play('go');
       if (f.out > pf.out) sound.play('out');
       if (f.count !== pf.count) sound.play(f.count > pf.count ? 'blip' : 'pop');
       if (f.phase === FPHASE.STOPPED && pf.phase === FPHASE.RUNNING) sound.play('bell');

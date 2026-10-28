@@ -206,7 +206,48 @@ export const ENVIRONMENTS = [
     horizon: 0.3,
     still: 1,
   },
+  {
+    // Discoteca (el twerking): neones rosa y turquesa, focos y suelo de luz del plató, chispas. Solo si la hoja lo
+    // elige en «Entorno»; la tele le añade focos que barren (body.disco-on, show.css).
+    id: 'discoteca',
+    name: 'Discoteca',
+    top: rgb('#2a0638'),
+    bot: rgb('#05010a'),
+    fog: rgb('#ff2fb4'),
+    glow: rgb('#2ef2ff'),
+    part: rgb('#ff6be0'),
+    fogAmt: 0.35,
+    moon: 0,
+    sil: 11,
+    particles: 5,
+    bats: 0,
+    lightning: 0,
+    horizon: 0.4,
+  },
+  {
+    // El pañuelo (lobos contra vampiros): luna llena enorme y rojiza, bosque y murciélagos
+    id: 'lunallena',
+    name: 'Luna llena',
+    top: rgb('#2a0710'),
+    bot: rgb('#050104'),
+    fog: rgb('#8a1f2e'),
+    glow: rgb('#ffb48a'),
+    part: rgb('#ff6a4a'),
+    fogAmt: 0.5,
+    moon: 1,
+    sil: 2,
+    particles: 2,
+    bats: 1,
+    lightning: 0,
+    horizon: 0.2,
+  },
 ];
+
+/** Discoteca: con sus focos en la tele (y su música con batería). */
+export const DISCO_ENV = 'discoteca';
+
+/** El pañuelo siempre bajo la luna llena (salvo que la hoja diga otro entorno). */
+export const HANKY_ENV = 'lunallena';
 
 /** Entorno de preparación, portada y final. */
 export const HOME_ENV = 'luna';
@@ -218,7 +259,7 @@ export const TEST_ENV = 'millonario';
 export const SQUID_ENV = 'squid';
 
 /** Entornos que se reparten entre las secciones (en este orden). */
-const SECTION_ENVS = ENVIRONMENTS.filter((e) => e.id !== HOME_ENV && e.id !== TEST_ENV && e.id !== SQUID_ENV);
+const SECTION_ENVS = ENVIRONMENTS.filter((e) => ![HOME_ENV, TEST_ENV, SQUID_ENV, DISCO_ENV, HANKY_ENV].includes(e.id));
 
 const byId = new Map(ENVIRONMENTS.map((e) => [e.id, e]));
 export const getEnv = (id) => byId.get(id) ?? byId.get(HOME_ENV);
@@ -228,6 +269,7 @@ export function sectionEnv(section, index) {
   if (section?.type === 'squid') return SQUID_ENV;
   if (section?.env && byId.has(section.env)) return section.env;
   if (section?.type === 'test') return TEST_ENV;
+  if (section?.type === 'panuelo') return HANKY_ENV;
   return SECTION_ENVS[index % SECTION_ENVS.length].id;
 }
 

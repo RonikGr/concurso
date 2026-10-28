@@ -22,7 +22,12 @@ export const SECTION_TYPES = {
   agitar: { label: 'Agita el móvil', sheet: 'Agitar', ranked: true, presenterPlays: true, needsItems: false },
   apuesta: { label: 'La gran apuesta', sheet: 'Apuesta', ranked: false, presenterPlays: false, needsItems: true },
   squid: { label: 'Squid Games', sheet: 'Squid', ranked: false, presenterPlays: false, needsItems: false },
+  // El pañuelo: el colofón, duelos de uno de cada equipo (sin filas: los duelos salen de la gente de los equipos)
+  panuelo: { label: 'Lobos contra vampiros', sheet: 'Pañuelo', ranked: false, presenterPlays: true, needsItems: false },
 };
+
+/** Puntos por defecto del pañuelo: los de cada duelo ganado. */
+export const HANKY_POINTS = 10;
 
 /** Palabras secretas: cómo se hace adivinar cada palabra. */
 export const WORD_MODES = {
@@ -251,6 +256,7 @@ const TYPE_ALIASES = [
   ['agitar', ['agita el movil', 'agitar', 'agita']],
   ['apuesta', ['la gran apuesta', 'apuesta']],
   ['squid', ['squid games', 'squid game', 'squid', 'el juego del calamar', 'juego del calamar']],
+  ['panuelo', ['lobos contra vampiros', 'hombres lobo contra vampiros', 'el panuelo', 'panuelo', 'juego del panuelo']],
 ];
 
 export function parseSectionType(value) {
@@ -375,7 +381,7 @@ export function parseShowWorkbook(sheets) {
       const info = SECTION_TYPES[type];
       let points = parsePointsList(values.points);
       if (!isEmpty(values.points) && !points) err('Concurso', row, `Puntos no válidos: "${text(values.points)}". Usa un número o una lista como 3,2,1.`);
-      points ??= info.ranked ? [...RANKED_DEFAULT_POINTS] : type === 'test' ? [...MILLIONAIRE_POINTS] : [settings.defaultPoints];
+      points ??= info.ranked ? [...RANKED_DEFAULT_POINTS] : type === 'test' ? [...MILLIONAIRE_POINTS] : type === 'panuelo' ? [HANKY_POINTS] : [settings.defaultPoints];
       const presenterPlays = parseYesNo(values.presenterPlays, info.presenterPlays);
       if (presenterPlays === undefined) err('Concurso', row, '"El presentador juega" debe ser sí o no.');
       // Por turnos: cada pregunta la responde uno de cada equipo, en el orden que elige su portavoz
@@ -463,8 +469,9 @@ export function parseShowWorkbook(sheets) {
       s.items = rows.flatMap((row) => Array.from({ length: row.rounds }, (_, i) => ({ round: i + 1, rounds: row.rounds, duel: row.duel })));
     }
     if (s.type === 'agitar' && !s.items.length) s.items = [{ seconds: 10 }]; // sin filas: una ronda de 10 s
+    if (s.type === 'panuelo') s.items = [{ duels: true }]; // toda la serie de duelos es una sola «prueba»
     if (s.type === 'squid') {
-      // Sin filas: los 5 juegos en su orden. Al final, siempre, el reparto de la hucha.
+      // Sin filas: los juegos de SQUID_ORDER en su orden. Al final, siempre, el reparto de la hucha.
       if (!s.items.length) s.items = SQUID_ORDER.map((game) => ({ game, seconds: SQUID_GAMES[game].seconds, steps: null }));
       s.items.push({ game: 'hucha' });
     }

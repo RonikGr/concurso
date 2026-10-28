@@ -35,7 +35,7 @@ export function createStage() {
       h('p', { class: 'stage-q' }, `${view.section.name} · ${progress}`),
       showText ? h('p', { class: `stage-question ${big ? 'big' : ''}` }, item.question) : null,
       item?.song && !showText ? h('p', { class: 'stage-question song' }, '🎵 ¿Qué canción es?') : null,
-      view.shown.answer && item?.answer ? h('p', { class: 'stage-answer' }, item.answer) : null,
+      view.shown.answer && item?.answer ? (item.song ? songAnswer(item.answer) : h('p', { class: 'stage-answer' }, item.answer)) : null,
     ];
   }
 
@@ -112,7 +112,7 @@ export function createStage() {
       team ? h('p', { class: 'result-team' }, team.name) : null,
       h('p', { class: 'result-time' }, first ? formatSeconds(first.reactionMs) : ''),
       judgedCorrect ? h('p', { class: 'result-verdict' }, `¡Correcto! +${view.pointsForCorrect}`) : null,
-      view.shown.answer && view.item?.answer ? h('p', { class: 'result-answer' }, view.item.answer) : null,
+      view.shown.answer && view.item?.answer ? (view.item.song ? songAnswer(view.item.answer) : h('p', { class: 'result-answer' }, view.item.answer)) : null,
       // Antes de decidir: el orden de los demás. Tras el acierto: cómo va el marcador.
       judgedCorrect ? miniStandings(view, winner) : followersList(followers),
     );
@@ -125,6 +125,11 @@ export function createStage() {
   }
 
   return { root, overlay, render, stop };
+}
+
+/** «¿Qué canción es?»: el título de la canción en grande, como un disco que se ilumina (que no se confunda con lo demás). */
+function songAnswer(answer) {
+  return h('div', { class: 'song-answer' }, h('span', { class: 'song-answer-kicker' }, '🎵 La canción era…'), kinetic('strong', 'song-answer-title', answer, { step: 40 }));
 }
 
 function followersList(followers) {

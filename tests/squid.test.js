@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BRIDGE_JUMP_MS, BRIDGE_REVEAL_MS, CHANT, MARBLE_ALL_IN_MS, spareToFloor, squidCap, squidFloor, DalgonaRound, GlassBridgeRound, MARBLES, MarblesRound, RedLightRound, SPHASE, SquidState, TugRound, chantTimes } from '../src/core/squid.js';
-import { DALGONA_SHAPES, MAX_CRACKS, createTrace, isBroken, isDone, shapePoints, traceLift, traceMove, traceProgress } from '../src/core/dalgona.js';
+import { DALGONA_SHAPES, LAPS, MAX_CRACKS, createTrace, isBroken, isDone, restoreTrace, shapePoints, traceLift, traceMove, traceProgress } from '../src/core/dalgona.js';
 
 /** Azar predecible */
 function seeded(seed = 1) {
@@ -105,18 +105,50 @@ describe('El panal', () => {
     expect(r.finish()).toEqual(['a']);
   });
 
-  it('formas: repasar entera la termina; salirse tres veces la rompe', () => {
+  it('formas: hay que repasarla entera tres veces; salirse tres veces la rompe', () => {
     for (const id of Object.keys(DALGONA_SHAPES)) expect(shapePoints(id).length, id).toBeGreaterThan(60);
     const t = createTrace('circulo');
-    for (const [x, y] of shapePoints('circulo')) traceMove(t, x, y);
-    expect(traceProgress(t)).toBeGreaterThan(0.95); // al llegar al 96 %, terminada
+    const pts = shapePoints('circulo');
+    for (let lap = 1; lap <= LAPS; lap++) {
+      expect(isDone(t)).toBe(false);
+      for (const [x, y] of pts) traceMove(t, x, y);
+      traceLift(t);
+      // (lo que sobra de una pasada al llegar al 96 % ya cuenta para la siguiente)
+      expect(t.lap).toBe(lap);
+      expect(traceProgress(t)).toBeGreaterThanOrEqual(lap / LAPS - 0.01);
+    }
     expect(isDone(t)).toBe(true);
+    expect(traceProgress(t)).toBe(1);
+    // a medias (móvil recargado): sigue por la pasada que tocaba
+    const r = restoreTrace('circulo', 50, 1);
+    expect(r.lap).toBe(1);
+    expect(r.cracks).toBe(1);
+    expect(traceProgress(r)).toBeCloseTo(0.5, 1);
     const b = createTrace('estrella');
     for (let k = 0; k < MAX_CRACKS; k++) {
       traceMove(b, 0.5, 0.5); // el centro, lejos de la línea: grieta
       traceLift(b);
     }
     expect(isBroken(b)).toBe(true);
+  });
+
+  it('panal: ir demasiado deprisa agrieta (una vez por acelerón); despacio, nada', () => {
+    const pts = shapePoints('circulo');
+    // despacio: un punto (1,2 % de galleta) cada 40 ms = 0,3/s
+    const slow = createTrace('circulo');
+    pts.forEach(([x, y], i) => traceMove(slow, x, y, i * 40));
+    expect(slow.cracks).toBe(0);
+    expect(slow.fast).toBe(false);
+    // deprisa: un punto cada 10 ms = 1,2/s durante medio segundo → una grieta, aunque siga deprisa
+    const fast = createTrace('circulo');
+    pts.slice(0, 50).forEach(([x, y], i) => traceMove(fast, x, y, i * 10));
+    expect(fast.fast).toBe(true);
+    expect(fast.cracks).toBe(1);
+    expect(fast.lastCrack).toBe('fast');
+    // un acelerón cortito (menos de 250 ms) no agrieta
+    const blip = createTrace('circulo');
+    pts.slice(0, 10).forEach(([x, y], i) => traceMove(blip, x, y, i * 10));
+    expect(blip.cracks).toBe(0);
   });
 });
 

@@ -15,6 +15,75 @@ body.host {
   height: 100vh;
 }
 
+/* Vídeo de la sección (Vídeos/ de la carpeta): un bailarín a cada lado, delante del fondo y detrás de todo lo demás.
+   Con fondo negro, «screen» deja ver el decorado en lo negro. */
+.section-videos {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.section-video {
+  position: absolute;
+  bottom: 0;
+  height: 78vh;
+  max-width: 34vw;
+  object-fit: contain;
+  mix-blend-mode: screen;
+  opacity: 0.92;
+  animation: video-in 900ms var(--ease-out) both;
+}
+
+.section-video.left {
+  left: 0;
+  transform: scaleX(-1); /* en espejo: bailan hacia el centro */
+}
+
+.section-video.right {
+  right: 0;
+}
+
+@keyframes video-in {
+  from {
+    opacity: 0;
+    translate: 0 8vh;
+  }
+}
+
+/* Discoteca: focos de colores que barren la tele (encima del fondo, en modo «screen») */
+body.disco-on::after {
+  content: '';
+  position: fixed;
+  inset: -20vh -20vw 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    conic-gradient(from 200deg at 18% -10%, transparent 0deg, rgb(255 47 180 / 0.35) 8deg, transparent 18deg),
+    conic-gradient(from 150deg at 82% -10%, transparent 0deg, rgb(46 242 255 / 0.32) 8deg, transparent 18deg),
+    conic-gradient(from 175deg at 50% -15%, transparent 0deg, rgb(255 230 90 / 0.22) 6deg, transparent 13deg);
+  mix-blend-mode: screen;
+  animation: disco-sweep 3.2s ease-in-out infinite alternate;
+  transform-origin: 50% 0;
+}
+
+@keyframes disco-sweep {
+  0% {
+    transform: rotate(-9deg);
+    filter: hue-rotate(0deg);
+  }
+  100% {
+    transform: rotate(9deg);
+    filter: hue-rotate(90deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.disco-on::after {
+    animation: none;
+  }
+}
+
 .confetti-canvas {
   position: fixed;
   inset: 0;
@@ -467,6 +536,65 @@ body.host {
   from {
     opacity: 0;
     transform: scale(0.6);
+  }
+}
+
+/* «¿Qué canción es?»: la respuesta, en un cartel grande y dorado que no se confunde con nada más */
+.song-answer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6vh;
+  max-width: 88vw;
+  margin: 1.5vh auto 0;
+  padding: 1.6vh 3.2vw 2vh;
+  border: 0.35vh solid #ffd76a;
+  border-radius: 2.4vh;
+  background: linear-gradient(160deg, rgb(255 215 106 / 0.28), rgb(20 10 30 / 0.85) 60%);
+  box-shadow:
+    0 0 4vh rgb(255 215 106 / 0.55),
+    inset 0 0 3vh rgb(255 215 106 / 0.18);
+  text-align: center;
+  animation:
+    pop-in 700ms var(--ease-spring) both,
+    song-glow 2.4s ease-in-out 700ms infinite alternate;
+}
+
+.song-answer-kicker {
+  color: #ffd76a;
+  font-size: 3vh;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.song-answer-title {
+  color: #ffffff;
+  font-size: 8vh;
+  font-weight: 900;
+  line-height: 1.05;
+  text-shadow: 0 0.06em 0.5em rgb(255 215 106 / 0.6);
+}
+
+.result-overlay .song-answer {
+  margin-top: 1vh;
+}
+
+.result-overlay .song-answer-title {
+  font-size: 6.5vh;
+}
+
+@keyframes song-glow {
+  to {
+    box-shadow:
+      0 0 7vh rgb(255 215 106 / 0.8),
+      inset 0 0 4vh rgb(255 215 106 / 0.3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .song-answer {
+    animation: none;
   }
 }
 
@@ -3194,6 +3322,13 @@ body.splash-on {
   text-shadow: 0 0 0.5em var(--accent);
 }
 
+/* Nota: cuenta atrás antes de la canción */
+.song-status[data-mode='count'] {
+  color: #fff;
+  font-size: clamp(6rem, 18vw, 14rem);
+  text-shadow: 0 0 0.4em var(--accent);
+}
+
 /* ------------------------------------------------------------------ En pausa (seguir otro día) */
 .paused {
   display: grid;
@@ -3276,4 +3411,330 @@ body.splash-on {
 
 .paused-join p {
   margin: 0.2rem 0;
+}
+
+/* ------------------------------------------------------------------ El pañuelo: lobos contra vampiros */
+
+.hk-intro-vs {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3vw;
+  margin: 1vh 0;
+  font-size: 5vh;
+  font-weight: 900;
+}
+
+.hk-intro-vs strong {
+  color: var(--accent);
+  font-size: 8vh;
+}
+
+.hanky-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 2vh;
+  width: 100%;
+  min-height: 70vh;
+}
+
+.hk-score {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 2vw;
+}
+
+.hk-team {
+  display: flex;
+  align-items: center;
+  gap: 1.2vw;
+  padding: 1vh 1.6vw;
+  border-radius: 2vh;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--tc) 55%, transparent), rgb(0 0 0 / 0.35));
+  font-size: 3.4vh;
+  font-weight: 800;
+}
+
+.hk-team.vampire {
+  justify-content: flex-end;
+  background: linear-gradient(270deg, color-mix(in srgb, var(--tc) 55%, transparent), rgb(0 0 0 / 0.35));
+}
+
+.hk-team-icon {
+  font-size: 5vh;
+}
+
+.hk-team strong {
+  font-size: 6vh;
+  font-variant-numeric: tabular-nums;
+}
+
+.hk-team.wolf strong {
+  margin-left: auto;
+}
+
+.hk-team.vampire strong {
+  margin-right: auto;
+}
+
+.hk-count {
+  margin: 0;
+  color: var(--muted);
+  font-size: 2.8vh;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.hk-arena {
+  display: grid;
+  grid-template-columns: 1fr minmax(18vw, auto) 1fr;
+  align-items: center;
+  gap: 2vw;
+  flex: 1;
+}
+
+.hk-side {
+  display: flex;
+  justify-content: center;
+}
+
+.hk-fighter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1vh;
+  min-width: 22vw;
+  padding: 2.4vh 2vw;
+  border: 0.4vh solid var(--tc);
+  border-radius: 3vh;
+  background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--tc) 40%, transparent), rgb(5 2 10 / 0.75) 70%);
+  box-shadow: 0 0 4vh color-mix(in srgb, var(--tc) 50%, transparent);
+  transition:
+    transform 400ms var(--ease-out),
+    opacity 400ms,
+    filter 400ms;
+}
+
+.hk-face {
+  width: 22vh;
+  height: 22vh;
+  display: grid;
+  place-items: center;
+  font-size: 15vh;
+  line-height: 1;
+}
+
+.hk-face img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.hk-name {
+  margin: 0;
+  font-size: 5vh;
+  font-weight: 900;
+  text-align: center;
+}
+
+.hk-fighter.mystery .hk-face {
+  opacity: 0.55;
+  filter: grayscale(0.4);
+}
+
+.hk-fighter.spinning {
+  filter: blur(0.4px);
+}
+
+.hk-fighter.won {
+  transform: scale(1.08);
+  border-color: #ffd76a;
+  box-shadow: 0 0 7vh rgb(255 215 106 / 0.75);
+}
+
+.hk-fighter.lost {
+  opacity: 0.45;
+  filter: grayscale(0.8);
+  transform: scale(0.92);
+}
+
+.hk-again {
+  margin: 0;
+  padding: 0.2em 0.8em;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #1b0a00;
+  font-size: 2.2vh;
+  font-weight: 800;
+}
+
+.hk-trophy {
+  margin: 0;
+  font-size: 7vh;
+  animation: pop-in 600ms var(--ease-spring) both;
+}
+
+.hk-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1vh;
+  text-align: center;
+}
+
+.hk-hanky svg {
+  width: 13vh;
+  height: auto;
+  transform-origin: 50% 5%;
+  animation: hanky-sway 2.8s ease-in-out infinite alternate;
+  filter: drop-shadow(0 0 2vh rgb(255 255 255 / 0.35));
+}
+
+.hanky-stage[data-step='running'] .hk-hanky svg {
+  animation-duration: 0.6s;
+}
+
+@keyframes hanky-sway {
+  from {
+    transform: rotate(-7deg);
+  }
+  to {
+    transform: rotate(7deg);
+  }
+}
+
+.hk-status {
+  margin: 0;
+  font-size: 7vh;
+  color: var(--accent);
+  text-shadow: 0 0 0.4em rgb(0 0 0 / 0.7);
+}
+
+.hk-status[data-mode='count'] {
+  font-size: 16vh;
+  color: #fff;
+}
+
+.hk-status[data-mode='go'] {
+  font-size: 15vh;
+  color: #ff4d4d;
+  text-shadow: 0 0 0.3em #ff4d4d;
+}
+
+.hk-status[data-mode='win'] {
+  color: #ffd76a;
+}
+
+.hk-clock {
+  margin: 0;
+  font-size: 4vh;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.hk-rosters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4vw;
+}
+
+.hk-roster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8vh 0.8vw;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hk-roster.vampire {
+  justify-content: flex-end;
+}
+
+.hk-roster li {
+  display: flex;
+  align-items: center;
+  gap: 0.5vw;
+  padding: 0.4vh 1vw;
+  border-left: 0.5vh solid var(--pc);
+  border-radius: 1vh;
+  background: rgb(0 0 0 / 0.4);
+  font-size: 2.4vh;
+  font-weight: 700;
+}
+
+.hk-roster li .emoji img {
+  width: 3vh;
+  height: 3vh;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.hk-roster li.done {
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+
+.hk-final {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1vh;
+  text-align: center;
+}
+
+.hk-final-icon {
+  margin: 0;
+  font-size: 18vh;
+  line-height: 1;
+  animation: pop-in 800ms var(--ease-spring) both;
+}
+
+.hk-final-title {
+  margin: 0;
+  font-size: 10vh;
+  color: #ffd76a;
+}
+
+.hk-final-score {
+  margin: 0;
+  font-size: 8vh;
+  font-weight: 900;
+}
+
+.hk-history {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(28vw, 1fr));
+  gap: 0.8vh 2vw;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hk-history li {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 1vw;
+  padding: 0.6vh 1vw;
+  border-radius: 1vh;
+  background: rgb(0 0 0 / 0.4);
+  font-size: 2.4vh;
+}
+
+.hk-history li span:last-child {
+  text-align: right;
+}
+
+.hk-history .won {
+  color: #ffd76a;
+  font-weight: 900;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hk-hanky svg {
+    animation: none;
+  }
 }

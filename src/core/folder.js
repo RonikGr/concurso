@@ -11,11 +11,13 @@
 //                       la hoja las nombra por su archivo
 //     Squid/…mp3        sonidos de Squid Games, reconocidos por el nombre (latido, respiración, cristal…: ver
 //                       SQUID_SOUNDS); también valen sueltos en Música/
+//     Vídeos/<Sección>.mp4  (o Vídeos/<Sección>/…mp4) un vídeo que la tele pone en esa sección (su presentación y
+//                       sus pruebas); con fondo negro, el negro se vuelve transparente
 //
 // Los momentos se escriben como en la ventana de música («Preparación», «Jugando», «Respuesta definitiva»…).
 import { millionaireTrackFor } from './millionaireMusic.js';
 
-export const FOLDER_NAMES = { millionaire: 'Millonario', faces: 'Caras', music: 'Música', songs: 'Canciones', squid: 'Squid' };
+export const FOLDER_NAMES = { millionaire: 'Millonario', faces: 'Caras', music: 'Música', songs: 'Canciones', squid: 'Squid', videos: 'Vídeos' };
 
 /**
  * Sonidos de Squid Games y las palabras de su nombre de archivo que los reconocen (en este orden: si canta, es la
@@ -57,6 +59,7 @@ const AUDIO = /\.(mp3|m4a|ogg|wav|aac)$/i;
 /** Clave de una canción de las pruebas: su nombre de archivo (sin extensión, tildes ni mayúsculas). */
 export const songKey = (name) => folderKey(String(name ?? '').replace(AUDIO, ''));
 const IMAGE = /\.(jpe?g|png|webp|gif|heic|avif)$/i;
+export const VIDEO = /\.(mp4|webm|mov|m4v)$/i;
 const JUNK = /^(\.|~\$|desktop\.ini$|thumbs\.db$)/i;
 
 /**
@@ -64,10 +67,11 @@ const JUNK = /^(\.|~\$|desktop\.ini$|thumbs\.db$)/i;
  * @param slots huecos de la ventana de música [{id, label}] (generales y efectos)
  * @param sectionSlots ids de los huecos que puede tener una sección
  * @param sections nombres de las secciones del concurso cargado
- * @returns {sheet, millionaire: {track: entry}, faces: [entry], music: [{slot, entry}], songs: [entry], squid: {kind: entry}, ignored: [ruta]}
+ * @returns {sheet, millionaire: {track: entry}, faces: [entry], music: [{slot, entry}], songs: [entry], squid: {kind: entry},
+ *   videos: [{key, entry}] (key = folderKey de la sección), ignored: [ruta]}
  */
 export function classifyFolder(entries, { slots = [], sectionSlots = [], sections = [] } = {}) {
-  const out = { sheet: null, millionaire: {}, faces: [], music: [], songs: [], squid: {}, ignored: [] };
+  const out = { sheet: null, millionaire: {}, faces: [], music: [], songs: [], squid: {}, videos: [], ignored: [] };
   const slotOf = (name) => slots.find((s) => folderKey(s.label) === folderKey(name) || folderKey(s.id) === folderKey(name));
   const sectionOf = (name) => sections.find((s) => folderKey(s) === folderKey(name));
   for (const e of entries) {
@@ -88,6 +92,13 @@ export function classifyFolder(entries, { slots = [], sectionSlots = [], section
     } else if (top === folderKey(FOLDER_NAMES.songs) && AUDIO.test(name)) {
       out.songs.push(e);
       used = true;
+    } else if (top === folderKey(FOLDER_NAMES.videos) && VIDEO.test(name) && rest.length <= 2) {
+      // el de la sección: por el nombre del archivo, o por su subcarpeta
+      const key = folderKey(rest.length === 2 ? rest[0] : name.replace(VIDEO, ''));
+      if (!out.videos.some((v) => v.key === key)) {
+        out.videos.push({ key, entry: e });
+        used = true;
+      }
     } else if (top === folderKey(FOLDER_NAMES.faces) && IMAGE.test(name)) {
       out.faces.push(e);
       used = true;

@@ -48,7 +48,7 @@ export class SquidGame {
   }
 
   get #perHead() {
-    return this.#room.runner.section?.points?.[0] ?? 1;
+    return this.#room.runner.section?.points?.[0] ?? 5;
   }
 
   /** Concurso nuevo: nada de lo anterior. */

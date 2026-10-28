@@ -347,7 +347,7 @@ function handleMessage(msg, tRecv) {
         for (const id of ['#buzzer', '#free-pad', '#turn-pad']) $(id).hidden = true;
         squidPad.show();
         squidPad.render(msg.squid, stateReceivedAt);
-      } else if (msg.words || msg.shake || msg.bet || msg.punish) {
+      } else if (msg.words || msg.shake || msg.bet || msg.hanky || msg.punish) {
         pad.hide();
         millPad.hide();
         for (const id of ['#buzzer', '#free-pad', '#turn-pad']) $(id).hidden = true;
@@ -644,7 +644,7 @@ function renderInfo(state) {
             : `Por turnos: ${state.turns.spokespersonName ?? 'tu portavoz'} está eligiendo el orden de tu equipo`,
         ]
       : section?.env === 'squid'
-        ? ['○ △ □  ¿Quieres jugar?', `${section.name}: cinco juegos seguidos. Si caes en uno, fuera; los que sobreviven se reparten la hucha. ¡Mira la tele!`]
+        ? ['○ △ □  ¿Quieres jugar?', `${section.name}: varios juegos seguidos. Si caes en uno, fuera; los que sobreviven se reparten la hucha. ¡Mira la tele!`]
         : [section?.name ?? 'Nueva sección', section?.label ?? ''],
     play: [section?.name ?? 'Espera', 'Mira la tele'],
     scoreboard: ['Marcador', 'Mira la tele'],
@@ -786,7 +786,8 @@ function renderSectionBar(state) {
   let item = s.itemIndex == null ? '' : s.itemCount ? `${unit} ${s.itemIndex + 1} de ${s.itemCount}` : `${unit} ${s.itemIndex + 1}`;
   // Squid Games: «Juego 2 de 5» (la última «pregunta» es el reparto de la hucha)
   if (state.squid) item = state.squid.game === 'hucha' ? 'La hucha' : `Juego ${state.squid.step} de ${state.squid.steps - 1}`;
-  const pts = state.squid ? `${s.points?.[0] ?? 1} pts a la hucha por eliminado` : state.bet ? 'apuesta tus puntos' : s.points?.length > 1 ? `${s.points.join('·')} pts` : `${s.points?.[0] ?? 1} ${s.points?.[0] === 1 ? 'pt' : 'pts'}${state.words ? ' por palabra' : ''}`;
+  if (state.hanky) item = state.hanky.number ? `Duelo ${state.hanky.number} de ${state.hanky.total}` : `${state.hanky.total} duelos`;
+  const pts = state.squid ? `${s.points?.[0] ?? 1} pts a la hucha por eliminado` : state.bet ? 'apuesta tus puntos' : s.points?.length > 1 ? `${s.points.join('·')} pts` : `${s.points?.[0] ?? 1} ${s.points?.[0] === 1 ? 'pt' : 'pts'}${state.words ? ' por palabra' : state.hanky ? ' por duelo ganado' : ''}`;
   $('#section-top').textContent = [`Sección ${s.index + 1} de ${s.count}`, s.label, item].filter(Boolean).join(' · ');
   $('#section-name').textContent = `${s.name} · ${pts}`;
   $('#section-desc').textContent = s.description ?? '';

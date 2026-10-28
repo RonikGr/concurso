@@ -28,6 +28,7 @@ import { BotPlayers } from './bots.js';
 import { AwayLog } from '../core/awayLog.js';
 import { WordsGame } from './games/words.js';
 import { ShakeGame } from './games/shake.js';
+import { HankyGame } from './games/hanky.js';
 import { BetGame } from './games/bet.js';
 import { SquidGame } from './games/squid.js';
 import { PunishmentVote } from '../core/punishments.js';
@@ -134,6 +135,7 @@ export class HostRoom extends EventTarget {
       agitar: new ShakeGame(ctx),
       apuesta: new BetGame(ctx),
       squid: new SquidGame(ctx, saved?.games?.squid),
+      panuelo: new HankyGame(ctx),
     };
     for (const g of Object.values(this.games)) Object.assign(this.#actions, g.actions());
     this.#playKey = this.runner.playKey;
@@ -482,7 +484,7 @@ export class HostRoom extends EventTarget {
         return { id, name: team?.name ?? '¿?', color: team?.color ?? 'gris', icon: null, isTeam: true };
       }
       const p = this.roster.get(id);
-      return { id, name: p?.name ?? '¿?', color: p?.color ?? 'gris', icon: p?.icon ?? null, face: p?.face ?? null, isTeam: false };
+      return { id, name: p?.name ?? '¿?', color: p?.color ?? 'gris', icon: p?.icon ?? null, face: p?.face ?? null, teamId: p?.teamId ?? null, isTeam: false };
     };
     const pool = r.byTeams ? this.roster.teams.map((tm) => tm.id) : this.roster.list().map((p) => p.id);
     return {
@@ -558,6 +560,7 @@ export class HostRoom extends EventTarget {
       shake: this.games.agitar.inPlay ? this.games.agitar.view() : null,
       bet: this.games.apuesta.inPlay ? this.games.apuesta.view() : null,
       squid: this.games.squid.inPlay ? this.games.squid.view() : null,
+      hanky: this.games.panuelo.inPlay ? this.games.panuelo.view() : null,
       punish: this.punishView(),
       pointsForCorrect: this.pointsForCorrect,
       pointsForWrong: this.pointsForWrong,
@@ -637,6 +640,7 @@ export class HostRoom extends EventTarget {
       shake: this.games.agitar.inPlay ? this.games.agitar.view() : null,
       bet: this.games.apuesta.inPlay ? this.games.apuesta.view({ forControl: true }) : null,
       squid: this.games.squid.inPlay ? this.games.squid.view({ forControl: true }) : null,
+      hanky: this.games.panuelo.inPlay ? this.games.panuelo.view({ forControl: true }) : null,
       punish: this.punishView(),
       hasPunish: this.hasPunish,
       pointsForCorrect: v.pointsForCorrect,
@@ -832,7 +836,8 @@ export class HostRoom extends EventTarget {
       return true;
     },
     freeParticipants: ({ ids = '' }) => this.inFreePlay && this.freeRound.setParticipants(String(ids).split(',').filter(Boolean)),
-    freeStart: () => this.inFreePlay && this.freeRound.start(now()),
+    // Nota (marcar el golpe): cuenta atrás en la tele antes de que suene la canción
+    freeStart: () => this.inFreePlay && this.freeRound.start(now() + (this.freeRound.tool === 'score' ? Math.max(3, this.settings.countdownSec) * 1000 : 0)),
     freeOut: ({ id }) => this.inFreePlay && this.freeRound.eliminate(id, now()),
     freeRevive: ({ id }) => this.inFreePlay && this.freeRound.revive(id),
     freeCount: ({ id, delta }) => this.inFreePlay && this.freeRound.count(id, Number(delta) || 0),
@@ -1633,6 +1638,7 @@ export class HostRoom extends EventTarget {
       shake: this.games.agitar.inPlay && !benched ? this.games.agitar.viewFor(player) : null,
       bet: this.games.apuesta.inPlay && !benched ? this.games.apuesta.viewFor(player) : null,
       squid: this.games.squid.inPlay ? this.games.squid.viewFor(player) : null, // también quien mira (eliminado o presentador)
+      hanky: this.games.panuelo.inPlay ? this.games.panuelo.viewFor(player) : null,
       punish: this.punishView(player),
       turns: benched ? null : this.#turnsFor(player),
       benched, // el presentador, en una sección donde no juega

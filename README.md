@@ -88,7 +88,8 @@ conectado por HDMI); cada jugador usa su móvil como pulsador, sin instalar nada
    vez) → gana la reacción más rápida. Quien pulsa en rojo queda fuera de esa ronda. En modo «Duelo», el presentador
    elige en el mando a los dos que juegan.
 12. **Libre** («Fit o Fat»): cada fila es una prueba. En el mando marcas quién participa (jugadores o equipos, según
-    la columna Participan) y la tele la presenta.
+    la columna Participan) y la tele la presenta. Con «Jugadores» y equipos, el mando los agrupa por equipo: marcas
+    quién sale de cada uno y los puntos son para él (y suman a su equipo). Con «Equipos», van al equipo entero.
     - **Cronómetro**: «¡Empezar!» y, cuando alguien cae, «Eliminado» (con «Deshacer» por si te equivocas). Al caer el
       último se para solo. Gana quien más aguanta.
     - **Contador**: botones −/+ por participante y números en grande en la tele; «Parar» cuando acabe el tiempo.
@@ -97,7 +98,7 @@ conectado por HDMI); cada jugador usa su móvil como pulsador, sin instalar nada
       tele lo enseña con botellas encendidas; con todas bien, o «¡Lo tiene!», se para su reloj. Luego «▶ Empieza…» el
       siguiente. Gana el más rápido; quien se rinde no puntúa.
     - **Nota** (marcar el golpe): «Canción» = el archivo de `Canciones/Marcar el golpe/` («Golpe Cancion n1»).
-      «¡Que suene la canción!» la pone entera; bailan y marcan el golpe (desde el móvil no se hace nada). En el
+      «¡Que suene la canción!» hace una cuenta atrás 3-2-1 en la tele y la pone entera; bailan y marcan el golpe (desde el móvil no se hace nada). En el
       mando das a cada uno una nota del 1 al 10 (mientras suena o al acabar; tocar la misma nota la quita) y «Dar los
       puntos»: cada uno se lleva su nota. La tele enseña las notas al lado de cada nombre y, al final, la clasificación.
     - **Ninguna**: eliges al ganador directamente. Con **canción**, «¡Que suene la canción!» la pone.
@@ -116,7 +117,7 @@ conectado por HDMI); cada jugador usa su móvil como pulsador, sin instalar nada
 15. **La gran apuesta** (para el final): el portavoz de cada equipo (o cada uno, sin equipos) apuesta desde el móvil
     cuántos puntos se juega, entre 0 y los que tiene (mínimo 5). «Cerrar apuestas» → sale la pregunta y responden →
     «Revelar»: quien acierta gana lo apostado y quien falla lo pierde.
-16. **Squid Games**: cinco juegos seguidos desde el móvil en los que la gente se va eliminando. Al empezar, cada uno
+16. **Squid Games**: cuatro juegos seguidos desde el móvil en los que la gente se va eliminando. Al empezar, cada uno
     lleva un número (alguien se lleva el 456). Cada eliminado mete los puntos de la sección en la hucha y, al final,
     los supervivientes se la reparten. Cada juego se empieza desde el mando (o Espacio) con una cuenta 3-2-1:
     - **Luz roja, luz verde**: la muñeca canta de espaldas y, cuando acaba la canción, se gira: luz roja. Mientras
@@ -125,8 +126,8 @@ conectado por HDMI); cada jugador usa su móvil como pulsador, sin instalar nada
       para saber cuánto falta. Quien llega a la meta se salva; quien se mueve o no llega a tiempo, fuera (como mucho
       un tercio).
     - **El panal**: cada uno elige una lata (dentro hay un círculo, un triángulo, una estrella o un paraguas) y repasa
-      la forma con el dedo. Salirse agrieta la galleta: a la tercera grieta, rota y fuera. Quien no la termina a tiempo,
-      también.
+      la forma con el dedo **tres veces** (un minuto). Salirse agrieta la galleta, y también ir demasiado deprisa (el
+      móvil avisa «¡Más despacio!»): a la tercera grieta, rota y fuera. Quien no la termina a tiempo, también.
     - **El puente de cristal** (el último, como en la serie): por relevos, un tramo cada uno; izquierda o derecha (en
       el móvil, toca un cristal y otra vez para saltar). La tele lo enseña en primera persona: el salto, unos segundos
       de latidos con el cristal agrietándose… y aguanta o se rompe. Si no eliges a tiempo, te empujan. Todos saltan al
@@ -135,7 +136,7 @@ conectado por HDMI); cada jugador usa su móvil como pulsador, sin instalar nada
       quedan.
     - **Tira y afloja**: dos bandos al azar; todos tocan lo más rápido que pueden (cuenta la media del bando). Del bando
       que pierde caen los que menos han tirado (los demás, si ya no cabe nadie más, se salvan por los pelos).
-    - **Canicas**: duelos de pares o nones con 10 canicas cada uno; quien se queda sin ninguna, fuera (al acabar el
+    - **Canicas** (ya no salen solas: solo si pones su fila en la pestaña Squid): duelos de pares o nones con 10 canicas cada uno; quien se queda sin ninguna, fuera (al acabar el
       tiempo, quien tenga menos). En los últimos 10 s, ¡todo o nada! Con un solo duelo, el reloj es de 45 s. Si alguien
       no juega en 15 s, juega la suerte por él. Quien se queda sin pareja ve los duelos en su móvil.
     - Cada juego elimina a alguien, pero llega gente al puente: según cuántos quedan, cada juego tiene un máximo de
@@ -148,6 +149,17 @@ conectado por HDMI); cada jugador usa su móvil como pulsador, sin instalar nada
       megafonía, cuerda; y, si los consigues, la canción de la muñeca o la música de la serie) se ponen en la carpeta
       del concurso, en `Squid/` (o sueltos en `Música/`): se reconocen por el nombre del archivo. Los que falten, la tele
       los genera.
+17. **Lobos contra vampiros** (el colofón: el juego del pañuelo): el primer equipo de la hoja son los hombres lobo y el
+    segundo, los vampiros. Cada duelo, uno de cada equipo: «🎲 Sortear» (entre los que aún no han salido) o elegir tú
+    la pareja en secreto en el mando. En la tele, una ruleta de caras se para en los dos elegidos («¡Al sillón!»).
+    «▶ ¡Preparados… YA!» (o Espacio) → 3-2-1 → silbato: corren a por el pañuelo del centro y vuelven a su sillón. Tú
+    dices quién gana en el mando (también «Salida nula» y «Deshacer»). Cada duelo ganado da los puntos de la sección
+    (10) al que gana. Salen todos una vez; si un equipo tiene menos gente, alguno repite. Al final, el equipo con más
+    duelos ganados. Los móviles avisan a quien le toca («¡TE TOCA!» y «¡CORRE!», con vibración).
+
+**Vídeo de una sección:** en la carpeta del concurso, `Vídeos/<nombre de la sección>.mp4` (p. ej. el esqueleto del
+twerking): sale en la tele a los dos lados, en bucle y sin sonido, en la presentación y en las pruebas de esa sección.
+Con fondo negro, el negro se vuelve transparente. El entorno **Discoteca** (columna Entorno) pone además focos de colores.
 
 En el móvil de cada concursante, bajo su nombre, se ve en qué sección está (nº de sección, tipo, pregunta y puntos en
 juego) y su equipo con el puesto. Tocando sus puntos se abre el **marcador** (equipos y concursantes, en directo) sin

@@ -20,7 +20,16 @@ describe('plantilla del concurso', () => {
     }
     // Los que quitamos siguen en la hoja, pero empiezan sin marcar («Se juega: No»)
     expect(show.sections.filter((s) => !s.play).map((s) => s.name)).toEqual(['Calentamiento', '¿Verdad o mentira?', 'Calcula']);
-    expect(show.teams.map((t) => t.color)).toEqual(['rojo', 'azul']);
+    // Lobos contra vampiros: el primer equipo son los lobos y el segundo, los vampiros
+    expect(show.teams.map((t) => [t.name, t.color])).toEqual([
+      ['Hombres lobo', 'azul'],
+      ['Vampiros', 'rojo'],
+    ]);
+    expect(show.sections.find((s) => s.type === 'panuelo')).toMatchObject({ name: 'Lobos contra vampiros', points: [10], env: 'lunallena', presenterPlays: true });
+    // Ya no hay silla invisible, ni canicas en Squid; el twerking va en la discoteca
+    expect(show.sections.find((s) => s.name === 'Fit o Fat').items.map((i) => i.title)).not.toContain('La silla invisible');
+    expect(show.sections.find((s) => s.type === 'squid').items.map((i) => i.game)).toEqual(['luzroja', 'panal', 'cuerda', 'puente', 'hucha']);
+    expect(show.sections.find((s) => s.name === 'Twerking de pimpón').env).toBe('discoteca');
     for (const s of show.sections) expect(s.items.length, s.name).toBeGreaterThan(0);
   });
 });

@@ -92,6 +92,7 @@ freeParticipants, freeCounter, freeStart, freeOut, freeRevive, freeCount, freeSt
 wordsStart, wordsOk, wordsPass, wordsFoul, wordsUndo, wordsStop, shakeStart, shakeStop, betClose, betReveal, betSet, betAnswer,
 punishClose, punishReopen, punishSpin, toggleSection, pause, resume,
 squidStart, squidStop, squidRevive, squidEliminate, squidChoose,
+hankyDraw, hankyChoose, hankyGo, hankyFalse, hankyCancel, hankyWin, hankyUndo,
 lockTeams, moveTeam, adjustScore, adjustTeamBonus, resetScores, removePlayer, approveControl, denyControl, updateSettings.
 
 - Emparejar mando: la tele (preparación) enseña un QR a `control.html?sala=CÓDIGO#k=CLAVE` (la clave tras `#` no sale del
@@ -269,8 +270,8 @@ Lógica pura con tests en `core/squid.js` (y `core/dalgona.js`, las formas del p
 (1–456, alguien el 456), vivos, caídos `{id, game, pot}` y hucha. Una ronda por juego (`RedLightRound`, `DalgonaRound`,
 `GlassBridgeRound`, `TugRound`, `MarblesRound`; `createSquidRound`): ready → running (3-2-1, `COUNTDOWN_MS`) → done
 (`out`). `spareBest`: si fueran a caer todos, se salvan los de mejor marca. Pestaña «Squid» (Juego, Segundos, Tramos) →
-`section.items` = juegos + `{game: 'hucha'}` al final (sin filas, los 5, en el orden de la serie: `SQUID_ORDER` = Luz
-roja, Panal, Cuerda, Canicas y el puente como final).
+`section.items` = juegos + `{game: 'hucha'}` al final (sin filas, `SQUID_ORDER` = Luz roja, Panal, Cuerda y el puente
+como final; las canicas solo con su fila).
 - Tele: `host/games/squid.js` (`SquidGame`, como los de la fase 10 + `reset()`): al entrar en el primer juego juegan los
   conectados que no presentan; persiste por sección `{state, before[playKey] (para R), results[playKey] (vista final),
   awards}` en `games.squid`. Elimina al acabar cada juego (`perHead` = puntos de la sección por cabeza a la hucha);
@@ -344,6 +345,39 @@ roja, Panal, Cuerda, Canicas y el puente como final).
 - **Para probar** (solo en desarrollo): `host.html?demo=squid&bots=N` monta la sala con la plantilla y N concursantes
   y va a la presentación de Squid Games; `window.__fx.soundLog` = qué ha sonado y cuándo; `localStorage
   concurso.silencio = 1` calla la tele de desarrollo (el registro sigue).
+
+### Lobos contra vampiros (fase 13: el pañuelo, el colofón)
+
+Tipo `panuelo` («Lobos contra vampiros»; sin pestaña de preguntas: un solo ítem `{duels: true}`; puntos por defecto
+`HANKY_POINTS` = 10 por duelo ganado; el presentador juega por defecto). Lógica pura con tests en `core/hanky.js`
+(`HankyDuels`): el primer equipo de la hoja son los lobos y el segundo los vampiros; duelos = gente del equipo más
+grande; `draw` sortea entre los que menos han salido (`candidates`: del equipo pequeño repiten), `choose` = pareja en
+secreto; `current` called → running (`go`: cuenta atrás, `goAt`) → done (`win(side)`); `falseStart`, `cancel`, `undo`.
+Tele: `host/games/hanky.js` (`HankyGame`, guarda en `itemResults[playKey].hanky`; `join` suma a quien entra tarde;
+puntos al ganador con `adjustScore`) y `hankyStage.js` (marcador de duelos, pañuelo SVG, ruleta de caras que se para en
+el elegido según `calledAt` + `ROULETTE_MS`, 3-2-1 y silbato, ganador con aullido `howl` o siseo `hiss`, campeón).
+Espacio: sortear → ¡ya! → (ganador en el mando) → … → al marcador. Móvil: `gamesPad` `hanky()` («¡TE TOCA!», «¡CORRE!»
+con vibración). Mando: `hankyPanel` (chips por equipo para elegir en secreto, `hankyDraft` fuera del pintado). Entorno
+`lunallena` (`HANKY_ENV`, con su música en MOODS).
+
+### Ajustes de la fase 13
+
+- **Música:** la canción del título sigue sonando en la conexión (escena `title` en `join`). Sin lluvia en el sonido.
+  Un archivo de menos de `SHORT_TRACK_S` (15 s) en un momento de música suena una vez (no se repite: era el «acierto»
+  puesto en Revelado).
+- **¿Qué canción es?:** la respuesta sale en un cartel dorado grande (`songAnswer` en stage.js).
+- **Duelo de reflejos:** los dos del duelo se eligen tocando nombres (`duelDraft`, fuera del pintado; con el segundo,
+  `setDuel`). Antes eran dos desplegables que el repintado del mando reiniciaba.
+- **Libre con «Jugadores» y equipos:** el mando agrupa por equipo (`pool` lleva `teamId`): se elige quién sale y los
+  puntos son suyos. La plantilla usa así twerking, galleta y flexiones. Sin «La silla invisible».
+- **Nota:** `freeStart` pone `tStart` = ahora + la cuenta atrás; la tele cuenta 3-2-1 y la canción entra en `tStart`.
+- **Panal:** tres pasadas (`LAPS`), velocidad de la aguja (`MAX_SPEED` 0,55 galletas/s medida en 150 ms; pasarse más
+  de 250 ms = una grieta por acelerón; aviso «¡Más despacio!» desde el 80 %), 60 s. `restoreTrace` al recargar.
+- **Squid:** 5 puntos por eliminado (plantilla y `#perHead` por defecto); `SQUID_ORDER` sin canicas (con su fila, sí).
+- **Vídeo de sección** (`Vídeos/<sección>.mp4` o `Vídeos/<sección>/…`, `classifyFolder` → `videos`, trackStore
+  `video:<folderKey>`): `syncSectionVideo` en host/main.js lo pone a los dos lados (en espejo, `mix-blend-mode: screen`)
+  en la intro y el juego de esa sección. Entorno **Discoteca** (`DISCO_ENV`, solo si la hoja lo elige): `body.disco-on`
+  con focos que barren (show.css) y su música con batería.
 
 ### Pruebas con canción y contrarreloj (fase 11)
 
@@ -547,5 +581,6 @@ roja, Panal, Cuerda, Canicas y el puente como final).
 11. Pruebas físicas y con música: canciones desde la carpeta (¿Qué canción es?, bachata con silencio antes del golpe),
     contrarreloj con intentos (botellas); calidad automática de la imagen de la tele. ✔ Parar y seguir otro día. ✔
 12. Squid Games: Luz roja, El panal, El puente, Tira y afloja y Canicas, con eliminados y hucha. ✔
+13. Lobos contra vampiros (el pañuelo) como colofón; twerking con discoteca y vídeo; panal más exigente. ✔
 
 Hoja de ruta posterior: mandos físicos (Gamepad API), imagen pixelada, rosco, dibuja y adivina.

@@ -79,6 +79,10 @@ async function tx(mode, fn) {
 }
 
 export const isAudio = (f) => f.type?.startsWith('audio/') || /\.(mp3|m4a|ogg|wav|aac)$/i.test(f.name);
+const isVideo = (f) => f.type?.startsWith('video/') || /\.(mp4|webm|mov|m4v)$/i.test(f.name);
+
+/** Hueco del vídeo de una sección (carpeta Vídeos/): «video:» + folderKey del nombre de la sección. */
+export const videoSlot = (key) => `video:${key}`;
 
 export class TrackStore extends EventTarget {
   /** slot → [{id, name, url}] */
@@ -105,9 +109,9 @@ export class TrackStore extends EventTarget {
    * @param source 'carpeta' si vienen de la carpeta del concurso (al volver a leerla se sustituyen)
    */
   async add(slot, files, { source = null, reload = true } = {}) {
-    const audio = [...files].filter(isAudio);
+    const audio = [...files].filter(slot.startsWith('video:') ? isVideo : isAudio);
     if (!audio.length) return 0;
-    const single = slot.startsWith('mill:') || slot.startsWith('song:') || slot.startsWith('sq:'); // una canción por hueco
+    const single = slot.startsWith('mill:') || slot.startsWith('song:') || slot.startsWith('sq:') || slot.startsWith('video:'); // una por hueco
     const old = single ? (this.tracks.get(slot) ?? []).map((t) => t.id) : [];
     await tx('readwrite', (s) => {
       old.forEach((id) => s.delete(id));

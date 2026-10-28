@@ -157,8 +157,25 @@ export function createFreeStage() {
       if (status.textContent !== text) status.textContent = text;
       status.dataset.mode = mode;
     };
+    let lastCount = null;
     const tick = () => {
       if (f.phase !== FPHASE.RUNNING) return show(scoring ? '🎵 Las notas del presentador…' : '🎵 ¿Quién lo ha clavado?', 'end');
+      // Nota: cuenta atrás 3-2-1 antes de que suene (la canción empieza en tStart)
+      const left = f.tStart - performance.now();
+      if (left > 0) {
+        const n = Math.ceil(left / 1000);
+        if (n !== lastCount) {
+          lastCount = n;
+          sound.play('count');
+        }
+        show(String(n), 'count');
+        songTimer = setTimeout(tick, 40);
+        return;
+      }
+      if (lastCount != null) {
+        lastCount = null;
+        sound.play('go');
+      }
       if (!f.song) return show('💃 ¡A bailar!', 'dance');
       const pos = sound.songPosition(f.roundId);
       // (si la canción no está en el portátil, a los 1,5 s se baila igual)

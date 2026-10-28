@@ -203,7 +203,7 @@ function extrasBox(ctx) {
           'p',
           { class: 'folder-report' },
           `✓ «${r.name}»: `,
-          [r.sheet ? `hoja «${r.sheet}»` : 'sin hoja', `millonario ${r.millionaire}/7`, `${r.faces} ${r.faces === 1 ? 'cara' : 'caras'}`, `${r.music} ${r.music === 1 ? 'canción' : 'canciones'} más`, `${r.songs ?? 0} de las pruebas`].join(' · '),
+          [r.sheet ? `hoja «${r.sheet}»` : 'sin hoja', `millonario ${r.millionaire}/7`, `${r.faces} ${r.faces === 1 ? 'cara' : 'caras'}`, `${r.music} ${r.music === 1 ? 'canción' : 'canciones'} más`, `${r.songs ?? 0} de las pruebas`, r.videos ? `${r.videos} ${r.videos === 1 ? 'vídeo' : 'vídeos'}` : null].filter(Boolean).join(' · '),
           r.ignored.length ? h('span', { class: 'muted', title: r.ignored.join('\n') }, ` · ${r.ignored.length} sin usar`) : null,
         )
       : null,
@@ -416,10 +416,20 @@ export function introScreen(view) {
     kinetic('h1', 'intro-title display', s.name),
     h('p', { class: 'intro-type' }, view.sectionLabel),
     s.description ? h('p', { class: 'intro-desc' }, s.description) : null,
-    h('p', { class: 'intro-points' }, s.type === 'test' ? levelPointsText(s.points) : s.type === 'apuesta' ? 'Os jugáis vuestros puntos' : s.type === 'palabras' ? pointsText(s.points, true) + ' por palabra acertada' : pointsText(s.points, s.points.length > 1)),
+    s.type === 'panuelo' ? hankyIntro(view) : null,
+    h('p', { class: 'intro-points' }, s.type === 'test' ? levelPointsText(s.points) : s.type === 'apuesta' ? 'Os jugáis vuestros puntos' : s.type === 'palabras' ? pointsText(s.points, true) + ' por palabra acertada' : s.type === 'panuelo' ? pointsText(s.points, true) + ' por cada duelo ganado' : pointsText(s.points, s.points.length > 1)),
     view.playable ? null : h('p', { class: 'intro-soon' }, 'Esta sección llegará en una próxima versión: se saltará.'),
     view.turns ? turnsIntro(view.turns) : null,
   );
+}
+
+/** El pañuelo: los dos bandos (el primer equipo son los lobos; el segundo, los vampiros) y cómo se juega. */
+function hankyIntro(view) {
+  const [wolf, vampire] = view.teams;
+  return [
+    h('p', { class: 'hk-intro-vs' }, h('span', {}, `🐺 ${wolf?.name ?? 'Hombres lobo'}`), h('strong', { class: 'display' }, 'VS'), h('span', {}, `${vampire?.name ?? 'Vampiros'} 🧛`)),
+    h('p', { class: 'intro-desc' }, 'Sale uno de cada equipo y se sientan en su sillón. A la señal, ¡a por el pañuelo del centro y de vuelta al sillón! El presentador dice quién llega antes.'),
+  ];
 }
 
 /** Squid Games: la invitación (su propia estética, a toda la tele: ver squid.css). */

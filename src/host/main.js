@@ -12,7 +12,7 @@ import { generateRoomCode } from '../shared/roomCode.js';
 import { LOCK, PHASE } from '../core/game.js';
 import { SCREEN } from '../core/runner.js';
 import { parseShowWorkbook } from '../core/show.js';
-import { songKey } from '../core/folder.js';
+import { folderKey, songKey } from '../core/folder.js';
 import { HostRoom } from './room.js';
 import { adoptSavedRoom, clearSavedRoom, currentSavedRoom, loadSavedRoom, roomFromFile, roomToFile } from './persistence.js';
 import { createStage } from './stage.js';
@@ -23,6 +23,7 @@ import { createWordsStage } from './wordsStage.js';
 import { createShakeStage } from './shakeStage.js';
 import { createSquidStage } from './squidStage.js';
 import { createBetStage } from './betStage.js';
+import { createHankyStage } from './hankyStage.js';
 import { WPHASE } from '../core/words.js';
 import { SPHASE } from '../core/shake.js';
 import { BPHASE } from '../core/bet.js';
@@ -46,7 +47,7 @@ import { createDebugPanel } from './debugPanel.js';
 import { Backdrop } from './fx/backdrop.js';
 import { setLite as setConfettiLite } from './fx/confetti.js';
 import { sound } from './fx/audio.js';
-import { TrackStore } from './fx/tracks.js';
+import { TrackStore, videoSlot } from './fx/tracks.js';
 import { FaceStore } from './faceStore.js';
 import { openFacesDialog } from './facesDialog.js';
 import { openMusicDialog } from './musicDialog.js';
@@ -54,7 +55,7 @@ import { openBotsDialog } from './botsDialog.js';
 import { canRemember, chooseFolder, importFolder, rereadFolder, savedFolder } from './contestFolder.js';
 import { createDirector, envFor, screenKey } from './fx/director.js';
 import { enterScreen, kinetic, odometer } from './fx/motion.js';
-import { envGradient, HOME_ENV } from '../shared/environments.js';
+import { DISCO_ENV, envGradient, HOME_ENV } from '../shared/environments.js';
 
 // Marca de esta pestaña: si se recarga, se recupera la sala sin preguntar.
 const TAB_KEY = 'concurso.host.tab';
@@ -70,6 +71,7 @@ let wordsStage = null;
 let shakeStage = null;
 let squidStage = null;
 let betStage = null;
+let hankyStage = null;
 let qrs = null; // {join, joinMini, control}
 let lastScreenSignature = null;
 const debug = createDebugPanel({
@@ -346,6 +348,7 @@ function renderShell() {
   shakeStage = createShakeStage();
   squidStage = createSquidStage();
   betStage = createBetStage();
+  hankyStage = createHankyStage();
 
   clear(app).append(
     h(
@@ -389,6 +392,26 @@ function renderShell() {
 
 // ---------- Partes que cambian ----------
 
+/**
+ * Vídeo de la sección (carpeta Vídeos/, p. ej. el esqueleto del twerking): dos bailarines, uno a cada lado de la tele y
+ * en bucle, sin sonido. Con fondo negro, el negro desaparece (mix-blend-mode: screen) y se ve el decorado detrás.
+ */
+let sectionVideo = { url: null, el: null };
+function syncSectionVideo(section) {
+  const url = section ? (trackStore.tracks.get(videoSlot(folderKey(section.name)))?.[0]?.url ?? null) : null;
+  if (url === sectionVideo.url) return;
+  sectionVideo.el?.remove();
+  sectionVideo = { url, el: null };
+  if (!url) return;
+  const clip = (side) => h('video', { class: `section-video ${side}`, src: url, autoplay: true, loop: true, muted: true, playsinline: true, 'aria-hidden': 'true' });
+  sectionVideo.el = h('div', { class: 'section-videos' }, clip('left'), clip('right'));
+  document.body.append(sectionVideo.el);
+  for (const v of sectionVideo.el.querySelectorAll('video')) {
+    v.muted = true; // (el atributo no basta para que el navegador deje empezar solo)
+    v.play().catch(() => {});
+  }
+}
+
 function render() {
   if (!room) return;
   const view = room.view();
@@ -399,6 +422,10 @@ function render() {
   // Squid Games ocupa toda la tele (sus juegos y su presentación)
   const squidIntro = view.screen === SCREEN.INTRO && view.section?.type === 'squid';
   document.body.classList.toggle('squid-on', (!!view.squid || squidIntro) && !view.paused && !view.peekScoreboard);
+  // Discoteca (el twerking): focos que barren la tele; y el vídeo de la sección, si la carpeta trae uno
+  const inSection = [SCREEN.INTRO, SCREEN.PLAY].includes(view.screen) && !view.paused && !view.peekScoreboard;
+  document.body.classList.toggle('disco-on', inSection && envFor(view) === DISCO_ENV);
+  syncSectionVideo(inSection ? view.section : null);
   // El navegador no deja sonar nada hasta que se toca la página: aviso hasta la primera tecla o clic.
   $('#sound-chip').hidden = sound.unlocked || !(view.settings.musicOn || view.settings.sfxOn);
   sound.configure({ musicOn: view.settings.musicOn, sfxOn: view.settings.sfxOn, volume: view.settings.volume });
@@ -502,6 +529,7 @@ function renderScreen(view) {
   millionaireStage.stop();
   wordsStage.stop();
   betStage.stop();
+  hankyStage.stop();
   if (!view.shake) shakeStage.stop(); // la carrera se repinta cada 300 ms: solo se reinicia al salir de ella
   if (!view.squid || view.paused || view.peekScoreboard) squidStage.stop(); // igual: Squid Games actualiza su escena en su sitio
   // Los sonidos programados (suspense, podio) se anulan al cambiar de momento, no en cada repintado.
@@ -541,7 +569,7 @@ function renderScreen(view) {
           folder: { name: folder.handle?.name ?? null, busy: folder.busy, report: folder.report, onChoose: () => loadFolder(false), onReread: () => loadFolder(true) },
           millionaireCount: [...trackStore.tracks.keys()].filter((k) => k.startsWith('mill:')).length,
           facesCount: faceStore.faces.length,
-          tracksCount: [...trackStore.tracks].reduce((n, [k, list]) => n + (k.startsWith('mill:') || k.startsWith('song:') ? 0 : list.length), 0),
+          tracksCount: [...trackStore.tracks].reduce((n, [k, list]) => n + (/^(mill|song|video):/.test(k) ? 0 : list.length), 0),
           songs: songsStatus(),
           onOpenFaces: () => openPanel(() => openFacesDialog({ store: faceStore, players: () => room.view().players, toast })),
           onOpenMusic: () =>
@@ -560,6 +588,7 @@ function renderScreen(view) {
         [view.shake, shakeStage],
         [view.bet, betStage],
         [view.squid, squidStage],
+        [view.hanky, hankyStage],
       ]) {
         if (!data) continue;
         st.render(view);
@@ -829,6 +858,12 @@ document.addEventListener('keydown', (e) => {
         if (sq.skipTo() != null) run('next'); // ya no queda gente para más juegos: a la hucha
         else if (sq.round?.phase === 'ready') run('squidStart');
         else if (!sq.round) run('next');
+      } else if (room.games.panuelo.inPlay) {
+        // El pañuelo: sortear el duelo → ¡ya! → (el ganador lo dice el mando) → siguiente; acabados, al marcador
+        const d = room.games.panuelo.duels;
+        if (d.finished) run('nextItem');
+        else if (d.current?.step === 'called') run('hankyGo');
+        else if (!d.busy) run('hankyDraw');
       } else if (room.games.apuesta.inPlay) {
         const p = room.games.apuesta.round.phase;
         run(p === BPHASE.BETTING ? 'betClose' : p === BPHASE.QUESTION ? 'betReveal' : 'nextItem');

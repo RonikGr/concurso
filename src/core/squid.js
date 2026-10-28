@@ -8,12 +8,13 @@ import { DALGONA_SHAPES } from './dalgona.js';
 
 export const SQUID_GAMES = {
   luzroja: { label: 'Luz roja, luz verde', icon: '🚦', seconds: 60, min: 1, rule: 'Mantén el botón para avanzar en verde. En rojo, ¡ni un dedo! Si te mueves, fuera.' },
-  panal: { label: 'El panal', icon: '🍪', seconds: 75, min: 1, rule: 'Elige una lata y repasa con el dedo la forma de tu galleta sin salirte. Si se rompe, fuera.' },
+  panal: { label: 'El panal', icon: '🍪', seconds: 60, min: 1, rule: 'Elige una lata y repasa con el dedo la forma de tu galleta tres veces, despacio y sin salirte. Si vas deprisa, se agrieta; si se rompe o no acabas a tiempo, fuera.' },
   puente: { label: 'El puente de cristal', icon: '🌉', seconds: 20, min: 1, rule: 'Por relevos, un tramo cada uno (todos saltan): ¿izquierda o derecha? Un cristal aguanta; el otro, no. Quien no salta, apuesta por dónde lo hará el que está delante.' },
   cuerda: { label: 'Tira y afloja', icon: '🪢', seconds: 20, min: 2, rule: 'Dos bandos al azar: toca el móvil lo más rápido que puedas. Gana el bando que arrastre al otro hasta la línea (o el que más tire de media al acabar el tiempo). El que pierde, fuera.' },
   canicas: { label: 'Canicas', icon: '🟢', seconds: 90, min: 2, rule: 'Duelos por parejas con 10 canicas cada uno: uno esconde unas cuantas en la mano y el otro apuesta las suyas a pares o nones. Quien se queda sin canicas, fuera. En los últimos 10 s, ¡todo o nada!; si se acaba el tiempo, cae quien tenga menos.' },
 };
-export const SQUID_ORDER = ['luzroja', 'panal', 'cuerda', 'canicas', 'puente']; // como en la serie: el puente, al final
+// Recorrido sin filas en la hoja: como en la serie, el puente al final. Las canicas no van (se pueden poner con una fila).
+export const SQUID_ORDER = ['luzroja', 'panal', 'cuerda', 'puente'];
 export const SPHASE = { READY: 'ready', RUNNING: 'running', DONE: 'done' };
 export const COUNTDOWN_MS = 3000;
 
