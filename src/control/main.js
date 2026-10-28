@@ -868,12 +868,16 @@ function freePanel() {
     if (f.tool === 'counter' && f.byTeams && f.participants.length) body.push(countersCard(f));
     if (f.startable) {
       const first = f.participants[0]?.name;
-      const label = f.tool === 'stopwatch' ? '¡Empezar! (cronómetro)' : f.tool === 'trial' ? `¡Empezar! Sale ${first ?? '…'}` : f.tool === 'none' ? '🎵 ¡Que suene la canción!' : '¡Empezar!';
+      const label = f.tool === 'stopwatch' ? '¡Empezar! (cronómetro)' : f.tool === 'trial' ? `¡Empezar! Sale ${first ?? '…'}` : f.tool === 'none' || (f.tool === 'score' && f.song) ? '🎵 ¡Que suene la canción!' : '¡Empezar!';
       if (f.song) body.push(h('p', { class: 'muted small' }, `🎵 «${f.song}» desde el segundo ${f.songStart}${f.beat != null ? ` · se calla ${f.silence} s antes del golpe (${f.beat} s) y vuelve en el golpe` : ''}`));
       body.push(h('button', { class: 'btn primary big', disabled: !chosen.size, onclick: () => cmd('freeStart') }, label));
     } else if (chosen.size) {
       body.push(winnersPicker(f));
     }
+  } else if (f.tool === 'score' && (f.phase === 'running' || f.phase === 'stopped')) {
+    // Nota: mientras suena (o al acabar), una nota del 1 al 10 a cada uno; luego, dar los puntos
+    body.push(h('p', { class: 'c-live' }, f.phase === 'running' ? (f.song ? '🎵 Suena la canción: pon una nota del 1 al 10 a cada uno' : 'Pon una nota del 1 al 10 a cada uno') : 'Pon las notas que falten y da los puntos'), scoreCard(f));
+    if (f.phase === 'running') body.push(btn(f.song ? 'Parar la canción' : 'Parar', () => cmd('freeStop')));
   } else if (f.phase === 'running' && f.tool === 'trial') {
     body.push(trialCard(f), btn('Parar la prueba', () => cmd('freeStop')));
   } else if (f.phase === 'running' && f.tool === 'none') {
@@ -914,7 +918,9 @@ function freePanel() {
     body.push(winnersPicker(f));
   } else {
     body.push(
-      h('section', { class: 'c-card' }, h('p', { class: 'c-kicker' }, 'Ganador'), h('p', { class: 'c-question' }, f.winners.map((w) => w.name).join(' y '), ` (+${f.points})`)),
+      f.tool === 'score'
+        ? h('section', { class: 'c-card' }, h('p', { class: 'c-kicker' }, 'Notas'), f.ranking.map((r) => h('div', { class: 'c-row' }, h('span', {}, r.who.name), h('strong', {}, r.value == null ? '—' : `${r.value} → +${r.value}`))))
+        : h('section', { class: 'c-card' }, h('p', { class: 'c-kicker' }, 'Ganador'), h('p', { class: 'c-question' }, f.winners.map((w) => w.name).join(' y '), ` (+${f.points})`)),
       h('button', { class: 'btn primary big', onclick: () => cmd('nextItem') }, view.itemIndex + 1 < view.itemCount ? 'Siguiente prueba →' : 'Al marcador →'),
     );
   }
@@ -979,6 +985,29 @@ function trialCard(f) {
         )
       : null,
   ];
+}
+
+/** Nota: botones del 1 al 10 por participante (tocar la misma la quita) y dar los puntos (cada uno, su nota). */
+function scoreCard(f) {
+  const label = (p) => [p.icon || p.face ? h('span', { class: 'c-mini emoji' }, avatarOf(p)) : null, ' ', p.name];
+  const scored = f.participants.filter((p) => p.score != null).length;
+  return h(
+    'section',
+    { class: 'c-card' },
+    f.participants.map((p) =>
+      h(
+        'div',
+        { class: 'c-score-row' },
+        h('p', { class: 'c-pname' }, h('span', { class: 'c-team-dot', style: { '--tc': getColor(p.color).bg } }), label(p), h('strong', {}, p.score == null ? '' : ` · ${p.score}`)),
+        h(
+          'div',
+          { class: 'c-score-grid' },
+          Array.from({ length: 10 }, (_, i) => i + 1).map((n) => btn(String(n), () => cmd('freeScore', { id: p.id, value: p.score === n ? '' : n }), p.score === n ? 'ok' : 'small')),
+        ),
+      ),
+    ),
+    h('button', { class: 'btn ok big', disabled: !scored, onclick: () => cmd('freeAward', { ids: '' }) }, scored === f.participants.length ? 'Dar los puntos (cada uno, su nota)' : `Dar los puntos (${scored} de ${f.participants.length} con nota)`),
+  );
 }
 
 /** Elegir ganadores (viene marcado lo que propone la herramienta) y dar los puntos. */

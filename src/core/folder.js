@@ -7,7 +7,8 @@
 //     Caras/        una foto por persona, con sus nombres en el del archivo («Rodri, Rodrigo.jpg»)
 //     Música/<Momento>/…mp3             canciones para todo el concurso («Música/Marcador/…»)
 //     Música/<Sección>/<Momento>/…mp3   solo para una sección (su nombre en la hoja)
-//     Canciones/…mp3    las de las pruebas: «¿Qué canción es?», la bachata… (la hoja las nombra por su archivo)
+//     Canciones/…mp3    las de las pruebas (también en subcarpetas: «Adivina la canción», «Marcar el golpe»);
+//                       la hoja las nombra por su archivo
 //     Squid/…mp3        sonidos de Squid Games, reconocidos por el nombre (latido, respiración, cristal…: ver
 //                       SQUID_SOUNDS); también valen sueltos en Música/
 //
@@ -17,12 +18,14 @@ import { millionaireTrackFor } from './millionaireMusic.js';
 export const FOLDER_NAMES = { millionaire: 'Millonario', faces: 'Caras', music: 'Música', songs: 'Canciones', squid: 'Squid' };
 
 /**
- * Sonidos de Squid Games y las palabras de su nombre de archivo que los reconocen (en este orden: «muñeca gira» es el
- * giro, no el canto). Sin ellos, la tele los genera.
+ * Sonidos de Squid Games y las palabras de su nombre de archivo que los reconocen (en este orden: si canta, es la
+ * canción aunque traiga detrás el giro, «Doll singing and head turning»; «muñeca gira», sin cantar, es el giro). Sin
+ * ellos, la tele los genera.
  */
 export const SQUID_SOUNDS = [
+  ['doll', ['canta', 'singing', 'sings', 'mugunghwa', 'younghee']],
   ['turn', ['gira', 'giro', 'turn', 'cabeza', 'head']],
-  ['doll', ['muneca', 'doll', 'canta', 'mugunghwa', 'younghee']],
+  ['doll', ['muneca', 'doll']],
   ['heart', ['latido', 'corazon', 'heart']],
   ['breath', ['respira', 'breath', 'jadeo']],
   ['glass', ['cristal', 'glass', 'vidrio']],

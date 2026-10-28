@@ -499,6 +499,7 @@ export class HostRoom extends EventTarget {
         ...who(id),
         out: id in r.out ? r.out[id] : null,
         count: r.counts[id] ?? 0,
+        score: r.scores[id] ?? null, // nota del presentador (1–10)
         // Con equipos: quién cuenta desde su móvil y entre quiénes se puede elegir (solo el mando)
         counter: r.byTeams ? (r.counters[id] ?? null) : null,
         members: forControl && r.byTeams ? this.roster.list().filter((p) => p.teamId === id).map((p) => ({ id: p.id, name: p.name })) : null,
@@ -509,7 +510,7 @@ export class HostRoom extends EventTarget {
       // Solo el mando: a quién se puede elegir y qué ganador propone la herramienta.
       pool: forControl ? pool.map(who) : null,
       suggestion: forControl ? r.suggestion(t) : null,
-      // Con canción (la bachata): la tele la pone y enseña el silencio y el golpe
+      // Con canción: la tele la pone (y, si la fila tiene golpe, enseña el silencio y el golpe)
       song: r.item.song ?? null,
       songStart: r.item.songStart ?? 0,
       beat: r.item.beat ?? null,
@@ -842,6 +843,8 @@ export class HostRoom extends EventTarget {
       return this.freeRound.setCounter(teamId, playerId || null);
     },
     freeStop: () => this.inFreePlay && this.freeRound.stop(now()),
+    // Nota: la del presentador a cada participante (1–10; vacío = quitarla)
+    freeScore: ({ id, value }) => this.inFreePlay && this.freeRound.setScore(String(id), value === '' || value == null ? null : Number(value)),
     // Contrarreloj: un intento con n piezas bien, quitar el último, ¡lo tiene! / se rinde, y que salga el siguiente
     freeAttempt: ({ n }) => this.inFreePlay && this.freeRound.attempt(Number(n), now()),
     freeUndoAttempt: () => this.inFreePlay && this.freeRound.undoAttempt(),
@@ -851,7 +854,7 @@ export class HostRoom extends EventTarget {
       if (!this.inFreePlay) return false;
       const r = this.freeRound;
       const points = r.award(String(ids).split(',').filter(Boolean), now());
-      if (!points) return 'Elige al menos un ganador.';
+      if (!points) return r.tool === 'score' ? 'Pon al menos una nota.' : 'Elige al menos un ganador.';
       for (const [id, pts] of Object.entries(points)) {
         if (r.byTeams) this.roster.adjustTeamBonus(id, pts);
         else this.roster.adjustScore(id, pts);
@@ -1669,6 +1672,8 @@ export class HostRoom extends EventTarget {
       out: participating && me in r.out,
       won: r.phase === FPHASE.AWARDED && r.winners.includes(me),
       points: r.item.points,
+      // Nota: la suya (cuando ya se han dado los puntos: antes, ni pista) y lo que se lleva
+      score: r.tool === 'score' && r.phase === FPHASE.AWARDED ? (r.points[me] ?? null) : null,
       roundId: r.roundId,
       // Contador: lleva la cuenta este móvil (o nadie aún) → botones +1/−1; si la lleva otro, su nombre.
       count: participating && r.tool === 'counter' ? (r.counts[me] ?? 0) : null,

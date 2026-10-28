@@ -28,7 +28,10 @@ export function createFreeStage() {
     root.dataset.phase = f.phase;
     const progress = view.itemCount > 1 ? `Prueba ${view.itemIndex + 1} de ${view.itemCount}` : '';
     const header = h('p', { class: 'stage-q' }, [view.section.name, progress].filter(Boolean).join(' · '));
-    const pointsText = `${f.points} ${f.points === 1 ? 'punto' : 'puntos'} para ${f.byTeams ? 'el equipo ganador' : 'quien gane'}`;
+    const pointsText =
+      f.tool === TOOL.SCORE
+        ? `El presentador da ${f.byTeams ? 'a cada equipo' : 'a cada uno'} una nota del 1 al 10: son sus puntos`
+        : `${f.points} ${f.points === 1 ? 'punto' : 'puntos'} para ${f.byTeams ? 'el equipo ganador' : 'quien gane'}`;
 
     if (f.phase === FPHASE.SETUP) {
       return fill(
@@ -49,13 +52,13 @@ export function createFreeStage() {
         header,
         h('h2', { class: 'free-title' }, f.title),
         kinetic('p', 'free-winner display', `🏆 ${f.winners.map((w) => w.name).join(' y ')}`),
-        h('p', { class: 'result-verdict' }, `+${f.points} ${f.winners.length > 1 ? 'cada uno' : ''}`.trim()),
+        h('p', { class: 'result-verdict' }, f.tool === TOOL.SCORE ? `La mejor nota: ${f.awarded[f.winners[0]?.id] ?? ''}` : `+${f.points} ${f.winners.length > 1 ? 'cada uno' : ''}`.trim()),
         f.tool === TOOL.NONE ? null : results(f),
       );
     }
 
     if (f.tool === TOOL.TRIAL) return renderTrial(f, header);
-    if (f.tool === TOOL.NONE && f.song) return renderSong(f, header);
+    if ((f.tool === TOOL.NONE && f.song) || f.tool === TOOL.SCORE) return renderSong(f, header);
 
     // En marcha o parada: reloj en grande y cada participante.
     const clock = h('p', { class: `big-clock free-clock ${f.phase === FPHASE.STOPPED ? 'stopped' : ''}` });
@@ -138,8 +141,9 @@ export function createFreeStage() {
     tick();
   }
 
-  /** Prueba con canción (la bachata): suena… se calla antes del golpe… ¡golpe! */
+  /** Prueba con canción (marcar el golpe bailando): suena… y, si la fila tiene golpe, se calla antes y ¡golpe! */
   function renderSong(f, header) {
+    const scoring = f.tool === TOOL.SCORE;
     const status = h('p', { class: 'song-status display' });
     fill(
       root,
@@ -147,16 +151,19 @@ export function createFreeStage() {
       h('h2', { class: 'free-title' }, f.title),
       f.description ? h('p', { class: 'free-desc' }, f.description) : null,
       status,
-      h('ul', { class: 'free-chips' }, f.participants.map((p) => chip(p))),
+      h('ul', { class: 'free-chips' }, f.participants.map((p) => chip(p, scoring ? p.score : undefined))),
     );
     const show = (text, mode) => {
       if (status.textContent !== text) status.textContent = text;
       status.dataset.mode = mode;
     };
     const tick = () => {
-      if (f.phase !== FPHASE.RUNNING) return show('🎵 ¿Quién lo ha clavado?', 'end');
+      if (f.phase !== FPHASE.RUNNING) return show(scoring ? '🎵 Las notas del presentador…' : '🎵 ¿Quién lo ha clavado?', 'end');
+      if (!f.song) return show('💃 ¡A bailar!', 'dance');
       const pos = sound.songPosition(f.roundId);
-      if (pos == null || pos < f.songStart) show('🎵 Preparados…', 'ready');
+      // (si la canción no está en el portátil, a los 1,5 s se baila igual)
+      if (pos == null) show(performance.now() - f.tStart > 1500 ? '💃 ¡A bailar!' : '🎵 Preparados…', 'dance');
+      else if (pos < f.songStart) show('🎵 Preparados…', 'ready');
       else if (f.beat == null) show('💃 ¡A bailar!', 'dance');
       else if (pos < f.beat - f.silence) show('💃 ¡A bailar!', 'dance');
       else if (pos < f.beat) show('🤫 ¡Seguid sin música!', 'silence');
@@ -176,12 +183,14 @@ export function createFreeStage() {
   };
 }
 
-function chip(p) {
+/** Un participante; con `score` (nota), su nota al lado (o «…» si aún no la tiene). */
+function chip(p, score) {
   return h(
     'li',
     { style: { '--pc': getColor(p.color).bg, '--pc-fg': getColor(p.color).fg } },
     p.icon || p.face ? h('span', { class: 'emoji' }, avatarOf(p)) : null,
     h('span', {}, p.name),
+    score === undefined ? null : h('strong', { class: `free-score ${score == null ? 'none' : ''}` }, score == null ? '…' : String(score)),
   );
 }
 
@@ -196,7 +205,7 @@ function results(f) {
         h('span', { class: 'f-place' }, r.place ? `${r.place}º` : '—'),
         h('span', { class: 'emoji' }, r.who.icon || r.who.face ? avatarOf(r.who) : ''),
         h('span', { class: 'es-name' }, r.who.name),
-        h('span', { class: 'es-value' }, f.tool === TOOL.STOPWATCH || f.tool === TOOL.TRIAL ? (r.value == null ? '—' : formatClock(r.value)) : String(r.value)),
+        h('span', { class: 'es-value' }, f.tool === TOOL.STOPWATCH || f.tool === TOOL.TRIAL ? (r.value == null ? '—' : formatClock(r.value)) : f.tool === TOOL.SCORE ? (r.value == null ? '—' : `${r.value}/10`) : String(r.value)),
         h('span', {}),
         h('strong', { class: 'es-points' }, f.awarded[r.id] ? `+${f.awarded[r.id]}` : ''),
       ),

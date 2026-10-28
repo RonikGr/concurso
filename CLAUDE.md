@@ -88,7 +88,7 @@ luego `controlState {view}` (vista completa con respuestas, agrupada cada 150 ms
 `cmdResult {id, ok, error}`. Las órdenes son las de `HostRoom.run()`: next, prev, nextItem, gotoSection, endSection,
 scoreboard, toSetup, showQuestion, showAnswer, open, correct, wrong, restart, unlock, forgive, openAnswers, closeAnswers, reveal, setDuel,
 setSpokesperson, setTurnOrder, mShow, mSeat, mMark, mUnmark, mReveal, mCallStart, mCallEnd, mAudienceCancel, mAudienceEnd,
-freeParticipants, freeCounter, freeStart, freeOut, freeRevive, freeCount, freeStop, freeAward,
+freeParticipants, freeCounter, freeStart, freeOut, freeRevive, freeCount, freeStop, freeScore, freeAward,
 wordsStart, wordsOk, wordsPass, wordsFoul, wordsUndo, wordsStop, shakeStart, shakeStop, betClose, betReveal, betSet, betAnswer,
 punishClose, punishReopen, punishSpin, toggleSection, pause, resume,
 squidStart, squidStop, squidRevive, squidEliminate, squidChoose,
@@ -309,7 +309,11 @@ roja, Panal, Cuerda, Canicas y el puente como final).
 - **Sonidos** (`fx/squidSound.js`, `sound.sq(nombre, {at})` con `at` = performance.now() exacto): con archivo de la
   carpeta si lo hay (`Squid/` o suelto en `Música/`, reconocido por el nombre: `SQUID_SOUNDS`, `squidSoundFor` en
   core/folder.js → huecos `sq:<tipo>`; `sound.sample()` los iguala de volumen y toca trozos medidos en `CUTS`), si no
-  generados (el canto con formantes). Música propia del entorno (`MOODS.squid.styles`: sqTheme flauta original,
+  generados (el canto con formantes). La muñeca: si el nombre dice que canta («singing», «canta»), es la canción
+  aunque traiga detrás el giro; `core/voicing.js` `splitSong()` (con tests) busca dónde hay voz (tono de 150–700 Hz)
+  y separa la canción del ruido de detrás: la canción suena en verde (estirada o encogida para acabar justo en rojo; si
+  no cabe ni a 2,5×, solo su final) y el resto (el giro) en rojo; después del giro, los pitidos del escaneo si queda rojo.
+  Nunca suenan a la vez la voz del archivo y la generada. Música propia del entorno (`MOODS.squid.styles`: sqTheme flauta original,
   sqTension, sqWaltz = el Danubio azul; `hush` en Luz roja y el puente); con archivo tema/tensión/vals, suena él.
   Hucha con confeti de dinero (`celebrate(ms, {theme: 'money'})`).
 - **Que llegue gente al puente, sin contradecir a la megafonía:** cada juego tiene un tope de eliminados
@@ -352,7 +356,13 @@ roja, Panal, Cuerda, Canicas y el puente como final).
   Pulsador: suena en `tOpen`, para en `result` sin juzgar, sigue en el rebote y al acertar / `closed` / mostrar
   respuesta. Libre con canción (sin herramienta: `FreeRound.startable`): suena al empezar; `silence = [golpe − s,
   golpe]`, acaba 4 s tras el golpe; la tele enseña «A bailar / Silencio / ¡GOLPE!» con `sound.songPosition()`.
-  La preparación avisa de las que faltan (`songsStatus()` en main.js).
+  La preparación avisa de las que faltan (`songsStatus()` en main.js). «Golpe» y «Silencio» ya no van en la plantilla
+  (se siguen leyendo): marcar el golpe es con la herramienta Nota. Las canciones pueden ir en subcarpetas de
+  `Canciones/` (`Adivina la canción/`, `Marcar el golpe/`): cuenta solo el nombre del archivo.
+- **Nota** (`TOOL.SCORE`, Libre «Nota»: marcar el golpe bailando): la canción suena entera (sin silencio) y el
+  presentador da a cada participante una nota de 1 a `SCORE_MAX` (10) con `freeScore {id, value}` (vacío = quitarla;
+  en marcha o parada). `award` da a cada uno su nota (`points`); `winners` = la nota más alta. Tele: la nota junto a
+  cada nombre (`chip(p, score)`) y la clasificación «9/10 +9»; móvil: «💃 ¡A bailar!» y, al dar los puntos, «Nota: 8».
 - **Contrarreloj** (`TOOL.TRIAL`, Libre «Contrarreloj» + «Piezas»): salen de uno en uno en el orden de
   `participants`; `trials[id] = {tStart, time, gaveUp, attempts: [{n, t}]}`, `current`. Órdenes freeAttempt {n},
   freeUndoAttempt, freeDone {gaveUp}, freeNext. Con n = piezas se para solo. Gana el menor tiempo (rendirse = sin puesto).
@@ -512,7 +522,8 @@ roja, Panal, Cuerda, Canicas y el puente como final).
   - **Estimación**: cada uno escribe un número; más cercano, o "sin pasarse" (El precio justo) según la pregunta.
   - **Parar el contador**: objetivo en segundos; modo visible / a ciegas / desaparece a los N s, elegible por ronda.
   - **Duelo de reflejos**: rojo → verde tras 2–6 s al azar; pulsar en rojo elimina de la ronda; todos o un duelo.
-  - **Libre** (p. ej. "Fit o Fat"): participantes y puntos; herramientas cronómetro (con "eliminado") y contador +1/−1.
+  - **Libre** (p. ej. "Fit o Fat"): participantes y puntos; herramientas cronómetro (con "eliminado"), contador +1/−1,
+    contrarreloj y nota del 1 al 10 (marcar el golpe bailando).
   - **Palabras secretas**: mímica, Tabú, descríbelo o tararéalo; uno del equipo la hace, el rival vigila y pita.
   - **Agita el móvil**: carrera de sacudidas (acelerómetro). **La gran apuesta**: para el final, se apuestan los puntos.
 - **Castigos:** todos votan 3 al empezar; al final, ruleta entre los 3 más votados para el equipo que pierde.

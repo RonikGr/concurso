@@ -1723,6 +1723,22 @@ a.btn {
   font-weight: 800;
 }
 
+/* Nota del presentador (marcar el golpe), al lado del nombre */
+.free-chips .free-score {
+  min-width: 2.2rem;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.55);
+  color: #fff;
+  text-align: center;
+  animation: pop-in 0.35s ease-out;
+}
+
+.free-chips .free-score.none {
+  opacity: 0.5;
+  animation: none;
+}
+
 .free-clock.stopped {
   color: var(--warn);
 }

@@ -619,10 +619,18 @@ for (const [id, delta] of [
 function renderInfo(state) {
   const section = state.section;
   const free = state.free; // sección Libre: lo arbitra el presentador; aquí solo se informa
-  const freeText = free && [
-    free.won ? '¡Has ganado!' : free.out ? '¡Eliminado!' : free.participating ? '¡Te toca!' : free.title,
-    free.won ? `+${free.points} ${free.byTeams ? 'para tu equipo' : ''}`.trim() : free.participating ? free.title : 'Mira la tele',
-  ];
+  const freeText =
+    free &&
+    (free.tool === 'score' && free.participating
+      ? free.score != null
+        ? [`Nota: ${free.score}`, `+${free.score} ${free.byTeams ? 'para tu equipo' : free.score === 1 ? 'punto' : 'puntos'}`]
+        : free.phase === 'running'
+          ? ['💃 ¡A bailar!', 'Marca el golpe bailando: el presentador pone la nota']
+          : ['¡Te toca!', free.title]
+      : [
+          free.won ? '¡Has ganado!' : free.out ? '¡Eliminado!' : free.participating ? '¡Te toca!' : free.title,
+          free.won ? `+${free.points} ${free.byTeams ? 'para tu equipo' : ''}`.trim() : free.participating ? free.title : 'Mira la tele',
+        ]);
   // El presentador, en las secciones donde no juega (ve las respuestas en el mando)
   const benched = state.benched && ['intro', 'play'].includes(state.screen) ? ['🎤 Presentas', 'En esta sección no juegas: tú la llevas'] : null;
   const [label, sub] = benched ?? freeText ?? {

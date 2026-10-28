@@ -685,3 +685,25 @@ body.c-playing .c-main {
   font-size: 1.3rem;
   font-weight: 800;
 }
+
+/* Nota (marcar el golpe): del 1 al 10 por participante */
+.c-score-row {
+  padding: 0.4rem 0;
+  border-bottom: 1px solid rgb(255 255 255 / 0.08);
+}
+
+.c-score-row .c-pname {
+  margin: 0 0 0.35rem;
+}
+
+.c-score-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.35rem;
+}
+
+.c-score-grid .btn {
+  min-height: 2.6rem;
+  font-size: 1.15rem;
+  font-weight: 800;
+}

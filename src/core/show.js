@@ -635,16 +635,16 @@ const ITEM_PARSERS = {
     const title = text(v.title);
     if (!title) return err('Falta el nombre de la prueba.');
     const t = norm(v.tool);
-    const tool = !t || t === 'ninguna' ? 'none' : t.startsWith('crono') ? 'stopwatch' : t.startsWith('contador') ? 'counter' : t.startsWith('contrarreloj') ? 'trial' : null;
-    if (!tool) return err('"Herramienta" debe ser Ninguna, Cronómetro, Contador o Contrarreloj.');
+    const tool = !t || t === 'ninguna' ? 'none' : t.startsWith('crono') ? 'stopwatch' : t.startsWith('contador') ? 'counter' : t.startsWith('contrarreloj') ? 'trial' : t.startsWith('nota') ? 'score' : null;
+    if (!tool) return err('"Herramienta" debe ser Ninguna, Cronómetro, Contador, Contrarreloj o Nota.');
     const w = norm(v.who);
     if (w && !['jugadores', 'equipos'].includes(w)) return err('"Participan" debe ser Jugadores o Equipos.');
     const points = isEmpty(v.points) ? section.points[0] : parseNumber(v.points);
     if (points == null) return err('"Puntos" debe ser un número.');
     const pieces = isEmpty(v.pieces) ? null : parseNumber(v.pieces);
     if (pieces != null && (!Number.isInteger(pieces) || pieces < 1 || pieces > 12)) return err('"Piezas" debe ser un número entero de 1 a 12.');
-    // Con canción (p. ej. la bachata): suena desde «Desde»; si hay «Golpe», calla «Silencio» segundos antes y vuelve
-    // justo en el golpe (así se ve quién lo marca a tiempo).
+    // Con canción: suena desde «Desde» hasta el final. «Golpe» y «Silencio» (columnas opcionales, ya no van en la
+    // plantilla): calla «Silencio» segundos antes del golpe y vuelve justo en él.
     const song = text(v.song) || null;
     const songStart = isEmpty(v.songStart) ? 0 : parseNumber(v.songStart);
     if (songStart == null || songStart < 0) return err('"Desde (s)" debe ser un número de segundos.');

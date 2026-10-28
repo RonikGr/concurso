@@ -475,8 +475,8 @@ export function createSquidStage() {
       dollEl.dataset.face = 'front';
       lyrics.classList.add('red');
       const lastCue = g.cues.filter((c) => c.t <= g.endsAt).at(-1);
-      if (lastCue?.light !== 'red') sound.sq('headTurn'); // si ya miraba, no se gira otra vez
-      sound.sq('scan', { dur: 2 });
+      const turned = lastCue?.light !== 'red' ? (sound.sq('headTurn', { dur: 2.5 })?.length ?? 0) : 0; // si ya miraba, no se gira otra vez
+      sound.sq('scan', { at: performance.now() + turned * 1000, dur: 2 });
       final.forEach((p, i) =>
         later(1100 + i * 160, () => {
           const t = tokens.get(p.id);
@@ -523,9 +523,10 @@ export function createSquidStage() {
       later(c.t - now - 300, () => {
         if (c.light === 'green') sound.sq('chant', { at: c.t, dur: c.len / 1000, rush: c.rush });
         else {
-          sound.sq('headTurn', { at: c.t });
-          const next = g.cues[i + 1];
-          sound.sq('scan', { at: c.t, dur: ((next?.t ?? g.endsAt) - c.t) / 1000 });
+          // se gira (el sonido del giro) y, cuando acaba de girarse, escanea lo que queda de rojo
+          const red = ((g.cues[i + 1]?.t ?? g.endsAt) - c.t) / 1000;
+          const turned = sound.sq('headTurn', { at: c.t, dur: red })?.length ?? 0;
+          if (red - turned > 0.6) sound.sq('scan', { at: c.t + turned * 1000, dur: red - turned });
         }
       });
     });

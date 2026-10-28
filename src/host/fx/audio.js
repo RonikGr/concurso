@@ -8,6 +8,7 @@ import { MOODS, STYLES } from './music.js';
 import { LADDER_SCENES, SFX_SLOT } from './tracks.js';
 import { getCues } from './cueSettings.js';
 import { SQUID_SFX } from './squidSound.js';
+import { splitSong } from '../../core/voicing.js';
 
 const CROSSFADE = 0.7; // s (constante de tiempo del fundido entre estilos)
 const CUE_LEVEL = 0.75; // volumen de las canciones del millonario (como la música, sin reverberación)
@@ -214,7 +215,7 @@ class SoundEngine extends EventTarget {
   sampleInfo(kind) {
     const rec = this.#samples.get(kind);
     const meta = rec && this.#sampleMeta.get(rec.id);
-    return meta && this.#buffers.has(rec.id) ? { start: meta.start, length: meta.length } : null;
+    return meta && this.#buffers.has(rec.id) ? { start: meta.start, length: meta.length, turn: meta.turn ?? null } : null;
   }
 
   /**
@@ -275,7 +276,13 @@ class SoundEngine extends EventTarget {
         let b = d.length - 1;
         while (a < b && Math.abs(d[a]) < floor) a++;
         while (b > a && Math.abs(d[b]) < floor) b--;
-        this.#sampleMeta.set(rec.id, { norm: Math.min(400, 0.7 / Math.max(peak, 1e-4)), start: a / buf.sampleRate, length: (b - a) / buf.sampleRate });
+        const meta = { norm: Math.min(400, 0.7 / Math.max(peak, 1e-4)), start: a / buf.sampleRate, length: (b - a) / buf.sampleRate };
+        // La muñeca: dónde canta y, si el archivo trae detrás el giro de la cabeza, dónde empieza (canción en verde, giro en rojo)
+        if (this.#samples.get('doll')?.id === rec.id) {
+          const cut = splitSong(d, buf.sampleRate);
+          if (cut) Object.assign(meta, { start: cut.song[0], length: cut.song[1] - cut.song[0], turn: cut.turn });
+        }
+        this.#sampleMeta.set(rec.id, meta);
         this.#buffers.set(rec.id, buf);
         // si es la música que toca ahora (tema, tensión, vals), que empiece a sonar ella
         const want = (MOODS[this.#moodId]?.styles?.[this.#scene] && STYLES[MOODS[this.#moodId].styles[this.#scene]]?.sample) || STYLES[this.#scene]?.sample;

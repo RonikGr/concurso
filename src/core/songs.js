@@ -10,7 +10,8 @@ import { songKey } from './folder.js';
  * La tele la descodifica antes (songToPrepare) para que suene sin esperar.
  *  - Pulsador con canción: suena al «¡Pulsad!», se para cuando alguien pulsa, sigue si falla (rebote) y, al acertar,
  *    al no acertar nadie o al enseñar la respuesta, sigue sonando.
- *  - Libre con canción (la bachata): suena desde «¡Empezar!»; calla antes del golpe y vuelve en el golpe; acaba 4 s después.
+ *  - Libre con canción (marcar el golpe): suena desde «¡Empezar!» hasta el final; si la fila tiene golpe, calla antes
+ *    y vuelve en el golpe, y acaba 4 s después.
  */
 export function songFor(view) {
   if (view.screen !== SCREEN.PLAY || view.peekScoreboard || view.paused) return null;

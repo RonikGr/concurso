@@ -5,12 +5,14 @@
 //
 // Herramientas: cronómetro (el presentador marca "eliminado" a quien cae; gana quien más aguanta),
 // contador (+1/−1 por participante; gana quien más hace), contrarreloj (salen de uno en uno; gana quien menos tarda;
-// cada intento puede apuntar cuántas piezas tiene bien, p. ej. «3 de 5 botellas») o ninguna (el presentador elige
-// ganador). Participan jugadores o equipos según la fila de la hoja. Con canción (p. ej. la bachata), «¡Empezar!» la
-// hace sonar aunque no haya herramienta.
+// cada intento puede apuntar cuántas piezas tiene bien, p. ej. «3 de 5 botellas»), nota (el presentador da a cada uno
+// una nota del 1 al 10 y esos son sus puntos: marcar el golpe bailando) o ninguna (el presentador elige ganador).
+// Participan jugadores o equipos según la fila de la hoja. Con canción (p. ej. la del golpe), «¡Empezar!» la hace
+// sonar aunque no haya herramienta.
 
 export const FPHASE = { SETUP: 'setup', RUNNING: 'running', STOPPED: 'stopped', AWARDED: 'awarded' };
-export const TOOL = { NONE: 'none', STOPWATCH: 'stopwatch', COUNTER: 'counter', TRIAL: 'trial' };
+export const TOOL = { NONE: 'none', STOPWATCH: 'stopwatch', COUNTER: 'counter', TRIAL: 'trial', SCORE: 'score' };
+export const SCORE_MAX = 10; // nota: de 1 a 10
 
 export class FreeRound {
   /** @param item fila de la hoja: {title, description, tool, teams, points} */
@@ -26,6 +28,7 @@ export class FreeRound {
     this.counters = {}; // contador desde el móvil, con equipos: equipo → playerId que lleva su cuenta (lo elige el presentador)
     this.trials = {}; // contrarreloj: id → {tStart, time, gaveUp, attempts: [{n, t}]}
     this.current = null; // contrarreloj: a quién le toca (puede no haber empezado aún)
+    this.scores = {}; // nota: id → 1…10 (la pone el presentador)
     this.winners = [];
     this.points = {}; // id → puntos dados
   }
@@ -59,6 +62,20 @@ export class FreeRound {
       this.current = this.participants[0];
       this.trials = { [this.current]: { tStart: now, time: null, gaveUp: false, attempts: [] } };
     }
+    return true;
+  }
+
+  // ---------- nota
+
+  /** El presentador pone (o quita, con null) la nota de alguien: en marcha o ya parada, antes de dar los puntos. */
+  setScore(id, value) {
+    if (this.tool !== TOOL.SCORE || ![FPHASE.RUNNING, FPHASE.STOPPED].includes(this.phase) || !this.participants.includes(id)) return false;
+    if (value == null) {
+      delete this.scores[id];
+      return true;
+    }
+    if (!Number.isInteger(value) || value < 1 || value > SCORE_MAX) return false;
+    this.scores[id] = value;
     return true;
   }
 
@@ -183,6 +200,24 @@ export class FreeRound {
   /** Clasificación según la herramienta: [{id, value, place}] (mejor primero; empates comparten puesto). */
   ranking(now) {
     if (this.tool === TOOL.NONE) return this.participants.map((id) => ({ id, value: null, place: null }));
+    if (this.tool === TOOL.SCORE) {
+      // Más nota, mejor; quien no la tiene, al final y sin puesto
+      const rows = this.participants.map((id) => ({ id, value: this.scores[id] ?? null })).sort((a, b) => (b.value ?? -1) - (a.value ?? -1));
+      let place = 0;
+      let last = null;
+      for (const r of rows) {
+        if (r.value == null) {
+          r.place = null;
+          continue;
+        }
+        if (r.value !== last) {
+          place++;
+          last = r.value;
+        }
+        r.place = place;
+      }
+      return rows;
+    }
     if (this.tool === TOOL.TRIAL) {
       // Menos tiempo, mejor; quien no lo consiguió (o no salió), al final y sin puesto
       const time = (id) => (this.trials[id] && !this.trials[id].gaveUp ? this.trials[id].time : null);
@@ -219,6 +254,7 @@ export class FreeRound {
   /** Ganadores que propone la herramienta (el presentador puede cambiarlos). */
   suggestion(now) {
     if (this.tool === TOOL.NONE) return [];
+    if (this.tool === TOOL.SCORE) return this.participants.filter((id) => id in this.scores); // todos los que tienen nota
     const rows = this.ranking(now);
     if (!rows.length || (this.tool === TOOL.COUNTER && rows[0].value === 0)) return [];
     return rows.filter((r) => r.place === 1).map((r) => r.id);
@@ -230,6 +266,16 @@ export class FreeRound {
    */
   award(winnerIds, now) {
     if (this.phase === FPHASE.AWARDED) return null;
+    if (this.tool === TOOL.SCORE) {
+      // Cada uno se lleva su nota; «ganador», la más alta
+      const scored = this.participants.filter((id) => id in this.scores);
+      if (!scored.length) return null;
+      if (this.phase === FPHASE.RUNNING) this.stop(now);
+      this.points = Object.fromEntries(scored.map((id) => [id, this.scores[id]]));
+      this.winners = this.ranking(now).filter((r) => r.place === 1).map((r) => r.id);
+      this.phase = FPHASE.AWARDED;
+      return this.points;
+    }
     const winners = winnerIds.filter((id) => this.participants.includes(id));
     if (!winners.length) return null;
     if (this.phase === FPHASE.RUNNING) this.stop(now);
@@ -240,8 +286,8 @@ export class FreeRound {
   }
 
   toJSON() {
-    const { roundId, phase, participants, tStart, tStop, out, counts, counters, trials, current, winners, points } = this;
-    return { roundId, phase, participants, tStart, tStop, out, counts, counters, trials, current, winners, points };
+    const { roundId, phase, participants, tStart, tStop, out, counts, counters, trials, current, scores, winners, points } = this;
+    return { roundId, phase, participants, tStart, tStop, out, counts, counters, trials, current, scores, winners, points };
   }
 
   static fromJSON(item, data) {

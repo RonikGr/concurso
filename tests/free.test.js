@@ -172,4 +172,31 @@ describe('contrarreloj (p. ej. las botellas)', () => {
     expect(song.start(0)).toBe(true);
     expect(song.award(['bea'], 5000)).toEqual({ bea: 3 });
   });
+
+  it('nota (marcar el golpe): el presentador da a cada uno del 1 al 10 y esos son sus puntos', () => {
+    const r = new FreeRound(item('score', { song: 'Golpe Cancion n1' }), { roundId: 'f3' });
+    r.setParticipants(['ana', 'bea', 'cris']);
+    expect(r.setScore('ana', 8)).toBe(false); // aún no ha empezado
+    expect(r.start(0)).toBe(true);
+    expect(r.setScore('ana', 8)).toBe(true);
+    expect(r.setScore('bea', 11)).toBe(false);
+    expect(r.setScore('bea', 0)).toBe(false);
+    expect(r.setScore('bea', 6)).toBe(true);
+    expect(r.setScore('zoe', 5)).toBe(false); // no participa
+    expect(r.setScore('bea', null)).toBe(true); // quitarla
+    r.setScore('bea', 8);
+    expect(r.ranking(1000).map((x) => [x.id, x.value, x.place])).toEqual([['ana', 8, 1], ['bea', 8, 1], ['cris', null, null]]);
+    expect(r.suggestion(1000)).toEqual(['ana', 'bea']);
+    r.stop(2000);
+    expect(r.setScore('cris', 3)).toBe(true); // parada, aún se puede
+    expect(r.award([], 3000)).toEqual({ ana: 8, bea: 8, cris: 3 });
+    expect(r.winners).toEqual(['ana', 'bea']);
+    expect(r.setScore('cris', 9)).toBe(false); // ya dados
+    const back = FreeRound.fromJSON(r.item, JSON.parse(JSON.stringify(r.toJSON())));
+    expect(back.scores).toEqual({ ana: 8, bea: 8, cris: 3 });
+    const none = new FreeRound(item('score'), { roundId: 'f4' });
+    none.setParticipants(['ana']);
+    none.start(0);
+    expect(none.award([], 100)).toBeNull(); // sin ninguna nota
+  });
 });

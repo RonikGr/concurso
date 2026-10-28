@@ -88,9 +88,11 @@ function syllable(s, dest, [cons, vowel, coda], midi, t, len, last) {
 export function chant(s, t, { dur, rush = 0 }) {
   const sample = s.sampleInfo('doll');
   if (sample) {
-    // Su grabación, estirada o encogida para que acabe a tiempo (más deprisa = más aguda, como en la serie)
+    // Solo la canción de su grabación (sin el giro, si lo trae), estirada o encogida para que acabe justo al ponerse
+    // en rojo (más deprisa = más aguda, como en la serie). Si ni a 2,5× cabe, canta solo el final de la frase.
     const rate = Math.max(0.5, Math.min(2.5, sample.length / dur));
-    return s.sample('doll', { t, offset: sample.start, duration: sample.length, rate, gain: 1 });
+    const played = Math.min(sample.length, dur * rate);
+    return s.sample('doll', { t, offset: sample.start + sample.length - played, duration: played, rate, gain: 1, fadeOut: 0.08 });
   }
   const out = s.ctx.createGain();
   out.gain.value = 0.55;
@@ -110,12 +112,23 @@ export function chant(s, t, { dur, rush = 0 }) {
   return null;
 }
 
-/** Gira la cabeza: motorcito (0,45 s). */
-export function headTurn(s, t) {
-  if (s.sample('turn', { t })) return;
+/**
+ * Gira la cabeza (al ponerse en rojo): el archivo del giro, o el final del de la muñeca si lo trae detrás de la
+ * canción, o un motorcito generado. Como mucho `dur` s (lo que dura el rojo). @returns {length} lo que suena (s)
+ */
+export function headTurn(s, t, { dur = null } = {}) {
+  const cap = (len) => (dur ? Math.min(len, dur) : len);
+  const own = s.sampleInfo('turn');
+  if (own && s.sample('turn', { t, offset: own.start, duration: cap(own.length), fadeOut: 0.25 })) return { length: cap(own.length) };
+  const tail = s.sampleInfo('doll')?.turn;
+  if (tail) {
+    const len = cap(tail[1] - tail[0]);
+    if (s.sample('doll', { t, offset: tail[0], duration: len, fadeOut: 0.3 })) return { length: len };
+  }
   tone(s, s.sfxBus, { type: 'sawtooth', freq: 140, slideTo: 260, slideTime: 0.4, t, attack: 0.03, peak: 0.05, decay: 0.42 });
   noiseHit(s, s.sfxBus, t, { freq: 900, q: 3, peak: 0.08, attack: 0.05, decay: 0.38, sweepTo: 1600 });
   thump(s, s.sfxBus, t + 0.44, 0.25);
+  return { length: 0.45 };
 }
 
 /** Ojos que escanean: pitidos suaves durante `dur` s. */

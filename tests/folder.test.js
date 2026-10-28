@@ -53,5 +53,7 @@ describe('carpeta del concurso', () => {
     expect(Object.keys(r.squid).sort()).toEqual(['breath', 'doll', 'glass', 'heart', 'turn']);
     expect(r.ignored).toEqual(['Música/raro.mp3']);
     expect([squidSoundFor('Coins Drop.mp3'), squidSoundFor('Electronic Bell.mp3'), squidSoundFor('Rope Snap Swish.mp3'), squidSoundFor('Breathing Sound Effect.m4a')]).toEqual(['coins', 'bell', 'rope', 'breath']);
+    // si canta, es la canción aunque traiga detrás el giro de la cabeza
+    expect([squidSoundFor('Girl Doll Singing And Head Turning.m4a'), squidSoundFor('Muñeca gira.mp3'), squidSoundFor('Adivina Canción n1.aac')]).toEqual(['doll', 'turn', null]);
   });
 });

@@ -96,11 +96,11 @@ conectado por HDMI); cada jugador usa su móvil como pulsador, sin instalar nada
       en marcha el reloj del primero; con «Piezas» (5 botellas), en cada intento tocas cuántas tiene bien (0…5) y la
       tele lo enseña con botellas encendidas; con todas bien, o «¡Lo tiene!», se para su reloj. Luego «▶ Empieza…» el
       siguiente. Gana el más rápido; quien se rinde no puntúa.
-    - **Ninguna**: eliges al ganador directamente. Con **canción** (la bachata: columnas «Canción», «Desde», «Golpe» y
-      «Silencio»), «¡Que suene la canción!» la pone: se calla «Silencio» segundos antes del golpe (3 si lo dejas
-      vacío) y vuelve justo en el golpe. Regla: seguir bailando sin música y marcar el golpe a la vez que vuelve, y
-      quedarse congelados 3 s; quien se adelanta, se retrasa o se mueve, no lo ha clavado. Tú marcas a quien sí.
-      Para cada canción hay que escribir en «Golpe» su segundo exacto (escúchala).
+    - **Nota** (marcar el golpe): «Canción» = el archivo de `Canciones/Marcar el golpe/` («Golpe Cancion n1»).
+      «¡Que suene la canción!» la pone entera; bailan y marcan el golpe (desde el móvil no se hace nada). En el
+      mando das a cada uno una nota del 1 al 10 (mientras suena o al acabar; tocar la misma nota la quita) y «Dar los
+      puntos»: cada uno se lleva su nota. La tele enseña las notas al lado de cada nombre y, al final, la clasificación.
+    - **Ninguna**: eliges al ganador directamente. Con **canción**, «¡Que suene la canción!» la pone.
     - El mando propone el ganador (puedes cambiarlo o marcar varios) y «Dar puntos»: a cada jugador o, si participan
       equipos, al equipo entero.
 13. **Palabras secretas**: cada turno es de un equipo (se alternan; «Turnos por equipo» y «Segundos por turno» en
@@ -347,7 +347,8 @@ Cubren la lógica que no depende de la red (`src/core`, `src/shared`).
 - **Carpeta del concurso:** en la preparación, **📁 Elegir la carpeta del concurso**. Una carpeta del portátil con:
   la hoja (.xlsx), `Millonario/` (sus 7 canciones), `Caras/` (una foto por persona, «Rodri, Rodrigo.jpg») y
   `Música/<Momento>/` o `Música/<Sección>/<Momento>/` (momentos con el nombre de la ventana de música) y `Canciones/`
-  (las de las pruebas: «¿Qué canción es?», la bachata; con el nombre que pone la hoja). La tele lo copia
+  (las de las pruebas, con el nombre que pone la hoja en «Canción»; se pueden ordenar en subcarpetas:
+  `Canciones/Adivina la canción/` y `Canciones/Marcar el golpe/`). La tele lo copia
   todo al portátil y recuerda la carpeta (Chrome y Edge): luego basta **📁 Volver a leer**. Si se pierde la sala o se
   crea otra, las canciones y las caras siguen ahí. Esa carpeta no va al repositorio, que es público.
 - **Canciones del millonario** (todas las secciones de Test): tema del programa, explicación, pregunta fácil, media y

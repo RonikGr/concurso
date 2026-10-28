@@ -15,7 +15,7 @@ describe('plantilla del concurso', () => {
     expect(warnings).toEqual([]);
     expect(new Set(show.sections.map((s) => s.type))).toEqual(new Set(Object.keys(SECTION_TYPES)));
     // Las pruebas que pidió el presentador
-    for (const name of ['Guerra de globos', 'Twerking de pimpón', 'La galleta', 'Botellas en orden', 'Bachata: marca el golpe', '¿Qué canción es?']) {
+    for (const name of ['Guerra de globos', 'Twerking de pimpón', 'La galleta', 'Botellas en orden', 'Marca el golpe', '¿Qué canción es?']) {
       expect(show.sections.map((s) => s.name)).toContain(name);
     }
     // Los que quitamos siguen en la hoja, pero empiezan sin marcar («Se juega: No»)
