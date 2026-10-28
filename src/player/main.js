@@ -330,6 +330,7 @@ function handleMessage(msg, tRecv) {
       renderSectionBar(msg);
       // El fondo del móvil lleva los colores del entorno de la sección (el mismo que la tele).
       document.body.style.setProperty('--env-bg', envGradient(msg.section?.env ?? HOME_ENV));
+      document.body.classList.toggle('squid-on', msg.section?.env === 'squid'); // Squid Games: sus colores, no los de Halloween
       if (standingsDialog.open) renderStandings();
       // Concurso en pausa (para seguir otro día): solo el aviso
       $('#paused-pad').hidden = !msg.paused;
@@ -388,7 +389,10 @@ function handleMessage(msg, tRecv) {
       if (msg.teams?.length && !me.teamId) {
         if (!teamRequested) showTeamPicker(msg.teams); // si ya lo pidió, se espera a que la tele lo confirme
       } else if (needsLook()) showLook(msg);
-      else if (welcomedRoom !== msg.room) showWelcome(msg);
+      else if (welcomedRoom !== msg.room && msg.squid?.phase === 'running') {
+        welcomedRoom = msg.room; // vuelve a entrar con un juego en marcha: nada de bienvenida, que no tape el juego
+        if ($('#screen-game').hidden) show('screen-game');
+      } else if (welcomedRoom !== msg.room) showWelcome(msg);
       else if (welcomeTimer) {
         // sigue la bienvenida: que no la tape el juego
       } else if ($('#screen-game').hidden) show('screen-game');
@@ -631,7 +635,9 @@ function renderInfo(state) {
             ? `Por turnos: responderás la pregunta ${state.turns.position}`
             : `Por turnos: ${state.turns.spokespersonName ?? 'tu portavoz'} está eligiendo el orden de tu equipo`,
         ]
-      : [section?.name ?? 'Nueva sección', section?.label ?? ''],
+      : section?.env === 'squid'
+        ? ['○ △ □  ¿Quieres jugar?', `${section.name}: cinco juegos seguidos. Si caes en uno, fuera; los que sobreviven se reparten la hucha. ¡Mira la tele!`]
+        : [section?.name ?? 'Nueva sección', section?.label ?? ''],
     play: [section?.name ?? 'Espera', 'Mira la tele'],
     scoreboard: ['Marcador', 'Mira la tele'],
     final: ['¡Fin del concurso!', `Has hecho ${me?.score ?? 0} ${me?.score === 1 ? 'punto' : 'puntos'}`],
@@ -776,7 +782,8 @@ function renderSectionBar(state) {
   $('#section-top').textContent = [`Sección ${s.index + 1} de ${s.count}`, s.label, item].filter(Boolean).join(' · ');
   $('#section-name').textContent = `${s.name} · ${pts}`;
   $('#section-desc').textContent = s.description ?? '';
-  $('#section-desc').hidden = !s.description;
+  // En Squid Games, la descripción sobra (cada juego explica lo suyo) y quita sitio al botón
+  $('#section-desc').hidden = !s.description || !!state.squid;
 }
 
 const standingsDialog = $('#standings-dialog');

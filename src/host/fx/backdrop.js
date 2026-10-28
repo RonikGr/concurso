@@ -457,6 +457,7 @@ export class Backdrop {
   #frameNo;
   #goodRuns;
   #lastDrop;
+  #stillFrames = 0; // entornos fijos (Squid Games): basta con dibujarlos un par de veces
 
   constructor(canvas) {
     this.canvas = canvas;
@@ -494,6 +495,7 @@ export class Backdrop {
     const e = getEnv(id);
     if (this.env === e.id) return;
     this.env = e.id;
+    this.#stillFrames = 0;
     const target = {
       ...Object.fromEntries(NUMERIC.map((k) => [k, e[k]])),
       ...Object.fromEntries(COLORS.map((k) => [k, [...e[k]]])),
@@ -558,6 +560,7 @@ export class Backdrop {
   /** Destello (relámpago o momento de impacto). */
   flash(strength = 1) {
     this.flashLevel = Math.max(this.flashLevel, strength);
+    this.#stillFrames = 0;
   }
 
   #init() {
@@ -621,6 +624,7 @@ export class Backdrop {
     this.canvas.width = w;
     this.canvas.height = h;
     this.gl.viewport(0, 0, w, h);
+    this.#stillFrames = 0; // el lienzo se ha borrado
   }
 
   #frame(now) {
@@ -629,6 +633,7 @@ export class Backdrop {
     if (!this.cur) return;
     // En las calidades ligeras, el fondo no se dibuja en todos los fotogramas
     if (++this.#frameNo % QUALITY_LEVELS[this.level].every !== 0 && !this.to && this.flashLevel < 0.05) return;
+    if (getEnv(this.env).still && !this.to && this.flashLevel < 0.05 && ++this.#stillFrames > 3) return;
     let dim = 0;
     if (this.to) {
       const k = Math.min(1, (now - this.tStart) / TRANSITION_MS);

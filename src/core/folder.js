@@ -8,11 +8,38 @@
 //     Música/<Momento>/…mp3             canciones para todo el concurso («Música/Marcador/…»)
 //     Música/<Sección>/<Momento>/…mp3   solo para una sección (su nombre en la hoja)
 //     Canciones/…mp3    las de las pruebas: «¿Qué canción es?», la bachata… (la hoja las nombra por su archivo)
+//     Squid/…mp3        sonidos de Squid Games, reconocidos por el nombre (latido, respiración, cristal…: ver
+//                       SQUID_SOUNDS); también valen sueltos en Música/
 //
 // Los momentos se escriben como en la ventana de música («Preparación», «Jugando», «Respuesta definitiva»…).
 import { millionaireTrackFor } from './millionaireMusic.js';
 
-export const FOLDER_NAMES = { millionaire: 'Millonario', faces: 'Caras', music: 'Música', songs: 'Canciones' };
+export const FOLDER_NAMES = { millionaire: 'Millonario', faces: 'Caras', music: 'Música', songs: 'Canciones', squid: 'Squid' };
+
+/**
+ * Sonidos de Squid Games y las palabras de su nombre de archivo que los reconocen (en este orden: «muñeca gira» es el
+ * giro, no el canto). Sin ellos, la tele los genera.
+ */
+export const SQUID_SOUNDS = [
+  ['turn', ['gira', 'giro', 'turn', 'cabeza', 'head']],
+  ['doll', ['muneca', 'doll', 'canta', 'mugunghwa', 'younghee']],
+  ['heart', ['latido', 'corazon', 'heart']],
+  ['breath', ['respira', 'breath', 'jadeo']],
+  ['glass', ['cristal', 'glass', 'vidrio']],
+  ['coins', ['moneda', 'coin', 'dinero', 'money', 'hucha']],
+  ['bell', ['campana', 'bell', 'megafon', 'chime', 'timbre', 'aviso']],
+  ['rope', ['cuerda', 'rope', 'soga']],
+  ['out', ['eliminad', 'disparo', 'shot', 'gun']],
+  ['theme', ['tema', 'theme', 'wayback']],
+  ['tension', ['tension', 'pinksoldier', 'soldado']],
+  ['waltz', ['vals', 'danubio', 'waltz', 'danube']],
+];
+
+/** Qué sonido de Squid Games es un archivo, por su nombre (o null). */
+export function squidSoundFor(name) {
+  const key = folderKey(String(name).replace(/\.[^.]+$/, ''));
+  return SQUID_SOUNDS.find(([, words]) => words.some((w) => key.includes(w)))?.[0] ?? null;
+}
 
 /** Para comparar nombres de carpeta: sin tildes, mayúsculas, espacios ni signos. */
 export const folderKey = (s) =>
@@ -34,10 +61,10 @@ const JUNK = /^(\.|~\$|desktop\.ini$|thumbs\.db$)/i;
  * @param slots huecos de la ventana de música [{id, label}] (generales y efectos)
  * @param sectionSlots ids de los huecos que puede tener una sección
  * @param sections nombres de las secciones del concurso cargado
- * @returns {sheet, millionaire: {track: entry}, faces: [entry], music: [{slot, entry}], songs: [entry], ignored: [ruta]}
+ * @returns {sheet, millionaire: {track: entry}, faces: [entry], music: [{slot, entry}], songs: [entry], squid: {kind: entry}, ignored: [ruta]}
  */
 export function classifyFolder(entries, { slots = [], sectionSlots = [], sections = [] } = {}) {
-  const out = { sheet: null, millionaire: {}, faces: [], music: [], songs: [], ignored: [] };
+  const out = { sheet: null, millionaire: {}, faces: [], music: [], songs: [], squid: {}, ignored: [] };
   const slotOf = (name) => slots.find((s) => folderKey(s.label) === folderKey(name) || folderKey(s.id) === folderKey(name));
   const sectionOf = (name) => sections.find((s) => folderKey(s) === folderKey(name));
   for (const e of entries) {
@@ -61,6 +88,13 @@ export function classifyFolder(entries, { slots = [], sectionSlots = [], section
     } else if (top === folderKey(FOLDER_NAMES.faces) && IMAGE.test(name)) {
       out.faces.push(e);
       used = true;
+    } else if ((top === folderKey(FOLDER_NAMES.squid) || (top === folderKey(FOLDER_NAMES.music) && rest.length === 1)) && AUDIO.test(name)) {
+      // Squid Games (en su carpeta, o suelto en Música/)
+      const kind = squidSoundFor(name);
+      if (kind && !out.squid[kind]) {
+        out.squid[kind] = e;
+        used = true;
+      }
     } else if (top === folderKey(FOLDER_NAMES.music) && AUDIO.test(name)) {
       if (rest.length === 2) {
         const slot = slotOf(rest[0]);

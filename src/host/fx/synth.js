@@ -104,6 +104,36 @@ export function organ(s, dest, notes, t, dur, gain = 0.035) {
     }
   }
 }
+/** Flauta dulce: casi una sinusoide, con soplo al empezar y vibrato que llega tarde. */
+export function recorder(s, dest, f, t, dur, gain = 0.08) {
+  const c = s.ctx;
+  const o = c.createOscillator();
+  o.frequency.value = f;
+  const o2 = c.createOscillator();
+  o2.frequency.value = f * 2;
+  const lfo = c.createOscillator();
+  lfo.frequency.value = 5.2;
+  const depth = c.createGain();
+  depth.gain.setValueAtTime(0, t);
+  depth.gain.linearRampToValueAtTime(f * 0.006, t + Math.min(0.35, dur));
+  lfo.connect(depth).connect(o.frequency);
+  const g = c.createGain();
+  const end = t + dur;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(gain, t + 0.04);
+  g.gain.setValueAtTime(gain * 0.85, Math.max(t + 0.05, end - 0.06));
+  g.gain.exponentialRampToValueAtTime(0.0001, end + 0.04);
+  const g2 = c.createGain();
+  g2.gain.value = 0.12;
+  o.connect(g).connect(dest);
+  o2.connect(g2).connect(g);
+  for (const n of [o, o2, lfo]) {
+    n.start(t);
+    n.stop(end + 0.1);
+  }
+  noiseHit(s, dest, t, { freq: f * 2, q: 2, peak: gain * 0.35, decay: 0.05 }); // soplo
+}
+
 export const crackle = (s, dest, t) => noiseHit(s, dest, t, { freq: 1800 + Math.random() * 3000, q: 4, peak: 0.04 + Math.random() * 0.05, decay: 0.015 });
 export const bubble = (s, dest, t) => tone(s, dest, { freq: 250 + Math.random() * 300, slideTo: 900 + Math.random() * 600, slideTime: 0.07, t, peak: 0.05, decay: 0.08 });
 export function owl(s, dest, t) {

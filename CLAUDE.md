@@ -269,18 +269,77 @@ Lógica pura con tests en `core/squid.js` (y `core/dalgona.js`, las formas del p
 (1–456, alguien el 456), vivos, caídos `{id, game, pot}` y hucha. Una ronda por juego (`RedLightRound`, `DalgonaRound`,
 `GlassBridgeRound`, `TugRound`, `MarblesRound`; `createSquidRound`): ready → running (3-2-1, `COUNTDOWN_MS`) → done
 (`out`). `spareBest`: si fueran a caer todos, se salvan los de mejor marca. Pestaña «Squid» (Juego, Segundos, Tramos) →
-`section.items` = juegos + `{game: 'hucha'}` al final (sin filas, los 5).
+`section.items` = juegos + `{game: 'hucha'}` al final (sin filas, los 5, en el orden de la serie: `SQUID_ORDER` = Luz
+roja, Panal, Cuerda, Canicas y el puente como final).
 - Tele: `host/games/squid.js` (`SquidGame`, como los de la fase 10 + `reset()`): al entrar en el primer juego juegan los
   conectados que no presentan; persiste por sección `{state, before[playKey] (para R), results[playKey] (vista final),
   awards}` en `games.squid`. Elimina al acabar cada juego (`perHead` = puntos de la sección por cabeza a la hucha);
   en la hucha reparte `share` a los vivos (`adjustScore`). Órdenes squidStart, squidStop, squidRevive, squidEliminate
   {id} (no en marcha), squidChoose {side} (puente: por quien está delante). Fin antes de tiempo (`#earlyEnd`).
-  Pantalla `squidStage.js` (escena montada por clave; lo continuo se actualiza en su sitio; luces por temporizador y
-  «¡Luz roja!» con la voz del navegador). Mando `squidPanel` (con lo secreto). Bots en `#squid`.
-- Móvil `player/squidPad.js` (`state.squid`, también para quien mira o cayó): `play {game: 'squid', action}`: luzroja
-  p (avance), fault (hora de la tele o −1: pulsar o sensor en rojo pasados 450 ms); panal pick, trace [%, grietas,
-  0|1|2]; puente choose 0/1; cuerda taps; canicas hide n, guess [0 pares | 1 nones, apuesta]. `value` admite hasta 4
-  números (protocol.js). Horas de la tele → locales con `sync.toLocal` (sin sincronizar, desde `view.now`).
+  Pantalla `squidStage.js` (escena montada por clave; lo continuo se actualiza en su sitio; luces por temporizador,
+  sonidos programados en el reloj de audio). Mando `squidPanel` (con lo secreto). Bots en `#squid` (en el puente
+  esperan a que acabe el salto que se está viendo).
+- Móvil `player/squidPad.js` (+ `squidPad.css`; `state.squid`, también para quien mira o cayó): `play {game: 'squid',
+  action}`: luzroja p (avance), fault (hora de la tele o −1: pulsar o sensor en rojo pasados 450 ms); panal pick,
+  trace [%, grietas, 0|1|2]; puente choose 0/1 (dos toques: elegir y saltar), bet 0/1 (los que esperan); cuerda taps; canicas hide n, guess
+  [0 pares | 1 nones, apuesta]. `value` admite hasta 4 números (protocol.js). Horas de la tele → locales con
+  `sync.toLocal` (sin sincronizar, desde `view.now`). Lo continuo (la cuerda) se pinta con `live` sin remontar.
+- **Estética propia** (no la de Halloween): entorno `squid` (`SQUID_ENV`, `still`: el WebGL deja de redibujar si no
+  cambia), `host/squid.css` (la escena ocupa toda la tele: `body.squid-on` oculta tarjetas y cabecera, también en la
+  presentación de la sección, `squidWelcome` en screens.js), dibujos SVG en `shared/squidArt.js` (logo ○△□, muñeca de
+  frente/espaldas, árbol, guardias, cerdito, galletas). Fichas = parche verde del chándal con el número; eliminado =
+  aspa roja sobre la cara. Cuenta atrás 3 □ · 2 △ · 1 ○. Megafonía (campana + `sound.say`) al presentar cada juego,
+  al acabar y por cada eliminado («Jugador 47, eliminado», agrupados; `announceSpared`: «… se salva por los pelos»).
+  Las pantallas fijas no se remontan (`update`).
+- **Luz roja:** la muñeca canta en cada verde (`CHANT`, «Mu-gung-hwa…»; `chantTimes(len, rush)` = hora de cada
+  sílaba) y la luz se pone roja al acabar la frase: los verdes van de 5,8 s a 2,4 s (`cues` verdes llevan `len` y
+  `rush`, a veces una muy rápida). Tele: patio con mural, muñeca que gira y ojos rojos, haz que barre el campo, letra
+  sílaba a sílaba; móvil: «¡Avanza!» / «¡Quieto!» con la misma letra.
+- **Puente por relevos y con suspense** (`GlassBridgeRound({jumpMs})`): cada uno salta un tramo y pasa el turno al
+  siguiente que no ha caído (`#nextTurn`, en círculo); hay un tramo más que gente (hasta 21), así todos saltan. Cada
+  salto guarda `at`, `reveal` (3,5–5,7 s al azar, media `BRIDGE_REVEAL_MS`) y `ends` (+1,9 s si aguanta, +3,3 s si
+  cae); mientras se ve (`jumping`) nadie elige, el siguiente turno cuenta desde `ends` y el juego acaba en `closesAt`
+  (tras el último). Caída la mitad (`cap`), el cristal malo cruje pero aguanta (`held`: «¡Cruje… pero aguanta!», se
+  salva por los pelos). Los que esperan apuestan qué cristal aguanta (`bet`, `tally`; quien salta ve el recuento en su
+  móvil, la tele «El público dice / decía»; `hits` = aciertos). `revealed(move, now)`
+  / `fellBy(now)`: los móviles no saben el resultado hasta su `reveal` (la sala los avisa con temporizadores en
+  `#arm`). Tele en primera persona (CSS 3D: `sq-world`, cámara por
+  rAF): respirar mientras decide, agacharse, saltar, caer, latidos que aceleran con grietas bajo los pies y aguanta
+  (exhala) o se rompe (esquirlas, caída mirando arriba, negro con el número). El móvil del que salta lo vive también.
+- **Sonidos** (`fx/squidSound.js`, `sound.sq(nombre, {at})` con `at` = performance.now() exacto): con archivo de la
+  carpeta si lo hay (`Squid/` o suelto en `Música/`, reconocido por el nombre: `SQUID_SOUNDS`, `squidSoundFor` en
+  core/folder.js → huecos `sq:<tipo>`; `sound.sample()` los iguala de volumen y toca trozos medidos en `CUTS`), si no
+  generados (el canto con formantes). Música propia del entorno (`MOODS.squid.styles`: sqTheme flauta original,
+  sqTension, sqWaltz = el Danubio azul; `hush` en Luz roja y el puente); con archivo tema/tensión/vals, suena él.
+  Hucha con confeti de dinero (`celebrate(ms, {theme: 'money'})`).
+- **Que llegue gente al puente, sin contradecir a la megafonía:** cada juego tiene un tope de eliminados
+  (`squidCap(game, {alive, started, gamesLeft})`, lo calcula `SquidGame.#newRound`): lo que sobra hasta el suelo
+  `squidFloor(empezaron)` (¼, al menos 2) repartido entre los juegos que quedan antes del puente, así todos eliminan a
+  alguien; Luz roja, como mucho el 35 %; el puente, la mitad. Pasado el tope, quien caería **se salva en el momento**
+  (nunca se anuncia «eliminado» de alguien que luego se salva): Luz roja `saved` (le pilla la muñeca: deja de jugar),
+  panal estado `spared` (la galleta rota), cuerda (del bando que pierde caen los que menos tiraron), canicas
+  `d.spared` (sello «¡Se salva!») y puente `held`. Cada ronda tiene `spared`; `g.spared` en la vista; tele, voz y
+  móvil lo dicen al momento. `spareToFloor` en `#finish` queda de red de seguridad (`floorSpared`). La hucha se reparte entera: `SquidState.shares()` (el resto, +1 a los
+  primeros por número). Canicas: la jugada se resuelve al momento pero nadie sabe quién gana hasta `MARBLE_REVEAL_MS`
+  (1,8 s: la mano se abre; `#marblesOut`, `decided` en el móvil); jugada en 15 s (`MARBLE_MOVE_MS`, con reloj en la
+  tele). Con un solo duelo, 45 s; en los últimos 10 s, todo o nada (`MARBLE_ALL_IN_MS`, `allIn(now)`: se apuestan
+  todas, aviso en tele y móvil); con el reloj a cero no se empieza otra jugada; la apuesta del móvil vuelve a 1 en
+  cada turno; quien no tiene pareja ve los duelos en directo. Corregir a mano (eliminar/revivir) también borra lo guardado de las pruebas posteriores.
+- **Equilibrio** (para que se jueguen los cinco): en Luz roja hay que mantener el 42 % del verde (`HOLD_SHARE`); los
+  topes de arriba (sin tope, `defaultCap` = 40 %: lo usan los tests); la cuerda no se
+  decide antes de 7 s (`decided(now)`) y cuenta la media por cabeza (`averages`, lo que enseña la tele). La hucha se
+  reparte redondeando hacia arriba. Al acabar antes de tiempo, la sala espera un poco antes del resumen
+  (`SETTLE_MS`: canicas 3,4 s, para ver su último revelado). Con uno solo vivo (o nadie), `skipTo()`: «siguiente»
+  (Espacio o el mando) va directo a la hucha. El reparto se apunta cuando la tele termina de contarla (`#award(key,
+  true)`), así móviles y marcador no se adelantan. `SquidState.toJSON()` copia (lo guardado antes de un juego para R
+  no cambia con él); R en una prueba borra lo guardado de las posteriores (`#forgetAfter`: resultados, estados y
+  repartos). Canicas: quien no esconde o no apuesta en 15 s, lo hace la suerte (`autoPlay`, cada segundo desde la
+  sala); empate al acabar el tiempo = a suertes (`coin`). Una prueba empezada cuando se recarga la tele vuelve a su
+  presentación con aviso (`started` → `restarted`; con R, `restarted = 'manual'`: «Prueba reiniciada»); los `roundId` llevan una marca de sesión (el móvil no confunde la
+  ronda nueva con la de antes de recargar).
+- **Para probar** (solo en desarrollo): `host.html?demo=squid&bots=N` monta la sala con la plantilla y N concursantes
+  y va a la presentación de Squid Games; `window.__fx.soundLog` = qué ha sonado y cuándo; `localStorage
+  concurso.silencio = 1` calla la tele de desarrollo (el registro sigue).
 
 ### Pruebas con canción y contrarreloj (fase 11)
 

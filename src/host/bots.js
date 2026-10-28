@@ -294,7 +294,7 @@ export class BotPlayers {
       // Avanza en verde; en cada luz roja, de vez en cuando se le escapa el dedo
       let p = 0;
       const pace = 0.35 + this.#rng() * 0.6; // algunos no llegan a tiempo
-      const clumsy = this.#rng() * 0.3;
+      const clumsy = this.#rng() * 0.08; // por cada luz roja (como una persona: alguno se despista)
       let lastRed = null;
       const step = () => {
         if (!alive()) return;
@@ -318,8 +318,8 @@ export class BotPlayers {
       const step = () => {
         if (!alive()) return;
         if (now() >= r.tOpen) {
-          p = Math.min(100, p + randInt(this.#rng, 1, 5));
-          if (this.#rng() < 0.03) cracks++;
+          p = Math.min(100, p + randInt(this.#rng, 1, 3)); // unos 30 s para repasarla
+          if (this.#rng() < 0.045) cracks++; // y a algunos se les rompe
           const state = cracks >= 3 ? 2 : p >= 100 ? 1 : 0;
           send('trace', [p, cracks, state]);
           if (state) return;
@@ -329,8 +329,16 @@ export class BotPlayers {
       step();
     }
     if (game === 'puente' && r.current === id && this.#once(`sqbr:${id}:${r.roundId}:${r.pos}`)) {
-      const wait = Math.max(0, r.tOpen - now()) + randInt(this.#rng, 1500, 4000);
+      // tras la cuenta atrás (o el salto que aún se está viendo), se lo piensa un poco
+      const busy = r.jumping?.(now());
+      const wait = Math.max(0, (busy ? busy.at + r.jumpMs : r.tOpen) - now()) + randInt(this.#rng, 2500, 5500);
       this.#later(wait, () => alive() && r.current === id && send('choose', randInt(this.#rng, 0, 1)));
+    }
+    // los que esperan apuestan qué cristal aguanta (a veces)
+    if (game === 'puente' && r.current && r.current !== id && !r.fell.includes(id) && this.#once(`sqbet:${id}:${r.roundId}:${r.pos}`) && this.#rng() < 0.7) {
+      const busy = r.jumping?.(now()); // mientras se ve un salto no se apuesta
+      const wait = Math.max(0, (busy ? busy.ends : 0) - now()) + randInt(this.#rng, 600, 3000);
+      this.#later(wait, () => alive() && r.current && r.current !== id && send('bet', randInt(this.#rng, 0, 1)));
     }
     if (game === 'cuerda' && this.#once(`sqtug:${id}:${r.roundId}`)) {
       let taps = 0;
@@ -348,7 +356,7 @@ export class BotPlayers {
     if (game === 'canicas') {
       const d = r.duelOf(id);
       if (!d || d.loser) return;
-      const turn = `${r.roundId}:${d.marbles[d.a]}:${d.marbles[d.b]}:${d.hider}:${d.hidden != null}`;
+      const turn = `${r.roundId}:${d.turns}:${d.hider}:${d.hidden != null}`; // por jugada (las canicas pueden repetirse)
       if (d.hider === id && d.hidden == null && this.#once(`sqhide:${id}:${turn}`)) {
         this.#later(Math.max(0, r.tOpen - now()) + randInt(this.#rng, 800, 2500), () => alive() && send('hide', randInt(this.#rng, 1, Math.min(d.marbles[id], 5))));
       }

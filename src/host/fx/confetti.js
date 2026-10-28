@@ -1,9 +1,12 @@
 // Confeti de Halloween sobre toda la tele: calabazas, murciélagos, caramelos y fantasmas, más tiras de papel
-// naranja, violeta y verde. Un solo canvas que solo dibuja mientras quedan partículas.
+// naranja, violeta y verde (o billetes y monedas, en la hucha de Squid Games). Un solo canvas que solo dibuja mientras quedan partículas.
 import { reducedMotion } from './motion.js';
 
-const GLYPHS = ['🎃', '🦇', '🍬', '👻', '🕷️', '🍭', '💀', '🕸️'];
-const PAPER = ['#ff8a1f', '#ffb347', '#a66bff', '#7dff6b', '#ff3d5a', '#f6f1ff'];
+// Temas: el de siempre (Halloween) y el dinero de la hucha de Squid Games
+const THEMES = {
+  halloween: { glyphs: ['🎃', '🦇', '🍬', '👻', '🕷️', '🍭', '💀', '🕸️'], paper: ['#ff8a1f', '#ffb347', '#a66bff', '#7dff6b', '#ff3d5a', '#f6f1ff'] },
+  money: { glyphs: ['🪙', '💰', '🪙'], paper: ['#ffcf4a', '#ffe680', '#d99a1e', '#9fd8a3', '#7fc59a', '#f3e3c0'] }, // billetes sin símbolo (papel) y monedas
+};
 
 let canvas = null;
 let ctx = null;
@@ -46,8 +49,9 @@ function sprite(glyph) {
   return c;
 }
 
-function spawn(x, y, { spread = Math.PI / 2.2, angle = -Math.PI / 2, speed = 18, glyph = Math.random() < 0.35 } = {}) {
+function spawn(x, y, { spread = Math.PI / 2.2, angle = -Math.PI / 2, speed = 18, glyph = Math.random() < 0.35, theme = 'halloween' } = {}) {
   if (lite && Math.random() < 0.5) return;
+  const { glyphs, paper } = THEMES[theme] ?? THEMES.halloween;
   const a = angle + (Math.random() - 0.5) * spread;
   const v = speed * (0.55 + Math.random() * 0.6) * devicePixelRatio;
   parts.push({
@@ -58,33 +62,33 @@ function spawn(x, y, { spread = Math.PI / 2.2, angle = -Math.PI / 2, speed = 18,
     rot: Math.random() * Math.PI * 2,
     vr: (Math.random() - 0.5) * 0.3,
     size: (glyph ? 34 + Math.random() * 26 : 9 + Math.random() * 8) * devicePixelRatio,
-    glyph: glyph ? GLYPHS[(Math.random() * GLYPHS.length) | 0] : null,
-    color: PAPER[(Math.random() * PAPER.length) | 0],
+    glyph: glyph ? glyphs[(Math.random() * glyphs.length) | 0] : null,
+    color: paper[(Math.random() * paper.length) | 0],
     wobble: Math.random() * 10,
     life: 0,
   });
 }
 
 /** Explosión desde un punto (en proporción de la pantalla: 0..1). */
-export function burst({ x = 0.5, y = 0.6, count = 90, speed = 20 } = {}) {
+export function burst({ x = 0.5, y = 0.6, count = 90, speed = 20, theme } = {}) {
   if (reducedMotion) return;
   ensureCanvas();
-  for (let i = 0; i < count; i++) spawn(x * canvas.width, y * canvas.height, { speed, spread: Math.PI * 0.9 });
+  for (let i = 0; i < count; i++) spawn(x * canvas.width, y * canvas.height, { speed, spread: Math.PI * 0.9, theme });
   start();
 }
 
 /** Dos cañones desde las esquinas inferiores y una lluvia desde arriba durante `ms`. */
-export function celebrate(ms = 3500) {
+export function celebrate(ms = 3500, { theme } = {}) {
   if (reducedMotion) return;
   ensureCanvas();
   const w = canvas.width;
   const hgt = canvas.height;
-  for (let i = 0; i < 70; i++) spawn(0, hgt, { angle: -Math.PI / 3, spread: 0.6, speed: 30 });
-  for (let i = 0; i < 70; i++) spawn(w, hgt, { angle: (-2 * Math.PI) / 3, spread: 0.6, speed: 30 });
+  for (let i = 0; i < 70; i++) spawn(0, hgt, { angle: -Math.PI / 3, spread: 0.6, speed: 30, theme });
+  for (let i = 0; i < 70; i++) spawn(w, hgt, { angle: (-2 * Math.PI) / 3, spread: 0.6, speed: 30, theme });
   const end = performance.now() + ms;
   const rain = () => {
     if (performance.now() > end) return;
-    for (let i = 0; i < 4; i++) spawn(Math.random() * w, -40, { angle: Math.PI / 2, spread: 0.5, speed: 3 });
+    for (let i = 0; i < 4; i++) spawn(Math.random() * w, -40, { angle: Math.PI / 2, spread: 0.5, speed: 3, theme });
     setTimeout(rain, 60);
   };
   rain();

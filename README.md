@@ -119,20 +119,35 @@ conectado por HDMI); cada jugador usa su móvil como pulsador, sin instalar nada
 16. **Squid Games**: cinco juegos seguidos desde el móvil en los que la gente se va eliminando. Al empezar, cada uno
     lleva un número (alguien se lleva el 456). Cada eliminado mete los puntos de la sección en la hucha y, al final,
     los supervivientes se la reparten. Cada juego se empieza desde el mando (o Espacio) con una cuenta 3-2-1:
-    - **Luz roja, luz verde**: en verde, mantén el botón para avanzar; en rojo, ni tocarlo ni moverte (el sensor del
-      móvil lo nota; en iPhone, «Activar el sensor» antes de empezar). La tele dice «¡Luz roja!» en voz alta. Quien
-      llega a la meta se salva; quien se mueve o no llega a tiempo, fuera.
-    - **El panal**: cada uno elige un sobre (círculo, triángulo, estrella o paraguas) y repasa la forma con el dedo.
-      Salirse agrieta la galleta: a la tercera grieta, rota y fuera. Quien no la termina a tiempo, también.
-    - **El puente de cristal**: salen de uno en uno; izquierda o derecha en cada tramo. El que falla cae y el siguiente
-      ya conoce ese tramo. Si no eliges en 15 s, te empujan. Cuando alguien llega, cruzan todos los que quedan.
-    - **Tira y afloja**: dos bandos al azar; todos tocan lo más rápido que pueden (cuenta la media del bando). El bando
-      que pierde, fuera entero.
-    - **Canicas**: duelos de pares o nones con 10 canicas cada uno; quien se queda sin ninguna, fuera.
-    - Nunca caen todos: si un juego fuera a dejar a todos fuera, se salvan los que mejor lo han hecho. En el mando ves
+    - **Luz roja, luz verde**: la muñeca canta de espaldas y, cuando acaba la canción, se gira: luz roja. Mientras
+      canta, mantén el botón para avanzar; en rojo, ni tocarlo ni moverte (el sensor del móvil lo nota; en iPhone,
+      «Activar el sensor» antes de empezar). Canta cada vez más deprisa, y la letra se ilumina en la tele y en el móvil
+      para saber cuánto falta. Quien llega a la meta se salva; quien se mueve o no llega a tiempo, fuera (como mucho
+      un tercio).
+    - **El panal**: cada uno elige una lata (dentro hay un círculo, un triángulo, una estrella o un paraguas) y repasa
+      la forma con el dedo. Salirse agrieta la galleta: a la tercera grieta, rota y fuera. Quien no la termina a tiempo,
+      también.
+    - **El puente de cristal** (el último, como en la serie): por relevos, un tramo cada uno; izquierda o derecha (en
+      el móvil, toca un cristal y otra vez para saltar). La tele lo enseña en primera persona: el salto, unos segundos
+      de latidos con el cristal agrietándose… y aguanta o se rompe. Si no eliges a tiempo, te empujan. Todos saltan al
+      menos una vez; mientras, los demás apuestan en su móvil qué cristal aguanta, y quien salta ve lo que dicen. Cae
+      como mucho la mitad: después, el cristal malo cruje pero aguanta. Al completar el puente, cruzan todos los que
+      quedan.
+    - **Tira y afloja**: dos bandos al azar; todos tocan lo más rápido que pueden (cuenta la media del bando). Del bando
+      que pierde caen los que menos han tirado (los demás, si ya no cabe nadie más, se salvan por los pelos).
+    - **Canicas**: duelos de pares o nones con 10 canicas cada uno; quien se queda sin ninguna, fuera (al acabar el
+      tiempo, quien tenga menos). En los últimos 10 s, ¡todo o nada! Con un solo duelo, el reloj es de 45 s. Si alguien
+      no juega en 15 s, juega la suerte por él. Quien se queda sin pareja ve los duelos en su móvil.
+    - Cada juego elimina a alguien, pero llega gente al puente: según cuántos quedan, cada juego tiene un máximo de
+      eliminados. Pasado ese máximo, quien iba a caer se salva «por los pelos» en ese mismo momento (la tele, la
+      megafonía y su móvil lo dicen; nunca se anuncia como eliminado a quien luego se salva). En el mando ves
       lo secreto (el camino bueno del puente, cuántas canicas esconde cada uno), puedes elegir por quien tenga el
       móvil roto en el puente, terminar un juego antes y revivir o eliminar a mano entre juegos. R repite el juego.
     - En la pestaña **Squid** de la hoja eliges qué juegos y en qué orden, sus segundos y los tramos del puente.
+    - Tiene su propia estética y su propia música. Sus sonidos (latido, respiración, cristal, monedas, campana de
+      megafonía, cuerda; y, si los consigues, la canción de la muñeca o la música de la serie) se ponen en la carpeta
+      del concurso, en `Squid/` (o sueltos en `Música/`): se reconocen por el nombre del archivo. Los que falten, la tele
+      los genera.
 
 En el móvil de cada concursante, bajo su nombre, se ve en qué sección está (nº de sección, tipo, pregunta y puntos en
 juego) y su equipo con el puesto. Tocando sus puntos se abre el **marcador** (equipos y concursantes, en directo) sin

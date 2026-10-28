@@ -8,6 +8,8 @@ import { flipReorder, kinetic, later, odometer } from './fx/motion.js';
 import { celebrate } from './fx/confetti.js';
 import { sound } from './fx/audio.js';
 import { JOKER_NAMES, jokerIcon } from '../shared/jokerIcons.js';
+import { guard, logo } from '../shared/squidArt.js';
+import { SQUID_GAMES } from '../core/squid.js';
 
 const kbd = (key) => h('kbd', {}, key);
 const avatar = (p, cls = 'avatar') =>
@@ -406,6 +408,7 @@ export function versusScreen(view) {
 export function introScreen(view) {
   const s = view.section;
   if (view.introRules) return millionaireRules(view);
+  if (s.type === 'squid') return squidWelcome(view);
   return h(
     'div',
     { class: 'intro anim-in' },
@@ -416,6 +419,33 @@ export function introScreen(view) {
     h('p', { class: 'intro-points' }, s.type === 'test' ? levelPointsText(s.points) : s.type === 'apuesta' ? 'Os jugáis vuestros puntos' : s.type === 'palabras' ? pointsText(s.points, true) + ' por palabra acertada' : pointsText(s.points, s.points.length > 1)),
     view.playable ? null : h('p', { class: 'intro-soon' }, 'Esta sección llegará en una próxima versión: se saltará.'),
     view.turns ? turnsIntro(view.turns) : null,
+  );
+}
+
+/** Squid Games: la invitación (su propia estética, a toda la tele: ver squid.css). */
+function squidWelcome(view) {
+  const s = view.section;
+  const games = (s.items ?? []).filter((i) => i.game && i.game !== 'hucha');
+  const players = view.players.filter((p) => p.connected && !p.presenter).length;
+  const pts = s.points?.[0] ?? 1;
+  return h(
+    'section',
+    { class: 'squid-stage sq-welcome' },
+    guard('triangle'),
+    h(
+      'div',
+      { class: 'sq-welcome-main' },
+      h('div', { class: 'sq-invite' }, h('div', { class: 'sq-invite-card' }, h('div', { class: 'sq-invite-face front' }, logo('sq-invite-logo')), h('div', { class: 'sq-invite-face back' }, logo('sq-invite-logo'), h('p', {}, '¿Quieres jugar?'), h('small', {}, '456')))),
+      h('p', { class: 'sq-game-no' }, `Sección ${view.sectionNumber} de ${view.sectionCount}`),
+      h('h1', { class: 'sq-title sq-welcome-title' }, s.name),
+      h(
+        'ol',
+        { class: 'sq-welcome-games' },
+        games.map((g, i) => h('li', { style: { '--d': `${900 + i * 140}ms` } }, h('b', {}, String(i + 1)), h('span', { class: 'emoji' }, SQUID_GAMES[g.game]?.icon ?? '❔'), SQUID_GAMES[g.game]?.label ?? g.game)),
+      ),
+      h('p', { class: 'sq-rule' }, `${players} jugadores. Quien cae en un juego, fuera: cada eliminado mete ${pts} ${pts === 1 ? 'punto' : 'puntos'} en la hucha y los supervivientes se la reparten al final.`),
+    ),
+    guard('circle'),
   );
 }
 

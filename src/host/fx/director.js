@@ -92,7 +92,13 @@ function musicScene(n) {
   if (n.screen === SCREEN.FINAL) return 'waltz';
   const { game: g, answer: a, free: f, millionaire: m } = n;
   // Juegos nuevos: tensión mientras corre el tiempo; revelado al acabar
-  if (n.squid) return n.squid.game === 'hucha' ? 'reveal' : n.squid.phase === 'running' ? 'tension' : n.squid.phase === 'done' ? 'suspense' : 'explore';
+  // Squid Games (con su propia música: ver MOODS.squid): en Luz roja y el puente, silencio (la muñeca, la respiración)
+  if (n.squid) {
+    const { game, phase } = n.squid;
+    if (game === 'hucha') return 'reveal';
+    if (phase === 'running') return game === 'luzroja' || game === 'puente' ? 'hush' : 'tension';
+    return 'explore';
+  }
   if (n.words) return n.words.phase === 'running' ? 'tension' : n.words.phase === 'done' ? 'reveal' : 'explore';
   if (n.shake) return n.shake.phase === 'running' ? 'tension' : n.shake.phase === 'done' ? 'reveal' : 'explore';
   if (n.bet) return n.bet.phase === 'revealed' ? 'reveal' : n.bet.phase === 'question' ? 'tension' : 'suspense';
@@ -149,7 +155,11 @@ export function createDirector({ backdrop }) {
 
     if (!p) return;
     if (n.key !== p.key) {
-      if (n.screen === SCREEN.INTRO) {
+      if (n.screen === SCREEN.INTRO && view.section?.type === 'squid') {
+        // Squid Games: megafonía y bienvenida
+        sound.sq('pa');
+        setTimeout(() => sound.say('Bienvenidos a los juegos.'), 1900);
+      } else if (n.screen === SCREEN.INTRO) {
         sound.play('whoosh');
         if (!own) sound.play('gong', 250);
         backdrop?.flash(0.35);

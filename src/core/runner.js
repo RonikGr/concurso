@@ -118,6 +118,12 @@ export class ShowRunner {
     }
   }
 
+  /** Saltar a una pregunta de la sección en juego (Squid Games: a la hucha si ya no queda gente). */
+  goToItem(index) {
+    if (this.screen !== SCREEN.PLAY || !(index >= 0 && index < this.itemCount)) return false;
+    return this.#go(SCREEN.PLAY, this.sectionIndex, index);
+  }
+
   /** Siguiente pregunta; tras la última, el marcador. */
   nextItem() {
     if (this.screen !== SCREEN.PLAY) return false;

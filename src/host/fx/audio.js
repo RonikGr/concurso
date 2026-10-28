@@ -7,6 +7,7 @@ import { bell, bubble, crackle, mtof, noiseHit, owl, snare, thump, tone } from '
 import { MOODS, STYLES } from './music.js';
 import { LADDER_SCENES, SFX_SLOT } from './tracks.js';
 import { getCues } from './cueSettings.js';
+import { SQUID_SFX } from './squidSound.js';
 
 const CROSSFADE = 0.7; // s (constante de tiempo del fundido entre estilos)
 const CUE_LEVEL = 0.75; // volumen de las canciones del millonario (como la música, sin reverberación)
@@ -43,6 +44,13 @@ class SoundEngine extends EventTarget {
   #songHeld = false;
   #noise = null;
   #schedule = 0;
+  // Sonidos de Squid Games de la carpeta (huecos «sq:…»): descodificados y con el volumen igualado
+  #samples = new Map(); // tipo (latido, respiración…) → {id, blob}
+  #sampleMeta = new Map(); // id → {norm, start, length} (ganancia para igualar y dónde suena de verdad)
+  /** Qué ha sonado y cuándo (para quien no puede oír: depuración y pruebas). */
+  soundLog = [];
+  /** Silencio total (solo en desarrollo: localStorage concurso.silencio = 1, para probar sin oírlo). El registro sigue. */
+  muted = false;
 
   constructor() {
     super();
@@ -66,6 +74,7 @@ class SoundEngine extends EventTarget {
     }
     this.ctx.resume().then(() => {
       this.#decodeMill();
+      this.#decodeSamples();
       this.#startMusic();
       this.#applyCue();
       this.#applySong();
@@ -77,7 +86,7 @@ class SoundEngine extends EventTarget {
     this.settings = { ...this.settings, ...settings };
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
-    this.master.gain.setTargetAtTime((this.settings.volume / 100) * 0.9, t, 0.1);
+    this.master.gain.setTargetAtTime(this.muted ? 0 : (this.settings.volume / 100) * 0.9, t, 0.1);
     this.sfxBus.gain.setTargetAtTime(this.settings.sfxOn ? 1 : 0, t, 0.05);
     this.musicBus.gain.setTargetAtTime(this.settings.musicOn ? 0.6 : 0, t, 0.4);
     this.cueBus.gain.setTargetAtTime(this.settings.musicOn ? CUE_LEVEL : 0, t, 0.4);
@@ -137,6 +146,7 @@ class SoundEngine extends EventTarget {
     if (!fn) return;
     // Si hay una canción tuya para este efecto (la de la sección o la general), suena ella en vez del generado
     const fire = () => {
+      this.log('efecto', name);
       const own = this.#effectTrack(name);
       if (own) this.#playOnce(own);
       else fn(this, this.ctx.currentTime + 0.01);
@@ -175,6 +185,136 @@ class SoundEngine extends EventTarget {
     audio.play().catch(done);
   }
 
+  /** Apunta en `soundLog` lo que suena (los últimos 400). */
+  log(kind, name, extra = null) {
+    const t = performance.now();
+    const d = new Date();
+    const clock = `${d.toLocaleTimeString('es-ES')}.${String(d.getMilliseconds()).padStart(3, '0')}`;
+    this.soundLog.push({ t: Math.round(t), clock, kind, name, ...(extra ?? {}) });
+    if (this.soundLog.length > 400) this.soundLog.splice(0, this.soundLog.length - 400);
+  }
+
+  /** Hora del AudioContext para un instante de performance.now() (ahora, si ya pasó). */
+  perfToCtx(ms) {
+    return this.ctx.currentTime + Math.max(0, (ms - performance.now()) / 1000);
+  }
+
+  /**
+   * Sonido de Squid Games (fx/squidSound.js): con el archivo de la carpeta si lo hay, si no generado. `at` =
+   * performance.now() en que debe sonar (para cuadrar con la pantalla). Los que duran devuelven {stop()}.
+   */
+  sq(name, opts = {}) {
+    if (!this.unlocked || !this.settings.sfxOn || !SQUID_SFX[name]) return null;
+    const t = opts.at != null ? this.perfToCtx(opts.at) : this.ctx.currentTime + 0.01;
+    this.log('squid', name, opts.at != null ? { at: Math.round(opts.at) } : null);
+    return SQUID_SFX[name](this, t, opts) ?? null;
+  }
+
+  /** ¿Hay archivo (ya listo) para este sonido? Con dónde empieza y cuánto dura lo que suena. */
+  sampleInfo(kind) {
+    const rec = this.#samples.get(kind);
+    const meta = rec && this.#sampleMeta.get(rec.id);
+    return meta && this.#buffers.has(rec.id) ? { start: meta.start, length: meta.length } : null;
+  }
+
+  /**
+   * Toca un trozo de un archivo de la carpeta (o null si no lo hay). {t, offset, duration, rate, gain, loop: [a, b],
+   * fadeOut} → {stop()}
+   */
+  sample(kind, { t = null, offset = 0, duration = null, rate = 1, gain = 1, loop = null, fadeOut = 0 } = {}) {
+    const rec = this.#samples.get(kind);
+    const buf = rec && this.#buffers.get(rec.id);
+    if (!buf) return null;
+    const c = this.ctx;
+    const at = t ?? c.currentTime + 0.01;
+    const from = offset < buf.duration - 0.05 ? offset : 0;
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.value = rate;
+    const g = c.createGain();
+    const level = (this.#sampleMeta.get(rec.id)?.norm ?? 1) * gain;
+    g.gain.setValueAtTime(level, at);
+    if (loop) {
+      src.loop = true;
+      src.loopStart = Math.min(loop[0], buf.duration - 0.1);
+      src.loopEnd = Math.min(loop[1], buf.duration);
+      src.start(at, from);
+    } else {
+      const dur = Math.min(duration ?? buf.duration, buf.duration - from);
+      if (fadeOut) g.gain.setTargetAtTime(0, at + (dur - fadeOut) / rate, fadeOut / 3);
+      src.start(at, from, dur);
+    }
+    src.connect(g).connect(this.sfxBus);
+    this.log('archivo', kind, { offset: +from.toFixed(2), at: Math.round(performance.now() + (at - c.currentTime) * 1000) });
+    return {
+      stop: (fade = 0.15) => {
+        const now = c.currentTime;
+        g.gain.cancelScheduledValues(now);
+        g.gain.setTargetAtTime(0, now, fade);
+        try {
+          src.stop(now + fade * 5);
+        } catch {
+          // ya parado
+        }
+      },
+    };
+  }
+
+  /** Descodifica los sonidos de la carpeta y mide su volumen y dónde empieza y acaba lo que suena. */
+  async #decodeSamples() {
+    for (const [, rec] of this.#samples) {
+      if (this.#buffers.has(rec.id) || this.#decoding.has(rec.id)) continue;
+      this.#decoding.add(rec.id);
+      try {
+        const buf = await this.ctx.decodeAudioData(await rec.blob.arrayBuffer());
+        const d = buf.getChannelData(0);
+        let peak = 0;
+        for (let i = 0; i < d.length; i++) peak = Math.max(peak, Math.abs(d[i]));
+        const floor = peak * 0.05;
+        let a = 0;
+        let b = d.length - 1;
+        while (a < b && Math.abs(d[a]) < floor) a++;
+        while (b > a && Math.abs(d[b]) < floor) b--;
+        this.#sampleMeta.set(rec.id, { norm: Math.min(400, 0.7 / Math.max(peak, 1e-4)), start: a / buf.sampleRate, length: (b - a) / buf.sampleRate });
+        this.#buffers.set(rec.id, buf);
+        // si es la música que toca ahora (tema, tensión, vals), que empiece a sonar ella
+        const want = (MOODS[this.#moodId]?.styles?.[this.#scene] && STYLES[MOODS[this.#moodId].styles[this.#scene]]?.sample) || STYLES[this.#scene]?.sample;
+        if (want && this.#samples.get(want)?.id === rec.id) this.#switchLayer(true);
+      } catch (e) {
+        console.warn('[sonido] no se pudo leer un sonido de Squid Games', e);
+      } finally {
+        this.#decoding.delete(rec.id);
+      }
+    }
+  }
+
+  /** Voz del navegador (en local): la megafonía de Squid Games. Si no hay voz, no pasa nada. */
+  say(text, { rate = 0.95, pitch = 0.85 } = {}) {
+    if (!this.settings.sfxOn || !this.unlocked) return; // sin activar el sonido, tampoco habla (no se oiría entero)
+    this.log('voz', text);
+    try {
+      if (!('speechSynthesis' in window)) return;
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'es-ES';
+      u.voice = speechSynthesis.getVoices().find((v) => v.lang?.startsWith('es')) ?? null;
+      u.rate = rate;
+      u.pitch = pitch;
+      u.volume = this.muted ? 0 : Math.min(1, this.settings.volume / 70);
+      speechSynthesis.speak(u);
+    } catch {
+      // sin voz
+    }
+  }
+
+  /** Calla la voz (al cambiar de pantalla). */
+  hush() {
+    try {
+      speechSynthesis.cancel();
+    } catch {
+      // sin voz
+    }
+  }
+
   /** Anula los efectos programados (al cambiar de pantalla). */
   cancel() {
     for (const id of this.#timers) clearTimeout(id);
@@ -186,7 +326,7 @@ class SoundEngine extends EventTarget {
   #build() {
     const c = this.ctx;
     this.master = c.createGain();
-    this.master.gain.value = (this.settings.volume / 100) * 0.9;
+    this.master.gain.value = this.muted ? 0 : (this.settings.volume / 100) * 0.9;
     // Compresor final: que los golpes fuertes no saturen los altavoces de la tele.
     const comp = c.createDynamicsCompressor();
     comp.threshold.value = -14;
@@ -293,9 +433,12 @@ class SoundEngine extends EventTarget {
     for (const [slot, list] of map) if (slot.startsWith('mill:') && list.length) this.#mill.set(slot.slice(5), { id: list[0].id, blob: list[0].blob });
     this.#songs = new Map();
     for (const [slot, list] of map) if (slot.startsWith('song:') && list.length) this.#songs.set(slot.slice(5), { id: list[0].id, blob: list[0].blob });
+    this.#samples = new Map();
+    for (const [slot, list] of map) if (slot.startsWith('sq:') && list.length) this.#samples.set(slot.slice(3), { id: list[0].id, blob: list[0].blob });
     this.#cueKey = null; // por si ha cambiado la canción que sonaba
     if (!this.unlocked) return;
     this.#decodeMill();
+    this.#decodeSamples();
     this.#switchLayer(true);
     this.#applyCue();
     this.#applySong();
@@ -412,6 +555,7 @@ class SoundEngine extends EventTarget {
     if (!cue.loop && end > from) src.start(t, from, end - from);
     else src.start(t, from);
     const play = { key: cue.key, track: cue.track, src, g, t0: t, from, loop: cue.loop, after: cue.after };
+    this.log('millonario', cue.key);
     src.onended = () => {
       if (this.#cuePlay !== play) return;
       this.#cuePlay = null;
@@ -444,13 +588,32 @@ class SoundEngine extends EventTarget {
     if (slot) {
       this.#fadeOut(this.#layer);
       this.#layer = null;
+      this.log('música', `canción: ${slot}`);
       return this.#playSlot(slot, force);
     }
     this.#stopSlot();
     this.#fadeOut(this.#layer);
     const mood = MOODS[this.#moodId];
-    const style = STYLES[this.#scene];
+    // Un entorno puede tener su propia música para cada momento (Squid Games)
+    const styleId = mood.styles?.[this.#scene] ?? this.#scene;
+    const style = STYLES[styleId];
     const out = this.#newOut();
+    // …y si en la carpeta hay canción para ese estilo, suena ella en bucle
+    const rec = style.sample && this.#samples.get(style.sample);
+    const buf = rec && this.#buffers.get(rec.id);
+    if (buf) {
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+      const g = this.ctx.createGain();
+      g.gain.value = (this.#sampleMeta.get(rec.id)?.norm ?? 1) * 0.6;
+      src.connect(g).connect(out);
+      src.start();
+      this.#layer = { style: STYLES.hush, mood, out, soft: out, nodes: [src], voices: [], st: {}, beat: 0, nextBeat: this.ctx.currentTime + 0.15 };
+      this.log('música', `${styleId} (archivo)`);
+      return;
+    }
+    this.log('música', styleId);
     // filtro para los sonidos de sierra (ostinatos, trémolos): que no chirríen
     const soft = c.createBiquadFilter();
     soft.type = 'lowpass';
@@ -557,6 +720,7 @@ class SoundEngine extends EventTarget {
     if (end < buf.duration) g.gain.setTargetAtTime(0, t + (end - from) - 0.6, 0.2);
     src.connect(g).connect(this.songBus);
     src.start(t, from, end - from);
+    this.log('canción', s.track, { from: +from.toFixed(2) });
     const play = { key: s.key, src, g, t0: t, from };
     src.onended = () => {
       if (this.#songPlay !== play) return;

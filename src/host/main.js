@@ -4,6 +4,7 @@ import '@fontsource-variable/outfit';
 import '@fontsource/creepster/latin.css';
 import './host.css';
 import './show.css';
+import './squid.css';
 import QRCode from 'qrcode';
 import { $, clear, fill, h } from '../shared/dom.js';
 import { avatarOf, getColor, setFaceImages } from '../shared/appearance.js';
@@ -117,7 +118,9 @@ faceStore.addEventListener('change', () => {
   if (room) render();
 });
 faceStore.load();
-if (import.meta.env.DEV) window.__fx = { backdrop, sound, trackStore, faceStore }; // para probar desde la consola
+// Para probar desde la consola (y para quien no puede oír: __fx.soundLog dice qué ha sonado y cuándo)
+if (import.meta.env.DEV) sound.muted = localStorage.getItem('concurso.silencio') === '1';
+if (import.meta.env.DEV) window.__fx = { backdrop, sound, trackStore, faceStore, get soundLog() { return sound.soundLog; } };
 
 // Carpeta del concurso: la hoja, las canciones y las caras de una vez (contestFolder.js)
 const folder = { handle: null, busy: false, report: null };
@@ -174,6 +177,10 @@ const actions = {
 };
 
 function boot() {
+  // Solo en desarrollo: host.html?demo=squid&bots=8 monta una sala con la plantilla y concursantes de prueba y va
+  // directa a la presentación de Squid Games (para probarlo sin preparar nada)
+  const demo = import.meta.env.DEV ? new URLSearchParams(location.search).get('demo') : null;
+  if (demo === 'squid') return squidDemo(Number(new URLSearchParams(location.search).get('bots') ?? 8));
   const saved = loadSavedRoom();
   if (saved && readTabMark() === saved.code) return startRoom(saved);
   if (saved && saved.players.length) return showRecover(saved);
@@ -227,6 +234,17 @@ function showRecover(saved) {
       ),
     ),
   );
+}
+
+async function squidDemo(bots) {
+  clearSavedRoom();
+  startRoom(null);
+  const blob = await (await fetch('./plantilla-concurso.xlsx')).blob();
+  await importFile(new File([blob], 'plantilla-concurso.xlsx'));
+  const n = Math.max(0, Math.min(19, Number.isFinite(bots) ? bots : 8)); // hasta 20 con quien juegue desde su móvil
+  if (n) run('botsAdd', { count: n });
+  for (let i = 0; i < 3; i++) run('next'); // preparación → título → conexión → empezar
+  run('gotoSection', { index: room.show.sections.findIndex((s) => s.type === 'squid') });
 }
 
 function newRoom() {
@@ -378,6 +396,9 @@ function render() {
   $('#join-chip').hidden = view.screen === SCREEN.SETUP;
   // Durante el espectáculo la tele no enseña controles (ver CSS .show-mode); en preparación, sí.
   document.body.classList.toggle('show-mode', view.screen !== SCREEN.SETUP);
+  // Squid Games ocupa toda la tele (sus juegos y su presentación)
+  const squidIntro = view.screen === SCREEN.INTRO && view.section?.type === 'squid';
+  document.body.classList.toggle('squid-on', (!!view.squid || squidIntro) && !view.paused && !view.peekScoreboard);
   // El navegador no deja sonar nada hasta que se toca la página: aviso hasta la primera tecla o clic.
   $('#sound-chip').hidden = sound.unlocked || !(view.settings.musicOn || view.settings.sfxOn);
   sound.configure({ musicOn: view.settings.musicOn, sfxOn: view.settings.sfxOn, volume: view.settings.volume });
@@ -482,7 +503,7 @@ function renderScreen(view) {
   wordsStage.stop();
   betStage.stop();
   if (!view.shake) shakeStage.stop(); // la carrera se repinta cada 300 ms: solo se reinicia al salir de ella
-  if (!view.squid) squidStage.stop(); // igual: Squid Games actualiza su escena en su sitio
+  if (!view.squid || view.paused || view.peekScoreboard) squidStage.stop(); // igual: Squid Games actualiza su escena en su sitio
   // Los sonidos programados (suspense, podio) se anulan al cambiar de momento, no en cada repintado.
   const momentKey = [screenKey(view), view.answer?.roundId, view.answer?.phase, view.game?.phase, view.free?.phase].join('|');
   if (momentKey !== lastMomentKey) sound.cancel();
@@ -491,7 +512,9 @@ function renderScreen(view) {
   const screen = $('#screen');
   // Al cambiar de pantalla (no en cada cambio dentro de ella), entrada con transición.
   const key = screenKey(view);
-  if (key !== lastScreenKey && lastScreenKey != null) enterScreen(screen);
+  // (Squid Games no: su pantalla va fija a toda la tele y el desenfoque de entrada la dejaba un momento en negro)
+  const squidScreen = view.squid || (view.screen === SCREEN.INTRO && view.section?.type === 'squid');
+  if (key !== lastScreenKey && lastScreenKey != null && !squidScreen) enterScreen(screen);
   lastScreenKey = key;
   screen.dataset.screen = view.peekScoreboard ? 'scoreboard' : view.screen;
   if (view.peekScoreboard) return fill(screen, scoreboardScreen(view));
@@ -803,8 +826,9 @@ document.addEventListener('keydown', (e) => {
       } else if (room.games.squid.inPlay) {
         // Squid Games: empezar el juego; acabado (o en la hucha), al siguiente. En marcha, nada (que no se corte sin querer).
         const sq = room.games.squid;
-        if (sq.round?.phase === 'ready') run('squidStart');
-        else if (!sq.round) run('nextItem');
+        if (sq.skipTo() != null) run('next'); // ya no queda gente para más juegos: a la hucha
+        else if (sq.round?.phase === 'ready') run('squidStart');
+        else if (!sq.round) run('next');
       } else if (room.games.apuesta.inPlay) {
         const p = room.games.apuesta.round.phase;
         run(p === BPHASE.BETTING ? 'betClose' : p === BPHASE.QUESTION ? 'betReveal' : 'nextItem');

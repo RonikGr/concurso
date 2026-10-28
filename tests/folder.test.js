@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classifyFolder, folderKey, songKey } from '../src/core/folder.js';
+import { classifyFolder, folderKey, songKey, squidSoundFor } from '../src/core/folder.js';
 
 const slots = [
   { id: 'lobby', label: 'Preparación' },
@@ -45,5 +45,13 @@ describe('carpeta del concurso', () => {
     expect(r.songs.map((x) => songKey(x.path.at(-1)))).toEqual(['propuestaindecente']);
     expect(songKey('propuesta indecente')).toBe('propuestaindecente'); // así se escribe en la hoja (sin .mp3, da igual)
     expect(r.ignored).toEqual(['millonario/notas.txt', 'Música/Halloween total/Preparación/no vale aquí.mp3', 'Música/Otra sección/Marcador/x.mp3', 'Música/Nada/x.mp3', 'canciones/letra.txt']);
+  });
+
+  it('sonidos de Squid Games: en su carpeta o sueltos en Música, por el nombre', () => {
+    const e = (path) => ({ path: path.split('/'), lastModified: 1 });
+    const r = classifyFolder([e('Música/Heart Beat.mp3'), e('Música/Glass Breeaking.m4a'), e('Squid/Muñeca gira.mp3'), e('Squid/muñeca canta.mp3'), e('Squid/Respiración.m4a'), e('Música/raro.mp3')]);
+    expect(Object.keys(r.squid).sort()).toEqual(['breath', 'doll', 'glass', 'heart', 'turn']);
+    expect(r.ignored).toEqual(['Música/raro.mp3']);
+    expect([squidSoundFor('Coins Drop.mp3'), squidSoundFor('Electronic Bell.mp3'), squidSoundFor('Rope Snap Swish.mp3'), squidSoundFor('Breathing Sound Effect.m4a')]).toEqual(['coins', 'bell', 'rope', 'breath']);
   });
 });

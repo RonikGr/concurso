@@ -446,8 +446,10 @@ function squidPanel() {
   if (q.game === 'hucha') {
     return [head, h('section', { class: 'c-card center' }, h('h2', {}, q.alive.length ? `+${q.share} para cada superviviente` : 'No sobrevive nadie'), h('p', {}, q.alive.map(n).join(' · '))), bigNext('Al marcador →'), fixes(true), navRow()];
   }
+  // Si ya solo queda uno (o nadie), lo que falta se salta: directo a la hucha
+  if (q.alive.length <= 1 && q.phase !== 'running') return [head, h('section', { class: 'c-card center' }, h('p', {}, q.alive.length ? 'Solo queda uno: los juegos que faltan se saltan.' : 'No queda nadie: los juegos que faltan se saltan.')), h('button', { class: 'btn primary big', onclick: () => cmd('next') }, 'La hucha →'), q.phase === 'done' ? h('div', { class: 'c-row' }, btn('Repetir este juego', () => confirm('¿Repetir el juego? Vuelven los que cayeron en él.') && cmd('restart'))) : null, fixes(true), navRow()];
   if (!g || q.phase === 'ready') {
-    const extra = q.game === 'panal' && g ? h('p', { class: 'muted' }, `${g.picked.length} de ${g.players.length} han elegido sobre`) : null;
+    const extra = q.game === 'panal' && g ? h('p', { class: 'muted' }, `${g.picked.length} de ${g.players.length} han elegido lata`) : null;
     return [head, extra, h('button', { class: 'btn primary big', onclick: () => cmd('squidStart') }, '▶ ¡Empezar! (3, 2, 1…)'), fixes(true), navRow()];
   }
   if (q.phase === 'done') {
@@ -474,7 +476,7 @@ function squidPanel() {
       cur ? h('div', { class: 'c-grid2' }, btn('Elige por él: ⬅️', () => cmd('squidChoose', { side: 'L' })), btn('Elige por él: ➡️', () => cmd('squidChoose', { side: 'R' }))) : null,
     );
   }
-  if (q.game === 'cuerda') live.push(h('p', {}, `○ ${g.totals.A} toques · △ ${g.totals.B} toques`));
+  if (q.game === 'cuerda') live.push(h('p', {}, `Media por cabeza: ○ ${g.averages.A} · △ ${g.averages.B} (en total: ${g.totals.A} y ${g.totals.B})`));
   if (q.game === 'canicas') {
     live.push(
       ...g.duels.map((d) =>

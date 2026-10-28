@@ -83,6 +83,7 @@ export class HostRoom extends EventTarget {
   #controlPush = null;
   #playKey = null;
   #roundSeq = 0;
+  #nonce = Math.random().toString(36).slice(2, 6); // las rondas de antes de recargar la tele no se confunden con las nuevas
 
   constructor({ code, saved = null }) {
     super();
@@ -124,7 +125,7 @@ export class HostRoom extends EventTarget {
       room: this,
       changed: (opts) => this.#afterChange(opts),
       turnOrder: (teamId) => this.#turnOrder(teamId),
-      roundId: (key) => `${key}#${++this.#roundSeq}`,
+      roundId: (key) => `${key}#${this.#nonce}${++this.#roundSeq}`,
       now,
       pub: (p) => publicPlayer(p),
     };
@@ -712,6 +713,9 @@ export class HostRoom extends EventTarget {
         this.#rulesFor = r.sectionIndex;
         return true;
       }
+      // Squid Games con uno solo (o nadie) vivo: directo a la hucha
+      const huchaAt = this.games.squid.skipTo();
+      if (huchaAt != null) return this.runner.goToItem(huchaAt);
       return this.runner.next();
     },
     prev: () => {

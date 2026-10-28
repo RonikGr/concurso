@@ -101,6 +101,7 @@ export async function importFolder({ entries }, { trackStore, faceStore, importS
   for (const [track, e] of Object.entries(found.millionaire)) await trackStore.add(`mill:${track}`, [e.file], { source: SOURCE, reload: false });
   for (const { slot, entry } of found.music) await trackStore.add(slot, [entry.file], { source: SOURCE, reload: false });
   for (const e of found.songs) await trackStore.add(`song:${songKey(e.path.at(-1))}`, [e.file], { source: SOURCE, reload: false });
+  for (const [kind, e] of Object.entries(found.squid)) await trackStore.add(`sq:${kind}`, [e.file], { source: SOURCE, reload: false });
   await trackStore.load();
   await faceStore.removeSource(SOURCE);
   if (found.faces.length) await faceStore.add(found.faces.map((e) => e.file), { source: SOURCE });
@@ -111,6 +112,7 @@ export async function importFolder({ entries }, { trackStore, faceStore, importS
     faces: found.faces.length,
     music: found.music.length,
     songs: found.songs.length,
+    squid: Object.keys(found.squid).length,
     ignored: found.ignored,
   };
 }

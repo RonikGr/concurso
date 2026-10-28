@@ -107,7 +107,7 @@ export class TrackStore extends EventTarget {
   async add(slot, files, { source = null, reload = true } = {}) {
     const audio = [...files].filter(isAudio);
     if (!audio.length) return 0;
-    const single = slot.startsWith('mill:') || slot.startsWith('song:'); // una canción por hueco
+    const single = slot.startsWith('mill:') || slot.startsWith('song:') || slot.startsWith('sq:'); // una canción por hueco
     const old = single ? (this.tracks.get(slot) ?? []).map((t) => t.id) : [];
     await tx('readwrite', (s) => {
       old.forEach((id) => s.delete(id));

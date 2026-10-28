@@ -9,7 +9,7 @@
 //   march    marcador: marcha macabra en pizzicato
 //   waltz    final: vals de caja de música
 // Las melodías son motivos que se repiten y varían cada 8 compases (como una canción), no notas sueltas al azar.
-import { bell, brush, hat, held, mtof, organ, pizz, pluck, snare, thump, timpani, tom, tone, vibes } from './synth.js';
+import { bell, brush, hat, held, mtof, organ, pizz, pluck, recorder, snare, thump, timpani, tom, tone, vibes } from './synth.js';
 
 /** Tonalidad y ambiente de cada entorno. */
 export const MOODS = {
@@ -24,7 +24,50 @@ export const MOODS = {
   cripta: { root: 37, scale: [0, 2, 3, 5, 7, 8, 10], tempo: 0.85, wave: 'sine', cutoff: 1200, amb: ['wind'] },
   millonario: { root: 40, scale: [0, 2, 3, 5, 7, 8, 10], tempo: 1, wave: 'sawtooth', cutoff: 1100, amb: [] },
   tormenta: { root: 33, scale: [0, 1, 3, 5, 7, 8, 10], tempo: 0.9, wave: 'sawtooth', cutoff: 480, amb: ['rain', 'wind'] },
+  // Squid Games: su propia música (en vez de la de Halloween) para cada momento
+  squid: {
+    root: 50,
+    scale: [0, 2, 3, 5, 7, 8, 10],
+    tempo: 1,
+    wave: 'triangle',
+    cutoff: 900,
+    amb: [],
+    styles: { explore: 'sqTheme', organ: 'sqTheme', lobby: 'sqTheme', tension: 'sqTension', reveal: 'sqWaltz', waltz: 'sqWaltz' },
+  },
 };
+
+// Melodías de Squid Games: [nota MIDI o null, pulsos]. La flauta es original; el vals es «El Danubio azul» (Strauss,
+// 1866, dominio público).
+const SQ_THEME = [
+  [74, 1], [77, 1], [76, 0.5], [74, 0.5], [72, 1],
+  [74, 2], [69, 2],
+  [72, 1], [74, 0.5], [72, 0.5], [70, 1], [69, 1],
+  [67, 3], [null, 1],
+  [69, 1], [70, 1], [72, 1], [74, 1],
+  [77, 1.5], [76, 0.5], [74, 2],
+  [72, 1], [70, 1], [69, 1], [67, 1],
+  [62, 3], [null, 1],
+];
+const DANUBE = [
+  [62, 1], [62, 1], [66, 1], [69, 2], [81, 0.5], [81, 0.5], [null, 1], [78, 1], [78, 1],
+  [62, 1], [62, 1], [66, 1], [69, 2], [83, 0.5], [83, 0.5], [null, 1], [79, 1], [79, 1],
+  [61, 1], [61, 1], [64, 1], [71, 2], [83, 0.5], [83, 0.5], [null, 1], [79, 1], [79, 1],
+  [61, 1], [61, 1], [64, 1], [71, 2], [81, 0.5], [81, 0.5], [null, 1], [78, 1], [78, 1],
+];
+const DANUBE_BASS = [38, 38, 38, 38, 38, 38, 33, 33, 33, 33, 33, 38]; // re · re · la · la (un compás cada uno)
+
+/** Notas de una melodía que empiezan en el pulso `beat` (en bucle): [{m, at (fracción de pulso), len (pulsos)}] */
+function notesAt(tune, beat) {
+  const total = tune.reduce((s, [, d]) => s + d, 0);
+  const b = beat % total;
+  const out = [];
+  let pos = 0;
+  for (const [m, d] of tune) {
+    if (pos >= b && pos < b + 1 && m != null) out.push({ m, at: pos - b, len: d });
+    pos += d;
+  }
+  return out;
+}
 
 const MAJOR = [0, 2, 4, 5, 7, 9, 11];
 const HARMONIC_MINOR = [0, 2, 3, 5, 7, 8, 11];
@@ -279,6 +322,59 @@ export const STYLES = {
     },
   },
 };
+
+// ------------------------------------------------------------------------------------------ Squid Games
+
+/** Tema: flauta dulce sobre caja de colegio y bajo en pizzicato (melancólico e inocente). */
+STYLES.sqTheme = {
+  bpm: 96,
+  meter: 4,
+  sample: 'theme', // si hay canción «tema» en la carpeta Squid, suena ella
+  start() {},
+  beat({ s, out, t, beat, inBar, spb }) {
+    for (const n of notesAt(SQ_THEME, beat)) recorder(s, out, mtof(n.m), t + n.at * spb, n.len * spb * 0.92, 0.07);
+    const bar = Math.floor(beat / 4) % 8;
+    const bass = [50, 50, 46, 43, 45, 46, 48, 50][bar];
+    if (inBar === 0 || inBar === 2) pizz(s, out, mtof(bass - 12 + (inBar === 2 ? 7 : 0)), t, 0.12);
+    snare(s, out, t, inBar === 0 ? 0.035 : 0.018);
+    if (inBar === 3) snare(s, out, t + spb / 2, 0.02);
+  },
+};
+
+/** Tensión: ostinato seco que no para, timbal y un tictac (para jugar con el reloj corriendo). */
+STYLES.sqTension = {
+  bpm: 132,
+  meter: 4,
+  sample: 'tension',
+  start() {},
+  beat({ s, out, soft, t, beat, inBar, spb }) {
+    const bar = Math.floor(beat / 4);
+    const lift = Math.floor(bar / 4) % 3;
+    const pat = [38, 38, 41, 38, 43, 38, 41, 40];
+    for (const half of [0, 1]) pizz(s, out, mtof(pat[(inBar * 2 + half) % 8] + lift), t + (half * spb) / 2, 0.11);
+    if (inBar === 0) timpani(s, out, mtof(26 + lift), t, 0.22);
+    if (inBar === 0 && bar % 2 === 0) held(s, soft, { type: 'sawtooth', freq: mtof(62 + lift), t, dur: spb * 7, attack: spb * 4, peak: 0.018 });
+    tone(s, out, { freq: inBar % 2 ? 1500 : 1200, t, peak: 0.04, decay: 0.03 });
+    if (inBar === 3) snare(s, out, t + spb / 2, 0.04);
+  },
+};
+
+/** El Danubio azul en caja de música: el reparto de la hucha. */
+STYLES.sqWaltz = {
+  bpm: 150,
+  meter: 3,
+  sample: 'waltz',
+  start() {},
+  beat({ s, out, t, beat, inBar, spb }) {
+    for (const n of notesAt(DANUBE, beat)) bell(s, out, mtof(n.m + 12), t + n.at * spb, { gain: 0.06, decay: Math.max(0.6, n.len * spb * 1.6) });
+    const bass = DANUBE_BASS[Math.floor(beat / 3) % DANUBE_BASS.length];
+    if (inBar === 0) pluck(s, out, mtof(bass - 12), t, { gain: 0.2, decay: 0.8 });
+    else for (const iv of [12, 16, 19]) vibes(s, out, mtof(bass + iv - (bass === 33 ? 1 : 0)), t, 0.018);
+  },
+};
+
+/** Silencio: que se oigan la muñeca, la respiración y el corazón. */
+STYLES.hush = { bpm: 60, meter: 4, start() {}, beat() {} };
 
 // Título del concurso y presentación de los equipos: si no hay canción tuya, los de la portada y el marcador.
 STYLES.title = STYLES.organ;

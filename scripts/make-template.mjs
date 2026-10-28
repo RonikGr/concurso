@@ -95,7 +95,7 @@ const SHEETS = [
       [15, 'Sí', 'La galleta', 'Libre', null, 'Con las manos atadas a la espalda: el primero que se coma la galleta, gana.', 3, null],
       [16, 'Sí', 'Botellas en orden', 'Libre', null, 'Adivina el orden de las 5 botellas: en cada intento te decimos cuántas están bien. Gana el más rápido.', 5, null],
       [17, 'Sí', 'Fit o Fat', 'Libre', null, 'Pruebas físicas.', 3, 'Sí', null, 'Noche de luna'],
-      [18, 'Sí', 'Squid Games', 'Squid Games', null, 'Cinco juegos seguidos: quien falla, fuera. Los que sobreviven se reparten la hucha.', 2, null],
+      [18, 'Sí', 'Squid Games', 'Squid Games', null, 'Cinco juegos seguidos: quien falla, fuera. Los que sobreviven se reparten la hucha.', 3, null],
       [19, 'Sí', 'La gran apuesta', 'La gran apuesta', null, 'Apostad lo que tenéis. Aquí se decide todo.', null, null],
     ],
     // Las que no se juegan, en rojo (de un vistazo)
@@ -438,7 +438,7 @@ const SHEETS = [
       { title: 'Tramos', width: 9, help: 'Solo el puente: cuántos tramos tiene. Vacío = según cuántos quedan vivos.' },
       sectionCol,
     ],
-    rows: [['Luz roja', 60], ['El panal', 90], ['El puente', 15], ['Tira y afloja', 20], ['Canicas', 150]],
+    rows: [['Luz roja', 60], ['El panal', 75], ['Tira y afloja', 20], ['Canicas', 90], ['El puente', 20]],
   },
   {
     name: 'Castigos',

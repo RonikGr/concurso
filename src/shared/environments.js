@@ -187,6 +187,25 @@ export const ENVIRONMENTS = [
     lightning: 0,
     horizon: 0.35,
   },
+  {
+    // Squid Games: casi negro con resplandor rosa; cada juego pinta encima su decorado (squidStage). Fijo: el fondo
+    // no se redibuja si no cambia, y la tele va más sobrada.
+    id: 'squid',
+    name: 'Squid Games',
+    top: rgb('#14070f'),
+    bot: rgb('#040306'),
+    fog: rgb('#ff2e88'),
+    glow: rgb('#2bb39b'),
+    part: rgb('#ff2e88'),
+    fogAmt: 0.12,
+    moon: 0,
+    sil: 0,
+    particles: 0,
+    bats: 0,
+    lightning: 0,
+    horizon: 0.3,
+    still: 1,
+  },
 ];
 
 /** Entorno de preparación, portada y final. */
@@ -195,14 +214,18 @@ export const HOME_ENV = 'luna';
 /** El Test se juega en el plató millonario (salvo que la hoja diga otro entorno). */
 export const TEST_ENV = 'millonario';
 
+/** Squid Games siempre con el suyo. */
+export const SQUID_ENV = 'squid';
+
 /** Entornos que se reparten entre las secciones (en este orden). */
-const SECTION_ENVS = ENVIRONMENTS.filter((e) => e.id !== HOME_ENV && e.id !== TEST_ENV);
+const SECTION_ENVS = ENVIRONMENTS.filter((e) => e.id !== HOME_ENV && e.id !== TEST_ENV && e.id !== SQUID_ENV);
 
 const byId = new Map(ENVIRONMENTS.map((e) => [e.id, e]));
 export const getEnv = (id) => byId.get(id) ?? byId.get(HOME_ENV);
 
 /** Entorno de una sección: el elegido en la hoja o, si no, uno distinto por posición. */
 export function sectionEnv(section, index) {
+  if (section?.type === 'squid') return SQUID_ENV;
   if (section?.env && byId.has(section.env)) return section.env;
   if (section?.type === 'test') return TEST_ENV;
   return SECTION_ENVS[index % SECTION_ENVS.length].id;
