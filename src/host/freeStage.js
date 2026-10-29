@@ -51,7 +51,7 @@ export function createFreeStage() {
         root,
         header,
         h('h2', { class: 'free-title' }, f.title),
-        kinetic('p', 'free-winner display', `🏆 ${f.winners.map((w) => w.name).join(' y ')}`),
+        kinetic('p', 'free-winner display', `🏆 ${andList(f.winners.map((w) => w.name))}`),
         h('p', { class: 'result-verdict' }, f.tool === TOOL.SCORE ? `La mejor nota: ${f.awarded[f.winners[0]?.id] ?? ''}` : `+${f.points} ${f.winners.length > 1 ? 'cada uno' : ''}`.trim()),
         f.tool === TOOL.NONE ? null : results(f),
       );
@@ -199,6 +199,9 @@ export function createFreeStage() {
     },
   };
 }
+
+/** «Ana», «Ana y Luis», «Ana, Luis y Eva» */
+const andList = (names) => (names.length > 1 ? `${names.slice(0, -1).join(', ')} y ${names.at(-1)}` : (names[0] ?? ''));
 
 /** Un participante; con `score` (nota), su nota al lado (o «…» si aún no la tiene). */
 function chip(p, score) {

@@ -28,7 +28,8 @@ export function createMillionairePad({ onAnswer, onJoker }) {
     receivedAt = stateReceivedAt;
     if (selected && (selected.roundId !== m.roundId || m.phase !== MPHASE.PLAYING)) selected = null;
     if (m.phase !== MPHASE.PLAYING || m.role !== 'seat') picking = false;
-    const sig = JSON.stringify([m, selected, picking]);
+    // (sin lo que falta de los relojes del público y la llamada: cambia en cada estado y se rehacía todo, con toques perdidos)
+    const sig = JSON.stringify([{ ...m, audience: m.audience && { ...m.audience, inMs: m.audience.inMs != null }, call: m.call && { ...m.call, inMs: m.call.inMs != null } }, selected, picking]);
     if (sig === signature) return;
     signature = sig;
     clearInterval(tick);
@@ -136,33 +137,60 @@ export function createMillionairePad({ onAnswer, onJoker }) {
   }
 
   function jokerBar(m) {
-    return h(
-      'div',
-      { class: 'mill-pad-jokers' },
-      ['fifty', 'audience', 'call'].map((kind) => {
-        const left = m.jokers?.[kind] ?? 0;
-        const btn = h(
-          'button',
-          {
-            type: 'button',
-            class: 'mill-joker-btn',
-            disabled: left <= 0 || m.shown < m.count,
-            'aria-label': `Comodín ${JOKER_NAMES[kind]}`,
-            onclick: () => {
-              if (kind === 'call') {
-                picking = !picking;
-                signature = null;
-                return render(current, { me: null, stateReceivedAt: receivedAt });
-              }
-              if (confirm(`¿Usar el comodín ${JOKER_NAMES[kind]}?`)) onJoker(m.roundId, kind);
+    const waiting = m.shown < m.count;
+    return [
+      h(
+        'div',
+        { class: 'mill-pad-jokers' },
+        ['fifty', 'audience', 'call'].map((kind) => {
+          const left = m.jokers?.[kind] ?? 0;
+          const ready = isArmed(kind);
+          const btn = h(
+            'button',
+            {
+              type: 'button',
+              class: `mill-joker-btn ${ready ? 'armed' : ''}`,
+              disabled: left <= 0 || waiting,
+              'aria-label': `Comodín ${JOKER_NAMES[kind]}`,
+              onclick: () => {
+                if (kind === 'call') {
+                  picking = !picking;
+                  signature = null;
+                  return render(current, { me: null, stateReceivedAt: receivedAt });
+                }
+                // dos toques: el primero pregunta («¿Seguro?»), el segundo lo usa
+                if (!confirmTap(kind)) return;
+                onJoker(m.roundId, kind);
+              },
             },
-          },
-          jokerIcon(kind, { used: left <= 0 }),
-          h('small', {}, JOKER_NAMES[kind]),
-        );
-        return btn;
-      }),
-    );
+            jokerIcon(kind, { used: left <= 0 }),
+            h('small', {}, ready ? '¿Seguro? Toca otra vez' : JOKER_NAMES[kind]),
+          );
+          return btn;
+        }),
+      ),
+      waiting && Object.values(m.jokers ?? {}).some((n) => n > 0) ? h('p', { class: 'ap-sub small' }, 'Los comodines se pueden usar cuando estén todas las respuestas a la vista.') : null,
+    ];
+  }
+
+  /** Confirmar con un segundo toque (en vez de confirm(), que congela la página y la conexión). */
+  let armed = null; // {key, until}
+  const isArmed = (key) => armed?.key === key && performance.now() < armed.until;
+  function confirmTap(key) {
+    if (isArmed(key)) {
+      armed = null;
+      return true;
+    }
+    armed = { key, until: performance.now() + 4000 };
+    signature = null;
+    render(current, { me: null, stateReceivedAt: receivedAt });
+    setTimeout(() => {
+      if (armed?.key !== key) return;
+      armed = null;
+      signature = null;
+      if (current) render(current, { me: null, stateReceivedAt: receivedAt });
+    }, 4100);
+    return false;
   }
 
   function friendPicker(m) {
@@ -176,15 +204,15 @@ export function createMillionairePad({ onAnswer, onJoker }) {
           'button',
           {
             type: 'button',
-            class: 'btn',
+            class: `btn ${isArmed(`call:${p.id}`) ? 'primary' : ''}`,
             onclick: () => {
-              if (!confirm(`¿Llamar a ${p.name}?`)) return;
+              if (!confirmTap(`call:${p.id}`)) return;
               picking = false;
               onJoker(m.roundId, 'call', p.id);
             },
           },
           h('span', { class: 'emoji' }, avatarOf(p)),
-          ` ${p.name}`,
+          isArmed(`call:${p.id}`) ? ` ¿Llamar a ${p.name}? Toca otra vez` : ` ${p.name}`,
         ),
       ),
     );

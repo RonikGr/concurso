@@ -260,6 +260,7 @@ function startRoom(saved) {
   const code = saved?.code ?? generateRoomCode();
   writeTabMark(code);
   room = new HostRoom({ code, saved });
+  lastCheatAlert = null; // los avisos de la sala nueva empiezan a contar de 0
   room.setFaces(faceStore.faces);
   if (import.meta.env.DEV) window.__room = room; // para probar desde la consola
   qrs = makeQrs();
@@ -499,11 +500,19 @@ function renderNetwork() {
  */
 function renderScreen(view) {
   const t = performance.now();
+  const setup = view.screen === SCREEN.SETUP;
   const visible = {
     ...view,
-    // En el marcador y el final no se ve quién está conectado: que una desconexión no repita sus animaciones.
-    players: view.players.map(({ rtt, connected, ...p }) => (view.screen === SCREEN.FINAL || view.screen === SCREEN.SCOREBOARD || view.peekScoreboard ? p : { ...p, connected })),
+    // En el marcador y el final no se ve quién está conectado: que una desconexión no repita sus animaciones. Quién
+    // está fuera de la app o bloqueado solo sale en las tarjetas (renderPlayers), no en la pantalla.
+    players: view.players.map(({ rtt, connected, lock, away, cheated, ...p }) => (view.screen === SCREEN.FINAL || view.screen === SCREEN.SCOREBOARD || view.peekScoreboard ? p : { ...p, connected })),
     settings: null,
+    // los avisos, los mandos y los bots tienen su sitio aparte (fuera de la preparación no se ven en la pantalla)
+    cheatAlerts: null,
+    pendingControls: null,
+    bots: setup ? view.bots : null,
+    controlsConnected: setup ? view.controlsConnected : null,
+    lastImport: setup ? view.lastImport : null,
     // Lo que «falta» de un reloj cambia en cada vista: la pantalla ya lo calcula con su hora, no hay que repintar por ello
     words: view.words && { ...view.words, endsInMs: null },
     shake: view.shake && { ...view.shake, opensInMs: null, endsInMs: null },
@@ -530,7 +539,7 @@ function renderScreen(view) {
   wordsStage.stop();
   betStage.stop();
   hankyStage.stop();
-  if (!view.shake) shakeStage.stop(); // la carrera se repinta cada 300 ms: solo se reinicia al salir de ella
+  if (!view.shake || view.paused || view.peekScoreboard) shakeStage.stop(); // la carrera se repinta cada 300 ms: solo se reinicia al salir de ella
   if (!view.squid || view.paused || view.peekScoreboard) squidStage.stop(); // igual: Squid Games actualiza su escena en su sitio
   // Los sonidos programados (suspense, podio) se anulan al cambiar de momento, no en cada repintado.
   const momentKey = [screenKey(view), view.answer?.roundId, view.answer?.phase, view.game?.phase, view.free?.phase].join('|');
@@ -625,7 +634,7 @@ function renderScreen(view) {
 
 function renderPlayers(view) {
   const panel = $('#players-panel');
-  panel.hidden = !(view.screen === SCREEN.PLAY && (view.game || view.answer) && !view.peekScoreboard);
+  panel.hidden = !(view.screen === SCREEN.PLAY && (view.game || view.answer) && !view.peekScoreboard && !view.paused);
   if (panel.hidden) return;
 
   // Puesto de cada uno en la ronda actual (mientras el turno está abierto o se ve el resultado).
@@ -864,6 +873,9 @@ document.addEventListener('keydown', (e) => {
         if (d.finished) run('nextItem');
         else if (d.current?.step === 'called') run('hankyGo');
         else if (!d.busy) run('hankyDraw');
+      } else if (room.inFreePlay) {
+        // Libre: lo lleva el mando (cronómetro, notas…); Espacio solo pasa a la siguiente cuando ya dio los puntos
+        if (room.freeRound.phase === 'awarded') run('nextItem');
       } else if (room.games.apuesta.inPlay) {
         const p = room.games.apuesta.round.phase;
         run(p === BPHASE.BETTING ? 'betClose' : p === BPHASE.QUESTION ? 'betReveal' : 'nextItem');

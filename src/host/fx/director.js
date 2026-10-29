@@ -124,6 +124,9 @@ function musicScene(n) {
 
 export function createDirector({ backdrop }) {
   let prev = null;
+  // lo programado para más tarde (la megafonía, destellos): se anula al cambiar de pantalla (si no, se pisaba con la siguiente)
+  let timers = [];
+  const later = (fn, ms) => timers.push(setTimeout(fn, ms));
 
   return function direct(view) {
     const env = envFor(view);
@@ -160,10 +163,12 @@ export function createDirector({ backdrop }) {
 
     if (!p) return;
     if (n.key !== p.key) {
+      timers.forEach(clearTimeout);
+      timers = [];
       if (n.screen === SCREEN.INTRO && view.section?.type === 'squid') {
         // Squid Games: megafonía y bienvenida
         sound.sq('pa');
-        setTimeout(() => sound.say('Bienvenidos a los juegos.'), 1900);
+        later(() => sound.say('Bienvenidos a los juegos.'), 1900);
       } else if (n.screen === SCREEN.INTRO) {
         sound.play('whoosh');
         if (!own) sound.play('gong', 250);
@@ -174,7 +179,7 @@ export function createDirector({ backdrop }) {
         sound.play('hit', 500);
         sound.play('hit', 1300);
         sound.play('fanfare', 2100);
-        setTimeout(() => backdrop?.flash(0.5), 2100);
+        later(() => backdrop?.flash(0.5), 2100);
       } else if (n.screen === SCREEN.COVER) {
         sound.play('hit');
         sound.play('fanfare', 200);
@@ -219,7 +224,7 @@ export function createDirector({ backdrop }) {
       if (pa && a.answered > pa.answered && a.phase === APHASE.OPEN) sound.play('blip');
       if (a.phase === APHASE.CLOSED && pa?.phase === APHASE.OPEN) sound.play('bell');
       // El revelado (redoble, golpe, aciertos) lo programa answerStage, que sabe cuándo sale cada cosa: aquí, el destello.
-      if (a.phase === APHASE.REVEALED && pa && pa.phase !== APHASE.REVEALED) setTimeout(() => backdrop?.flash(0.45), isChoice(a.kind) ? 2800 : 0);
+      if (a.phase === APHASE.REVEALED && pa && pa.phase !== APHASE.REVEALED) later(() => backdrop?.flash(0.45), isChoice(a.kind) ? 2800 : 0);
     }
 
     // Millonario
@@ -270,7 +275,7 @@ export function createDirector({ backdrop }) {
       if (b.phase === 'revealed') {
         sound.play('roll');
         sound.play(b.win ? 'correct' : 'wrong', 1200);
-        if (b.win) setTimeout(() => burst({ y: 0.45, count: 60 }), 1200);
+        if (b.win) later(() => burst({ y: 0.45, count: 60 }), 1200);
       }
     }
 

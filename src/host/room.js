@@ -777,19 +777,28 @@ export class HostRoom extends EventTarget {
       this.#scheduleOpenRepaint();
       return true;
     },
+    // Pulsador: lo que se da se apunta en itemResults (buzzer: {correct, penalties}), así R lo quita y, si se vuelve a
+    // la pregunta y se da otro acierto, sustituye al anterior (no se suman dos veces)
     correct: () => {
       if (!this.inBuzzerPlay) return false;
       const winnerId = this.game.correct();
       if (!winnerId) return false;
+      const rec = this.#buzzerRecord();
+      if (rec.correct) this.roster.adjustScore(rec.correct.id, -rec.correct.points);
       this.roster.adjustScore(winnerId, this.pointsForCorrect);
+      rec.correct = { id: winnerId, points: this.pointsForCorrect };
       return true;
     },
     wrong: () => {
       if (!this.inBuzzerPlay) return false;
-      const activeIds = this.roster.list().filter((p) => p.connected).map((p) => p.id);
+      // (el presentador en el banquillo no cuenta: si no, el turno se reabría siempre)
+      const activeIds = this.roster.list().filter((p) => p.connected && !this.benched(p.id)).map((p) => p.id);
       const res = this.game.wrong(now(), activeIds);
       if (!res) return false;
-      if (this.pointsForWrong) this.roster.adjustScore(res.loserId, this.pointsForWrong);
+      if (this.pointsForWrong) {
+        this.roster.adjustScore(res.loserId, this.pointsForWrong);
+        this.#buzzerRecord().penalties.push({ id: res.loserId, points: this.pointsForWrong });
+      }
       if (res.reopened) this.#scheduleOpenRepaint();
       return true;
     },
@@ -800,6 +809,9 @@ export class HostRoom extends EventTarget {
       if (this.inFreePlay) return this.#restartFreeRound();
       if (!this.inBuzzerPlay) return false;
       this.#clearTimers();
+      const rec = this.itemResults[this.runner.playKey]?.buzzer;
+      for (const x of [rec?.correct, ...(rec?.penalties ?? [])]) if (x) this.roster.adjustScore(x.id, -x.points);
+      delete this.itemResults[this.runner.playKey];
       this.game.restart();
       return true;
     },
@@ -1005,6 +1017,9 @@ export class HostRoom extends EventTarget {
       this.roster.resetScores();
       this.jokers.reset();
       this.itemResults = {};
+      // (Squid guarda sus eliminados y repartos aparte; Palabras, las tarjetas ya salidas)
+      this.games.squid.reset();
+      this.games.palabras.resetDecks();
       this.#syncAnswerRound();
       this.#syncFreeRound();
       this.#syncMillionaire();
@@ -1505,12 +1520,19 @@ export class HostRoom extends EventTarget {
     this.freeRound = stored ? FreeRound.fromJSON(this.runner.item, stored) : new FreeRound(this.runner.item, { roundId: `${key}#${++this.#roundSeq}` });
   }
 
+  /** Lo que ha dado la pregunta de pulsador actual (se crea si no hay): {correct: {id, points}, penalties: [...]} */
+  #buzzerRecord() {
+    const key = this.runner.playKey;
+    this.itemResults[key] ??= { buzzer: { correct: null, penalties: [] } };
+    return this.itemResults[key].buzzer;
+  }
+
   /** "R" en una prueba Libre: quita los puntos que dio y empieza de cero. */
   #restartFreeRound() {
     const key = this.runner.playKey;
     const stored = this.itemResults[key];
     if (stored?.free) {
-      for (const [id, pts] of Object.entries(stored.free.points)) {
+      for (const [id, pts] of Object.entries(stored.free.points ?? {})) {
         if (stored.byTeams) this.roster.adjustTeamBonus(id, -pts);
         else this.roster.adjustScore(id, -pts);
       }

@@ -67,6 +67,42 @@ body.disco-on::after {
   transform-origin: 50% 0;
 }
 
+/* La bola de espejos, colgada arriba en el centro, girando y soltando destellos */
+body.disco-on::before {
+  content: '';
+  position: fixed;
+  top: -2.5rem;
+  left: 50%;
+  z-index: 0; /* (con -1 quedaba detrás del fondo animado) */
+  width: 8rem;
+  height: 8rem;
+  margin-left: -4rem;
+  border-radius: 50%;
+  pointer-events: none;
+  /* espejitos (rejilla) sobre un gris metálico con brillo; las columnas se desplazan: parece que gira (la luz y la
+     sombra se quedan quietas) */
+  background:
+    radial-gradient(circle at 35% 30%, rgb(255 255 255 / 0.95), transparent 30%),
+    repeating-linear-gradient(0deg, rgb(20 10 40 / 0.45) 0 2px, transparent 2px 0.8rem),
+    repeating-linear-gradient(90deg, rgb(20 10 40 / 0.45) 0 2px, transparent 2px 0.8rem),
+    repeating-linear-gradient(90deg, #e8e8f4 0 0.8rem, #9a9ab4 0.8rem 1.6rem, #f8f0ff 1.6rem 2.4rem, #b4b4cc 2.4rem 3.2rem);
+  box-shadow:
+    inset -1.4rem -1.4rem 2.2rem rgb(0 0 0 / 0.55),
+    0 0 2.5rem rgb(255 47 180 / 0.6),
+    0 0 5rem rgb(46 242 255 / 0.4);
+  animation: ball-spin 1.6s linear infinite;
+}
+
+@keyframes ball-spin {
+  to {
+    background-position:
+      0 0,
+      0 0,
+      0.8rem 0,
+      3.2rem 0;
+  }
+}
+
 @keyframes disco-sweep {
   0% {
     transform: rotate(-9deg);
@@ -206,6 +242,10 @@ body.disco-on::after {
 
 .intro-title {
   font-size: 8rem;
+}
+
+.intro-title.long {
+  font-size: clamp(4rem, 6.5vw, 7rem);
 }
 
 .final-title {
@@ -1408,6 +1448,36 @@ body.splash-on {
   font-size: 5.5rem;
 }
 
+.cover-sections.lots {
+  gap: 0.35rem;
+}
+
+.cover-sections.lots li {
+  padding-block: 0.25rem;
+  font-size: 1.1rem;
+}
+
+.cover-sections.lots .cs-type {
+  display: none;
+}
+
+.cover-sections.lots .cs-num {
+  grid-row: auto;
+  height: 1.8rem;
+}
+
+/* Teles de 720 de alto (o portátiles con escala): la portada, más compacta */
+@media (max-height: 800px) {
+  .cover .cover-title {
+    font-size: 4.2rem;
+  }
+
+  .cover-rules li {
+    padding-block: 0.3rem;
+    font-size: 1.05rem;
+  }
+}
+
 /* ------------------------------------------------------------------ Panel «Música» (preparación) */
 .music-box summary {
   display: flex;
@@ -2154,6 +2224,10 @@ body.splash-on {
   animation: correct-blink 1.2s steps(2) 3;
 }
 
+.mill-options.settled .mill-opt.correct .mill-opt-in {
+  animation: none;
+}
+
 .mill-opt.correct .mill-letter {
   color: #fff;
 }
@@ -2473,6 +2547,31 @@ body.splash-on {
 
 .vs-team.from-right {
   animation-name: vs-in-right;
+}
+
+/* El bicho del equipo (🐺, 🧛…), que entra con un salto y respira */
+.vs-creature {
+  margin: 0 0 -0.5rem;
+  font-size: clamp(4rem, 8vw, 7rem);
+  line-height: 1;
+  filter: drop-shadow(0 0 1.2rem var(--tc));
+  animation:
+    creature-in 700ms var(--ease-spring) both,
+    creature-breathe 2.6s ease-in-out infinite alternate;
+  animation-delay: var(--d), calc(var(--d) + 700ms);
+}
+
+@keyframes creature-in {
+  from {
+    opacity: 0;
+    transform: scale(0.3) rotate(-20deg);
+  }
+}
+
+@keyframes creature-breathe {
+  to {
+    transform: scale(1.08);
+  }
 }
 
 .vs-name {

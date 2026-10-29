@@ -144,7 +144,8 @@ export function createHankyStage() {
   /** Al acabar todos los duelos: el equipo campeón y cómo fue cada duelo. */
   function renderFinal(v, scoreboard, teamName) {
     const champ = v.champion;
-    const title = champ === 'tie' ? '¡Empate entre lobos y vampiros!' : `¡Ganan los ${teamName(champ)}!`;
+    // (el nombre tal cual: «¡Ganan los Equipo rojo!» no se puede decir)
+    const title = champ === 'tie' ? '¡Empate entre lobos y vampiros!' : `🏆 ${teamName(champ)}, campeones`;
     fill(
       root,
       scoreboard,

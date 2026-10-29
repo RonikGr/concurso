@@ -296,6 +296,14 @@ body.offline .c-net {
   font-size: 1.25rem;
 }
 
+/* El botón principal se queda a mano, justo encima de las pestañas, aunque la pantalla sea larga (resultados, listas) */
+.c-main > .btn.primary.big {
+  position: sticky;
+  bottom: calc(4rem + env(safe-area-inset-bottom));
+  z-index: 4;
+  box-shadow: 0 0.4rem 1.6rem rgb(0 0 0 / 0.55);
+}
+
 .btn.ok {
   background: var(--ok);
   border-color: var(--ok);
@@ -309,8 +317,8 @@ body.offline .c-net {
 }
 
 .btn.round {
-  min-height: 2.4rem;
-  width: 2.4rem;
+  min-height: 2.75rem;
+  width: 2.75rem;
   padding: 0;
   border-radius: 50%;
   font-size: 1.2rem;
@@ -462,6 +470,7 @@ body.offline .c-net {
 
 .c-select {
   grid-area: sel;
+  min-height: 2.75rem;
   padding: 0.35rem 0.5rem;
   border-radius: 0.5rem;
   border: 1px solid var(--border);
@@ -610,9 +619,9 @@ body.offline .c-net {
 }
 
 .btn.small {
-  min-height: 2.2rem;
-  padding: 0.2em 0.7em;
-  font-size: 0.9rem;
+  min-height: 2.75rem; /* (44 px: que se acierte con el dedo en plena fiesta) */
+  padding: 0.2em 0.8em;
+  font-size: 0.95rem;
 }
 
 /* Jugar desde el mando: la página de jugador ocupa lo que hay entre la cabecera y las pestañas */
@@ -707,7 +716,16 @@ body.c-playing .c-main {
   text-decoration: line-through;
 }
 
+.c-bet-amounts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  width: 100%;
+}
+
 .c-bet-owner {
+  display: flex; /* (era una rejilla de dos columnas: los botones A–D se caían a media fila) */
+  align-items: center;
   flex-wrap: wrap;
   gap: 0.4rem;
   padding: 0.4rem 0;

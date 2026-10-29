@@ -48,6 +48,20 @@ describe('El pañuelo (lobos contra vampiros)', () => {
     expect(d.duels[0].ms).toBe(1500);
   });
 
+  it('el sorteo salta a quien no está; quien se va sin haber salido deja de contar', () => {
+    const d = new HankyDuels({ wolves: ['w1', 'w2', 'w3'], vampires: ['v1', 'v2'] });
+    const away = new Set(['w1']);
+    for (let k = 0; k < 5; k++) {
+      d.draw(k, seeded(k + 1), (id) => !away.has(id));
+      expect(d.current.wolf).not.toBe('w1');
+      d.cancel();
+    }
+    d.join({ wolves: ['w2', 'w3'], vampires: ['v1', 'v2'] }); // w1 se ha ido
+    expect(d.wolves).toEqual(['w2', 'w3']);
+    expect(d.total).toBe(2);
+    expect(d.draw(0, seeded(1), () => false)).toBe(false); // nadie para salir
+  });
+
   it('se guarda y se recupera; la gente que llega tarde se suma a su equipo', () => {
     const d = new HankyDuels({ wolves: ['w1'], vampires: ['v1'] });
     d.draw(0, seeded(2));

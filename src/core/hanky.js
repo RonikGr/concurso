@@ -34,8 +34,14 @@ export class HankyDuels {
     return structuredClone({ wolves, vampires, duels, current });
   }
 
-  /** Gente que entra tarde (o que no estaba al empezar): se añade al final de su equipo. */
+  /**
+   * La gente de cada equipo ahora: quien entra tarde se añade al final de su equipo; quien se ha ido (o cambiado de
+   * equipo) sin haber salido aún, se quita (así no cuenta para el número de duelos). Quien ya ha salido se queda.
+   */
   join({ wolves = [], vampires = [] }) {
+    const keep = (list, now) => list.filter((id) => now.includes(id) || this.count(id) > 0);
+    this.wolves = keep(this.wolves, wolves);
+    this.vampires = keep(this.vampires, vampires);
     for (const id of wolves) if (!this.wolves.includes(id) && !this.vampires.includes(id)) this.wolves.push(id);
     for (const id of vampires) if (!this.vampires.includes(id) && !this.wolves.includes(id)) this.vampires.push(id);
   }
@@ -54,9 +60,9 @@ export class HankyDuels {
     return this.duels.filter((d) => d.wolf === id || d.vampire === id).length;
   }
 
-  /** De un equipo, los que menos han salido (los que pueden salir ahora). */
-  candidates(side) {
-    const list = side === 'wolf' ? this.wolves : this.vampires;
+  /** De un equipo, los que menos han salido (los que pueden salir ahora); `ok` = quién está para salir (conectado…). */
+  candidates(side, ok = () => true) {
+    const list = (side === 'wolf' ? this.wolves : this.vampires).filter((id) => ok(id, side));
     if (!list.length) return [];
     const min = Math.min(...list.map((id) => this.count(id)));
     return list.filter((id) => this.count(id) === min);
@@ -66,12 +72,12 @@ export class HankyDuels {
     return !!this.current && this.current.step !== HSTEP.DONE;
   }
 
-  /** Sorteo: uno de cada equipo entre los que menos han salido. */
-  draw(now, rng = Math.random) {
+  /** Sorteo: uno de cada equipo entre los que menos han salido (y están para salir: `ok`). */
+  draw(now, rng = Math.random, ok = () => true) {
     if (this.busy || this.finished) return false;
     const pick = (list) => list[Math.floor(rng() * list.length)];
-    const wolf = pick(this.candidates('wolf'));
-    const vampire = pick(this.candidates('vampire'));
+    const wolf = pick(this.candidates('wolf', ok));
+    const vampire = pick(this.candidates('vampire', ok));
     if (!wolf || !vampire) return false;
     this.current = { wolf, vampire, step: HSTEP.CALLED, mode: 'random', calledAt: now, goAt: null, winner: null };
     return true;

@@ -86,6 +86,8 @@ function handleMessage(msg) {
     case MSG.CONTROL_STATE:
       status = 'ready';
       document.body.classList.remove('offline');
+      // alguien ha pulsado: el mando vibra (así el presentador puede mirar a la gente y no al móvil)
+      if (msg.view.game?.phase === 'result' && view?.game?.phase !== 'result') navigator.vibrate?.(80);
       view = msg.view;
       notifyAway(view.awayFeed ?? []);
       document.body.style.setProperty('--env-bg', envGradient(view.section?.env ?? HOME_ENV));
@@ -145,8 +147,26 @@ function awayAlert(text, serious) {
   awayTimer = setTimeout(() => (el.hidden = true), serious ? 9000 : 5000);
 }
 
+/**
+ * Órdenes que hacen avanzar el concurso: tras una, las demás esperan un momento. El botón siguiente sale en el mismo
+ * sitio y un doble toque se saltaba un paso (cerrar apuestas → revelar sin respuestas, marcar → enseñar la buena…).
+ * Las de contar (+1, notas…) no esperan.
+ */
+const STEP_ACTIONS = new Set([
+  'next', 'prev', 'nextItem', 'endSection', 'scoreboard', 'open', 'correct', 'wrong', 'openAnswers', 'closeAnswers', 'reveal',
+  'mShow', 'mMark', 'mReveal', 'freeStart', 'freeStop', 'freeAward', 'freeDone', 'freeNext', 'wordsStart', 'wordsStop',
+  'shakeStart', 'shakeStop', 'betClose', 'betReveal', 'squidStart', 'squidStop', 'hankyDraw', 'hankyChoose', 'hankyGo', 'hankyWin',
+  'punishClose', 'punishSpin',
+]);
+const STEP_GAP_MS = 800;
+let lastStepAt = 0;
+
 /** Manda una orden al portátil. */
 function cmd(action, args = {}) {
+  if (STEP_ACTIONS.has(action)) {
+    if (performance.now() - lastStepAt < STEP_GAP_MS) return;
+    lastStepAt = performance.now();
+  }
   if (!connection?.send({ t: MSG.CMD, id: ++cmdSeq, action, args })) toast('Sin conexión con el portátil.');
 }
 
@@ -170,9 +190,27 @@ function message(title, text, actionLabel, action) {
 function render() {
   if (!view) return;
   // Repintar solo si cambió algo visible (no con cada latencia), para no "robar" toques a medio pulsar.
-  const signature = JSON.stringify([tab, { ...view, players: view.players.map(({ rtt, ...p }) => p), network: null }]);
+  // (sin lo que cambia con el reloj —lo que falta, lo que lleva—: si no, el mando se redibujaba varias veces por
+  // segundo en los juegos con reloj y se perdían toques; los relojes de la pantalla ya cuentan solos)
+  const v = view;
+  const signature = JSON.stringify([
+    tab,
+    {
+      ...v,
+      players: v.players.map(({ rtt, ...p }) => p),
+      network: null,
+      squid: v.squid && { ...v.squid, now: null, g: v.squid.g && { ...v.squid.g, turnEndsInMs: null } },
+      shake: v.shake && { ...v.shake, opensInMs: null, endsInMs: null },
+      words: v.words && { ...v.words, endsInMs: null },
+      free: v.free && { ...v.free, trialElapsed: null, ranking: v.free.phase === 'running' ? null : v.free.ranking },
+      millionaire: v.millionaire && { ...v.millionaire, audience: v.millionaire.audience && { ...v.millionaire.audience, inMs: null }, call: v.millionaire.call && { ...v.millionaire.call, inMs: null } },
+    },
+  ]);
   if (signature === lastSignature) return;
   lastSignature = signature;
+  // los relojes de la pantalla anterior (los vuelve a poner el panel que los use)
+  clearInterval(liveClockTimer);
+  clearInterval(trialClockTimer);
 
   fill(
     app,
@@ -206,7 +244,6 @@ function render() {
         ),
       ),
     ),
-    h('div', { id: 'c-toast', class: 'c-toast', hidden: true }),
   );
   showPlayFrame(tab === 'play');
 }
@@ -301,7 +338,7 @@ function gameTabBody() {
     case 'cover':
       if (view.punish?.step === 'vote') return punishVotePanel();
       if (view.versus) return [h('section', { class: 'c-card center' }, h('p', { class: 'c-kicker' }, 'En la tele: los equipos'), h('h2', {}, view.teams.map((t) => t.name).join(' vs '))), bigNext('Portada →'), navRow()];
-      return [h('section', { class: 'c-card center' }, h('p', { class: 'c-kicker' }, 'En la tele: portada'), h('h2', {}, view.title)), bigNext('Presentar la primera sección →'), navRow()];
+      return [h('section', { class: 'c-card center' }, h('p', { class: 'c-kicker' }, 'En la tele: portada'), h('h2', {}, view.title)), bigNext(`Presentar «${view.sections.find((s) => s.on)?.name ?? 'la primera sección'}» →`), navRow()];
     case 'intro':
       if (view.section?.type === 'test' && view.playable && !view.introRules) return [sectionCard(), bigNext('Explicar cómo se juega →'), navRow()];
       return [sectionCard(), bigNext(view.playable ? 'Empezar sección →' : 'Saltar esta sección →'), navRow()];
@@ -316,7 +353,8 @@ function gameTabBody() {
       if (view.answer) return answerPanel();
       return view.section?.type === 'pulsador' ? buzzerPanel() : [sectionCard(), bigNext('Siguiente →'), navRow()];
     case 'scoreboard':
-      return [standingsCard('Marcador'), bigNext('Siguiente sección →'), navRow()];
+      // (con el nombre de lo que viene: así se sabe qué preparar antes de pulsar)
+      return [standingsCard('Marcador'), bigNext(nextSectionName() ? `Siguiente: «${nextSectionName()}» →` : 'Al final →'), navRow()];
     case 'final':
       if (view.punish?.step === 'roulette') return roulettePanel();
       return [standingsCard('Clasificación final'), view.hasPunish ? bigNext('🎡 La ruleta del castigo →') : null, navRow()];
@@ -415,7 +453,7 @@ function hankyPanel() {
     : null;
   const undo = c?.step === 'done' ? btn('↶ Deshacer el último resultado', () => cmd('hankyUndo'), 'small') : null;
   if (k.finished)
-    return [head, h('section', { class: 'c-card center' }, h('h2', {}, k.champion === 'tie' ? '¡Empate!' : `¡Ganan los ${name(k.champion)}! ${ICON[k.champion]}`)), history, h('button', { class: 'btn primary big', onclick: () => cmd('nextItem') }, 'Al marcador →'), undo, navRow()];
+    return [head, h('section', { class: 'c-card center' }, h('h2', {}, k.champion === 'tie' ? '¡Empate!' : `${ICON[k.champion]} ${name(k.champion)}, campeones`)), history, h('button', { class: 'btn primary big', onclick: () => cmd('nextItem') }, 'Al marcador →'), undo, navRow()];
 
   // Elegir la pareja: sorteo o en secreto
   const picker = () => {
@@ -492,10 +530,14 @@ function betPanel() {
         { class: 'c-row c-bet-owner' },
         h('strong', {}, o.name),
         h('span', { class: 'muted' }, `💰 ${o.bet ?? '—'} / ${o.max}`),
-        b.phase === 'betting' ? btn('Apostar…', () => {
-          const v = prompt(`¿Cuánto apuesta ${o.name}? (0 a ${o.max})`, String(o.bet ?? 0));
-          if (v != null) cmd('betSet', { owner: o.id, amount: Number(v) });
-        }) : null,
+        // apostar por ellos: botones de cantidad (antes, una ventana de escribir que congelaba la página)
+        b.phase === 'betting'
+          ? h(
+              'span',
+              { class: 'c-bet-amounts' },
+              [...new Set([0, Math.round(o.max / 4), Math.round(o.max / 2), o.max])].map((v) => btn(v === o.max ? `Todo (${v})` : String(v), () => cmd('betSet', { owner: o.id, amount: v }), o.bet === v ? 'primary small' : 'small')),
+            )
+          : null,
         b.phase === 'question' ? h('span', {}, L.slice(0, b.options.length).map((l, i) => btn(l, () => cmd('betAnswer', { owner: o.id, index: i }), o.answer === i ? 'primary small' : 'small'))) : null,
         b.phase === 'revealed' ? h('strong', { class: o.result > 0 ? 'ok' : o.result < 0 ? 'warn' : '' }, o.result > 0 ? `+${o.result}` : String(o.result ?? 0)) : null,
       ),
@@ -611,6 +653,9 @@ function roulettePanel() {
     navRow(),
   ];
 }
+
+/** La siguiente sección que se juega (o null si esta es la última). */
+const nextSectionName = () => view.sections.slice(view.sectionIndex + 1).find((s) => s.on)?.name ?? null;
 
 function bigNext(label) {
   return h('button', { class: 'btn primary big', onclick: () => cmd('next') }, label);
@@ -1548,9 +1593,13 @@ function soundCard() {
 // ------------------------------------------------------------------ Utilidades
 
 let toastTimer = null;
+/** Aviso abajo; fuera del pintado (si no, el siguiente repintado lo borraba antes de poder leerlo). */
 function toast(text) {
-  const el = document.getElementById('c-toast');
-  if (!el) return alert(text);
+  let el = document.getElementById('c-toast');
+  if (!el) {
+    el = h('div', { id: 'c-toast', class: 'c-toast', hidden: true });
+    document.body.append(el);
+  }
   el.textContent = text;
   el.hidden = false;
   clearTimeout(toastTimer);

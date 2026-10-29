@@ -825,6 +825,17 @@ button.me-score {
   font-variant-numeric: tabular-nums;
 }
 
+/* La gran apuesta: la tele ya la tiene */
+.gp-bet-ok {
+  margin: 0;
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ok) 25%, transparent);
+  color: var(--ok);
+  font-weight: 800;
+  text-align: center;
+}
+
 /* El pañuelo: la pareja y el marcador de duelos */
 .gp-hk-pair {
   margin: 0;

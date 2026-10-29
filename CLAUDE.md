@@ -379,6 +379,33 @@ con vibración). Mando: `hankyPanel` (chips por equipo para elegir en secreto, `
   en la intro y el juego de esa sección. Entorno **Discoteca** (`DISCO_ENV`, solo si la hoja lo elige): `body.disco-on`
   con focos que barren (show.css) y su música con batería.
 
+### Revisión a fondo (tras la fase 13)
+
+- **Repintado:** la firma de la tele quita lo que no se dibuja en la pantalla (`lock/away/cheated` de cada jugador,
+  avisos, mandos, bots; fuera de la preparación). El mando quita lo que cambia con el reloj (`squid.now`, `endsInMs`,
+  `trialElapsed`, `ranking` en marcha, `inMs` del millonario); el móvil del millonario, también `inMs`. Si no, se
+  rehacía todo varias veces por segundo (toques perdidos, podio y fanfarria repetidos).
+- **Mando:** `STEP_ACTIONS` (órdenes que hacen avanzar) esperan `STEP_GAP_MS` (800 ms) entre sí: el doble toque no se
+  salta un paso (las de contar, sí se repiten). El aviso (`toast`) vive fuera del pintado. El botón principal, fijo
+  sobre las pestañas; «Siguiente: «Sección» →»; vibra al pulsar alguien; apuestas con botones (sin `prompt`).
+  Tamaños de toque ≥ 44 px.
+- **Pulsador:** lo que se da va a `itemResults[key].buzzer = {correct, penalties}` (`#buzzerRecord`): R lo quita y un
+  segundo acierto en la misma pregunta sustituye al primero. El presentador en el banquillo no cuenta en `wrong`.
+- **Partida nueva** reinicia también Squid (`squid.reset()`) y los mazos de Palabras.
+- **Palabras:** el que hace adivinar queda fijo al empezar el turno (`#actor`); la marca lleva `cardNo` (la tarjeta).
+- **El pañuelo:** al recargar a mitad de duelo, vuelve al sillón (horas del reloj viejo); el sorteo solo saca a quien
+  está (`candidates(side, ok)`) y `join` quita a quien se fue sin salir.
+- **Cuenta atrás de la tele** (`fx/countdown.js`): con `setTimeout`, y el número que ya sonó no vuelve a sonar al
+  repintar (`countingFor`). El realizador anula sus avisos programados al cambiar de pantalla (`later`).
+- **Tele con mucha gente:** `.vote-bars.many` / `.estimates.many` (más de 8: dos columnas, Votación solo los votados);
+  el ganador del pulsador enseña 5 de los demás («y N más»); portada `lots` (más de 12 secciones) y títulos largos.
+- **Millonario:** al repintar, las respuestas ya vistas no vuelven a aparecer ni la buena a parpadear (`seen`).
+  Comodines en el móvil con dos toques (sin `confirm()`, que congela la conexión) y aviso de cuándo se pueden usar.
+- **Detalles:** bichos de cada equipo en la presentación (`teamCreature`: 🐺 🧛 🧟…), bola de espejos en la discoteca,
+  «Ana, Luis y Eva», el puesto propio en el móvil sin equipos, «✓ Apuesta guardada».
+- Pendiente (raro, no arreglado): una prueba Libre a medias o los comodines del millonario antes de revelar no se
+  guardan si la tele se recarga; volver a cargar la hoja borra lo jugado pero no los puntos.
+
 ### Pruebas con canción y contrarreloj (fase 11)
 
 - **Canciones de las pruebas** (carpeta del concurso `Canciones/` → trackStore `song:<songKey(nombre)>`, una por hueco;

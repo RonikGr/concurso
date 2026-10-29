@@ -322,7 +322,9 @@ function handleMessage(msg, tRecv) {
       editPicker.setTaken(msg.taken ?? []);
       const team = msg.teams?.find((t) => t.id === me.teamId);
       const teamPlace = team ? (msg.standings?.teams.findIndex((t) => t.id === team.id) ?? -1) + 1 : 0;
-      const teamText = team ? `${team.name}${teamPlace ? ` · ${teamPlace}º` : ''}` : null;
+      // sin equipos, el puesto de cada uno (con equipos, el de su equipo)
+      const myPlace = team ? 0 : (msg.standings?.players?.findIndex((p) => p.id === me.id) ?? -1) + 1;
+      const teamText = team ? `${team.name}${teamPlace ? ` · ${teamPlace}º` : ''}` : myPlace && msg.screen !== 'setup' ? `Vas ${myPlace}º` : null;
       $('#room-line').textContent = [teamText, `Sala ${msg.room}`, `${msg.playerCount} ${msg.playerCount === 1 ? 'jugador' : 'jugadores'}`]
         .filter(Boolean)
         .join(' · ');

@@ -332,7 +332,8 @@ export function coverScreen(view) {
         h('h2', {}, `Esta noche · ${view.sectionCount} ${view.sectionCount === 1 ? 'sección' : 'secciones'}`),
         h(
           'ol',
-          { class: `cover-sections ${view.sectionCount > 5 ? 'many' : ''}` },
+          // con muchas (más de 12), sin el tipo debajo: que quepan todas en una tele de 720 de alto
+          { class: `cover-sections ${view.sectionCount > 5 ? 'many' : ''} ${view.sectionCount > 12 ? 'lots' : ''}` },
           view.sections
             .filter((s) => s.on)
             .map((s, i) =>
@@ -377,6 +378,27 @@ export function coverScreen(view) {
  * Presentación de los equipos, antes de la portada: cada equipo entra por su lado con su gente y, en medio, «VS»
  * (los golpes y la fanfarria los lanza el realizador a la vez: 0,5 s, 1,3 s y 2,1 s).
  */
+/** El bicho de un equipo de Halloween, por su nombre («Hombres lobo» → 🐺), para la presentación de equipos. */
+const CREATURES = [
+  [/lobo|wolf/, '🐺'],
+  [/vampir|dracul/, '🧛'],
+  [/zombi/, '🧟'],
+  [/bruj|witch/, '🧙'],
+  [/fantasm|ghost/, '👻'],
+  [/calabaz|pumpkin/, '🎃'],
+  [/esquelet|calaver|skelet/, '💀'],
+  [/momia|mummy/, '🧻'],
+];
+const teamCreature = (name) =>
+  CREATURES.find(([re]) =>
+    re.test(
+      String(name)
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .toLowerCase(),
+    ),
+  )?.[1] ?? null;
+
 export function versusScreen(view) {
   const teams = view.teams
     .map((team) => ({ team, members: view.players.filter((p) => p.teamId === team.id) }))
@@ -388,6 +410,7 @@ export function versusScreen(view) {
       h(
         'section',
         { class: `vs-team ${i % 2 ? 'from-right' : 'from-left'}`, style: { '--tc': getColor(team.color).bg, '--d': `${500 + i * 800}ms` } },
+        teamCreature(team.name) ? h('p', { class: 'vs-creature', 'aria-hidden': 'true' }, teamCreature(team.name)) : null,
         h('h2', { class: 'vs-name display' }, team.name),
         h(
           'ul',
@@ -413,9 +436,10 @@ export function introScreen(view) {
     'div',
     { class: 'intro anim-in' },
     h('p', { class: 'intro-kicker' }, `Sección ${view.sectionNumber} de ${view.sectionCount} · ${getEnv(sectionEnv(s, view.sectionIndex)).name}`),
-    kinetic('h1', 'intro-title display', s.name),
+    // (un nombre largo, más pequeño: en dos líneas no cabe lo demás en una tele de 720)
+    kinetic('h1', `intro-title display ${s.name.length > 16 ? 'long' : ''}`, s.name),
     h('p', { class: 'intro-type' }, view.sectionLabel),
-    s.description ? h('p', { class: 'intro-desc' }, s.description) : null,
+    s.description && s.type !== 'panuelo' ? h('p', { class: 'intro-desc' }, s.description) : null,
     s.type === 'panuelo' ? hankyIntro(view) : null,
     h('p', { class: 'intro-points' }, s.type === 'test' ? levelPointsText(s.points) : s.type === 'apuesta' ? 'Os jugáis vuestros puntos' : s.type === 'palabras' ? pointsText(s.points, true) + ' por palabra acertada' : s.type === 'panuelo' ? pointsText(s.points, true) + ' por cada duelo ganado' : pointsText(s.points, s.points.length > 1)),
     view.playable ? null : h('p', { class: 'intro-soon' }, 'Esta sección llegará en una próxima versión: se saltará.'),

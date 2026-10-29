@@ -71,8 +71,18 @@ export class WordsGame {
     return teams.length && item?.teamIndex != null ? teams[item.teamIndex % teams.length] : null;
   }
 
-  /** Quien hace adivinar: con equipos, el siguiente de su orden; sin equipos, rota entre todos. */
+  /**
+   * Quien hace adivinar: con equipos, el siguiente de su orden; sin equipos, rota entre todos. Una vez empezado el
+   * turno queda fijo (si no, al conectarse o caerse alguien, la tarjeta y los puntos saltaban a otro).
+   */
   get actorId() {
+    if (this.#actor && this.#actor.roundId === this.round?.roundId) return this.#actor.id;
+    return this.#liveActorId();
+  }
+
+  #actor = null; // {roundId, id}: quien empezó el turno
+
+  #liveActorId() {
     const room = this.#room;
     const item = room.runner.item;
     if (item?.turn == null) return null; // no es un turno de Palabras
@@ -113,13 +123,17 @@ export class WordsGame {
     const role = this.roleOf(playerId);
     const allowed = { start: role === 'actor', ok: role === 'actor', pass: role === 'actor', foul: role === 'rival' }[msg.action];
     if (!allowed) return ack('not-eligible');
+    // la marca es de una tarjeta concreta: si ya se marcó (doble toque, dos rivales a la vez), no toca la siguiente
+    if (msg.action !== 'start' && msg.value != null && Number(msg.value) !== this.round.results.length) return ack('closed');
     const ok = msg.action === 'start' ? this.#start() : this.#mark(msg.action);
     ack(ok ? 'ok' : 'closed');
     if (ok) this.#ctx.changed({ persist: false });
   }
 
   #start() {
+    const actor = this.#liveActorId();
     if (!this.round.start(this.#ctx.now())) return false;
+    this.#actor = { roundId: this.round.roundId, id: actor };
     clearTimeout(this.#timer);
     const round = this.round;
     this.#timer = setTimeout(() => {
@@ -191,6 +205,7 @@ export class WordsGame {
       team: this.team,
       actor: actor ? this.#ctx.pub(actor) : null,
       score: r.score,
+      cardNo: r.results.length, // qué tarjeta es (el móvil la manda al marcar: un doble toque no marca la siguiente)
       card: card && (forControl ? card : { mode: card.mode, label: card.label, icon: card.icon, rule: card.rule }),
       results: r.results.map((x) => ({ ...this.#card(x.card), result: x.result })),
       points: room.runner.section.points[0] ?? 1,

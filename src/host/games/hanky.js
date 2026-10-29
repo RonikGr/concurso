@@ -51,6 +51,17 @@ export class HankyGame {
     }
     const stored = this.#room.itemResults[key]?.hanky;
     this.duels = stored ? HankyDuels.fromJSON(stored) : new HankyDuels(this.#lineup());
+    // Las horas guardadas son del reloj de la tele de antes (si se recargó, empieza de 0): el duelo a medias vuelve
+    // al sillón, sin ruleta ni cuenta atrás
+    const c = this.duels.current;
+    if (stored && c && c.step !== 'done' && (c.calledAt > this.#ctx.now() || c.goAt != null)) Object.assign(c, { step: 'called', calledAt: -1e9, goAt: null });
+  }
+
+  /** ¿Puede salir en un sorteo? (sigue en la sala, conectado y en su equipo) */
+  #available(id, side) {
+    const p = this.#room.roster.get(id);
+    const team = this.#teams()[side];
+    return !!p && p.connected && p.teamId === team?.id && !this.#room.benched(id);
   }
 
   stop() {}
@@ -78,7 +89,8 @@ export class HankyGame {
       hankyDraw: () => {
         const ok = ready();
         if (ok !== true) return ok;
-        return (this.duels.draw(now()) && this.#save()) || (this.duels.finished ? 'Ya se han jugado todos los duelos.' : false);
+        if (this.duels.finished) return 'Ya se han jugado todos los duelos.';
+        return (this.duels.draw(now(), Math.random, (id, side) => this.#available(id, side)) && this.#save()) || 'No hay nadie conectado para salir en algún equipo.';
       },
       // En secreto: la pareja que elige el presentador
       hankyChoose: ({ wolf, vampire }) => {
@@ -145,7 +157,7 @@ export class HankyGame {
       finished: d.finished,
       champion: d.champion,
       points: this.#points,
-      candidates: forControl ? { wolf: d.candidates('wolf'), vampire: d.candidates('vampire') } : null,
+      candidates: forControl ? { wolf: d.candidates('wolf', (id, s) => this.#available(id, s)), vampire: d.candidates('vampire', (id, s) => this.#available(id, s)) } : null,
     };
   }
 

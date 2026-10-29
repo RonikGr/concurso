@@ -231,7 +231,7 @@ function rankingList(a, valueText, diffText, animate) {
   if (!entries.length) return h('p', { class: 'reveal-line' }, 'Nadie ha pulsado');
   const list = h(
     'ol',
-    { class: 'estimates' },
+    { class: `estimates ${entries.length > 8 ? 'many' : ''}`, style: { '--rows': Math.ceil(entries.length / 2) } },
     entries.map((e) =>
       h(
         'li',
@@ -381,10 +381,12 @@ function revealVote(a, res, animate) {
   const winnerLine = res.winners.length
     ? h('p', { class: 'vote-winner display' }, res.winners.map((w, i) => [i ? ' · ' : null, h('span', { class: 'vw-avatar emoji' }, avatarOf(w)), ' ', w.name]))
     : h('p', { class: 'reveal-line' }, 'Nadie ha votado');
+  // Con mucha gente: solo los votados, y en dos columnas (con 20 la lista no cabía en la tele)
+  const shown = rows.length > 8 ? rows.filter((r) => r.votes > 0) : rows;
   const bars = h(
     'ol',
-    { class: 'vote-bars' },
-    rows.map((r) =>
+    { class: `vote-bars ${shown.length > 8 ? 'many' : ''}`, style: { '--rows': Math.ceil(shown.length / 2) } },
+    shown.map((r) =>
       h(
         'li',
         { class: winnerIds.has(r.p.id) ? 'winner' : '', style: { '--pc': getColor(r.p.color).bg, '--w': `${(r.votes / max) * 100}%` } },
@@ -409,7 +411,7 @@ function revealEstimate(a, res, animate) {
   const fmt = (n) => `${n.toLocaleString('es-ES')}${a.unit ? ` ${a.unit}` : ''}`;
   const list = h(
     'ol',
-    { class: 'estimates' },
+    { class: `estimates ${res.entries.length > 8 ? 'many' : ''}`, style: { '--rows': Math.ceil(res.entries.length / 2) } },
     res.entries.map((e) =>
       h(
         'li',

@@ -95,7 +95,9 @@ export function createGamesPad({ send, vibrate = () => {} }) {
 
     function act(action) {
       vibrate(action === 'ok' ? 40 : 20);
-      send('palabras', w.roundId, action);
+      send('palabras', w.roundId, action, action === 'start' ? undefined : w.cardNo);
+      // hasta que llegue la tarjeta siguiente, los botones quietos (el doble toque no cuenta)
+      for (const b of root.querySelectorAll('.gp-actions button, .gp-foul')) b.disabled = true;
     }
   }
 
@@ -149,11 +151,11 @@ export function createGamesPad({ send, vibrate = () => {} }) {
   let hankyBuzzed = null; // a qué llamada ya se ha vibrado
   function hanky(k) {
     const ICON = { wolf: '🐺', vampire: '🧛' };
-    const head = h('p', { class: 'ap-label' }, k.side ? `${ICON[k.side]} Eres de los ${k.teams[k.side]}` : 'Lobos contra vampiros');
+    const head = h('p', { class: 'ap-label' }, k.side ? `${ICON[k.side]} Juegas con ${k.teams[k.side]}` : 'Lobos contra vampiros');
     const score = h('p', { class: 'gp-hk-score' }, `${ICON.wolf} ${k.score.wolf} – ${k.score.vampire} ${ICON.vampire}`);
     if (k.finished) {
       const won = k.champion === k.side;
-      const text = k.champion === 'tie' ? '¡Empate!' : won ? '¡Habéis ganado! 🎉' : `Ganan los ${k.teams[k.champion]}`;
+      const text = k.champion === 'tie' ? '¡Empate!' : won ? '¡Habéis ganado! 🎉' : `${ICON[k.champion]} ${k.teams[k.champion]}, campeones`;
       return [head, h('p', { class: `ap-big ${won ? 'win' : ''}` }, text), score];
     }
     const c = k.current;
@@ -189,6 +191,7 @@ export function createGamesPad({ send, vibrate = () => {} }) {
   }
 
   // ---------- La gran apuesta
+  let betSeen = null; // `${roundId}:${apuesta}` ya avisada (o `:sent` si acaba de mandarla)
   function bet(b) {
     const head = h('p', { class: 'ap-label' }, `La gran apuesta${b.ownerName ? ` · ${b.ownerName}` : ''}`);
     if (b.phase === 'betting') {
@@ -200,13 +203,30 @@ export function createGamesPad({ send, vibrate = () => {} }) {
         input.value = String(v);
         label.textContent = `${v} puntos`;
       };
+      // la tele ya tiene la apuesta: se dice (y vibra) para que no haya dudas de si llegó
+      if (b.bet != null && betSeen !== `${b.roundId}:${b.bet}`) {
+        if (betSeen === `${b.roundId}:sent`) vibrate(60); // (la acaba de mandar este móvil)
+        betSeen = `${b.roundId}:${b.bet}`;
+      }
       return [
         head,
         h('p', { class: 'ap-sub' }, `¿Cuánto os jugáis? Hasta ${b.max}. Si acertáis la pregunta lo ganáis; si no, lo perdéis.`),
+        b.bet != null ? h('p', { class: 'gp-bet-ok' }, `✓ Apuesta guardada: ${b.bet} ${b.bet === 1 ? 'punto' : 'puntos'}`) : null,
         label,
         input,
         h('div', { class: 'gp-quick' }, [0, Math.round(b.max / 4), Math.round(b.max / 2), b.max].map((v) => h('button', { class: 'btn small', type: 'button', onclick: () => quick(v) }, v === b.max ? `Todo (${v})` : String(v)))),
-        h('button', { class: 'btn primary big', type: 'button', onclick: () => send('apuesta', b.roundId, 'bet', Number(input.value)) }, b.bet != null ? `Cambiar apuesta (ahora ${b.bet})` : 'Apostar'),
+        h(
+          'button',
+          {
+            class: 'btn primary big',
+            type: 'button',
+            onclick: () => {
+              betSeen = `${b.roundId}:sent`;
+              send('apuesta', b.roundId, 'bet', Number(input.value));
+            },
+          },
+          b.bet != null ? `Cambiar apuesta (ahora ${b.bet})` : 'Apostar',
+        ),
       ];
     }
     const options = h(

@@ -6,7 +6,7 @@ import { formatDeltaMs, formatSeconds, ordinal } from '../shared/format.js';
 import { PHASE } from '../core/game.js';
 import { MIN_PLAYERS } from '../core/players.js';
 import { kinetic } from './fx/motion.js';
-import { startCountdown } from './fx/countdown.js';
+import { countingFor, startCountdown } from './fx/countdown.js';
 
 export function createStage() {
   const root = h('section', { class: 'stage', 'aria-live': 'polite' });
@@ -62,7 +62,7 @@ export function createStage() {
         root.dataset.phase = started ? 'open' : 'ready';
         timerEl = started ? h('p', { class: 'stage-timer' }) : null;
         // Antes de abrir, cuenta atrás 3-2-1 en grande (en un rebote es tan corta que solo se ve "Preparados…").
-        const counting = !started && game.tOpen - performance.now() > 900;
+        const counting = !started && (game.tOpen - performance.now() > 900 || countingFor(game.tOpen));
         const big = counting ? h('p', { class: 'countdown-big display' }) : h('p', { class: 'stage-title display' }, started ? '¡Pulsad!' : 'Preparados…');
         fill(
           root,
@@ -132,8 +132,10 @@ function songAnswer(answer) {
   return h('div', { class: 'song-answer' }, h('span', { class: 'song-answer-kicker' }, '🎵 La canción era…'), kinetic('strong', 'song-answer-title', answer, { step: 40 }));
 }
 
-function followersList(followers) {
-  if (!followers.length) return null;
+function followersList(all) {
+  if (!all.length) return null;
+  // con mucha gente, los 5 primeros (si no, el nombre del ganador se salía por arriba)
+  const followers = all.slice(0, 5);
   return h(
     'ol',
     { class: 'followers' },
@@ -148,6 +150,7 @@ function followersList(followers) {
         r.nearTie ? h('span', { class: 'f-tie' }, 'casi empate') : null,
       ),
     ),
+    all.length > followers.length ? h('li', { class: 'f-more' }, `y ${all.length - followers.length} más`) : null,
   );
 }
 

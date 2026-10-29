@@ -18,6 +18,7 @@ function timerRing() {
 export function createMillionaireStage() {
   const root = h('section', { class: 'mill-stage' });
   let tick = 0;
+  let seen = { roundId: null, shown: 0, revealed: false }; // lo que ya se pintó de esta pregunta
 
   function stop() {
     clearInterval(tick);
@@ -112,10 +113,13 @@ export function createMillionaireStage() {
       middle = h('img', { class: 'answer-image', src: m.image, alt: '' });
     }
 
-    // Abajo: la pregunta y las respuestas, en las fichas del programa
+    // Abajo: la pregunta y las respuestas, en las fichas del programa. Al repintar (un voto, los puntos tras el
+    // revelado), las que ya estaban no vuelven a aparecer ni la buena a parpadear
+    const before = seen.roundId === m.roundId ? seen : { shown: 0, revealed: false };
+    seen = { roundId: m.roundId, shown: m.shown, revealed };
     const options = h(
       'ol',
-      { class: `mill-options n${m.count}` },
+      { class: `mill-options n${m.count} ${before.revealed ? 'settled' : ''}` },
       Array.from({ length: m.count }, (_, i) => {
         const visible = i < m.shown && !m.removed.includes(i);
         const marked = m.marked === i && (m.phase === MPHASE.MARKED || revealed);
@@ -123,7 +127,7 @@ export function createMillionaireStage() {
         const state = correct ? 'correct' : marked ? 'marked' : visible ? 'shown' : 'hidden';
         return h(
           'li',
-          { class: `mill-opt ${state} ${i < m.shown ? 'appeared' : ''}` },
+          { class: `mill-opt ${state} ${i < m.shown && i >= before.shown ? 'appeared' : ''}` },
           h('span', { class: 'mill-opt-in' }, h('span', { class: 'mill-letter' }, h('span', { class: 'diamond' }, '◆'), `${LETTERS[i]}:`), h('span', { class: 'mill-text' }, visible ? m.options[i] : '')),
         );
       }),

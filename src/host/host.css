@@ -729,6 +729,33 @@ kbd {
   color: var(--accent);
 }
 
+/* Con más de 8 filas (hasta 20 jugadores): dos columnas y filas más bajas, para que quepa en la tele */
+.vote-bars.many,
+.estimates.many {
+  width: min(96rem, 100%);
+  grid-template-columns: 1fr 1fr;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(var(--rows, 10), auto);
+  column-gap: 1.5rem;
+  gap: 0.35rem 1.5rem;
+}
+
+.vote-bars.many li {
+  grid-template-columns: auto 9rem 1fr 5.5rem;
+  gap: 0.5rem;
+  font-size: 1.15rem;
+}
+
+.vote-bars.many .vb-bar {
+  height: 1.2rem;
+}
+
+.estimates.many li {
+  padding: 0.2rem 0.7rem;
+  gap: 0.5rem;
+  font-size: 1.1rem;
+}
+
 .vb-name {
   text-align: left;
   overflow: hidden;
@@ -1290,7 +1317,7 @@ a.btn {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: safe center; /* si no cabe, que se pueda ver desde arriba (el nombre) */
   gap: 1rem;
   padding: 2rem;
   background: var(--win);
@@ -1357,6 +1384,13 @@ a.btn {
   gap: 0.35rem;
   min-width: min(40rem, 100%);
   font-size: 1.5rem;
+}
+
+.followers li.f-more {
+  display: block;
+  border-left: none;
+  opacity: 0.75;
+  text-align: center;
 }
 
 .followers li {
