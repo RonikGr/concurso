@@ -33,6 +33,10 @@ export const MOODS = {
   refrescos: { root: 48, scale: [0, 2, 4, 7, 9], tempo: 1.2, wave: 'square', cutoff: 1400, amb: ['bubbles'], drums: true },
   // Gimnasio (Fit o Fat): rápida y con batería, para entrenar
   gimnasio: { root: 40, scale: [0, 3, 5, 7, 10], tempo: 1.35, wave: 'sawtooth', cutoff: 1500, amb: [], drums: true },
+  // Relojería (Reloj interno): caja de música en mayor, tranquila (sin tictac: despistaría al contar)
+  relojeria: { root: 45, scale: [0, 2, 4, 5, 7, 9, 11], tempo: 1, wave: 'triangle', cutoff: 1300, amb: [] },
+  // Globos (guerra de globos): feria alegre, con batería
+  globos: { root: 48, scale: [0, 2, 4, 7, 9], tempo: 1.25, wave: 'square', cutoff: 1500, amb: [], drums: true },
   lunallena: { root: 38, scale: [0, 2, 3, 5, 7, 8, 10], tempo: 1.15, wave: 'sawtooth', cutoff: 850, amb: ['owl'], drums: true },
   // Squid Games: su propia música (en vez de la de Halloween) para cada momento
   squid: {

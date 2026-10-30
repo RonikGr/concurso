@@ -415,6 +415,8 @@ con vibración). Mando: `hankyPanel` (chips por equipo para elegir en secreto, `
 - **Libre con «Jugadores» y equipos:** el mando agrupa por equipo (`pool` lleva `teamId`): se elige quién sale y los
   puntos son suyos. La plantilla usa así twerking, galleta y flexiones. Sin «La silla invisible».
 - **Nota:** `freeStart` pone `tStart` = ahora + la cuenta atrás; la tele cuenta 3-2-1 y la canción entra en `tStart`.
+- **Duelos de Libre:** con `FEW_FOR_FACES` (4) participantes o menos, cada tarjeta lleva la cara (o el icono) en
+  grande y redonda con aro de su color (`.free-cards.few`, `.free-avatar`); con más, el icono pequeño junto al nombre.
 - **Panal:** tres pasadas (`LAPS`), velocidad de la aguja (`MAX_SPEED` 0,4 galletas/s medida en 150 ms; pasarse más
   de 250 ms = una grieta por acelerón; aviso «¡Más despacio!» desde el 80 %), 60 s. `restoreTrace` al recargar.
 - **Squid:** 5 puntos por eliminado (plantilla y `#perHead` por defecto); `SQUID_ORDER` sin canicas (con su fila, sí).
@@ -468,7 +470,10 @@ con vibración). Mando: `hankyPanel` (chips por equipo para elegir en secreto, `
   aguja dejaba rastro fuera de la galleta).
 - **Temáticas** (entornos con `decor`, solo si la hoja los elige): Verano (Watermelon Sugar), Galletas (la galleta),
   Refrescos (botellas en orden, que ahora es por jugadores), Gimnasio (Fit o Fat: silueta 12 `gym()` en backdrop.js,
-  racks, mancuernero, banco y pesa rusa, zócalo de neón que late, sin estrellas, magnesio en el aire; mood con batería);
+  racks, mancuernero, banco y pesa rusa, zócalo de neón que late, sin estrellas, magnesio en el aire; mood con batería),
+  Relojería (Reloj interno: silueta 13 `clocks()`, reloj de pared con agujas, reloj de péndulo y engranajes; sin
+  tictac en la música, que despistaría al contar) y Globos (Guerra de globos: silueta 14 `balloons()`, globos rojos y
+  azules como los equipos que suben y explotan);
   `syncDecor` (host/main.js) hace subir lo suyo por detrás.
   Discoteca: el vídeo se mezcla en `.section-videos` (en el vídeo no servía: su capa es su propio contexto) y la bola
   va a un lado. Presentación de equipos sin «pulsa cualquier tecla».

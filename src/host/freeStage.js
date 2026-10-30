@@ -6,6 +6,9 @@ import { FPHASE, TOOL } from '../core/free.js';
 import { kinetic, odometer } from './fx/motion.js';
 import { sound } from './fx/audio.js';
 
+/** Hasta cuántos participantes (duelos) se ve la cara de cada uno en grande en su tarjeta. */
+const FEW_FOR_FACES = 4;
+
 /** 83 456 ms → "1:23,4" */
 export function formatClock(ms) {
   const total = Math.max(0, ms) / 1000;
@@ -62,8 +65,9 @@ export function createFreeStage() {
     if ((f.tool === TOOL.NONE && f.song) || f.tool === TOOL.SCORE) return renderSong(f, header);
     // (sin herramienta ni canción: la cuenta atrás y un reloj mientras suena la música de la sección)
 
-    // En marcha o parada: reloj en grande y cada participante.
+    // En marcha o parada: reloj en grande y cada participante. En los duelos (pocos), su cara en grande al lado.
     const clock = h('p', { class: `big-clock free-clock ${f.phase === FPHASE.STOPPED ? 'stopped' : ''}` });
+    const few = f.participants.length <= FEW_FOR_FACES;
     fill(
       root,
       header,
@@ -71,19 +75,22 @@ export function createFreeStage() {
       clock,
       h(
         'ul',
-        { class: `free-cards ${f.tool}` },
-        f.participants.map((p) =>
-          h(
-            'li',
-            { class: p.out != null ? 'out' : '', style: { '--pc': getColor(p.color).bg, '--pc-fg': getColor(p.color).fg } },
-            h('span', { class: 'free-name' }, p.icon || p.face ? h('span', { class: 'emoji' }, avatarOf(p)) : null, ' ', p.name),
+        { class: `free-cards ${f.tool} ${few ? 'few' : ''}` },
+        f.participants.map((p) => {
+          const hasAvatar = p.icon || p.face;
+          const name = h('span', { class: 'free-name' }, hasAvatar && !few ? h('span', { class: 'emoji' }, avatarOf(p)) : null, few ? '' : ' ', p.name);
+          const detail =
             f.tool === TOOL.COUNTER
               ? h('span', { class: 'free-count' }, odometer(p.count, lastCounts.get(p.id) ?? p.count, { duration: 500 }))
               : f.tool === TOOL.STOPWATCH
                 ? h('span', { class: 'free-status' }, p.out != null ? `Cayó a los ${formatClock(p.out)}` : f.phase === FPHASE.STOPPED ? '¡Aguantó!' : 'Aguanta…')
-                : null, // sin herramienta: el reloj y quién juega (el ganador lo dice el presentador)
-          ),
-        ),
+                : null; // sin herramienta: el reloj y quién juega (el ganador lo dice el presentador)
+          return h(
+            'li',
+            { class: p.out != null ? 'out' : '', style: { '--pc': getColor(p.color).bg, '--pc-fg': getColor(p.color).fg } },
+            few && hasAvatar ? [h('span', { class: `free-avatar ${p.face ? 'has-face' : ''}` }, avatarOf(p)), h('span', { class: 'free-who' }, name, detail)] : [name, detail],
+          );
+        }),
       ),
     );
     for (const p of f.participants) lastCounts.set(p.id, p.count);

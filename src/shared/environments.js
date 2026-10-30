@@ -314,6 +314,42 @@ export const ENVIRONMENTS = [
     horizon: 0.35,
     decor: ['💪', '🏋️', '🔥', '⏱️', '💪', '🏆', '🥵', '🏋️'],
   },
+  {
+    // Reloj interno: relojería antigua, latón y madera, con polvo dorado en el aire
+    id: 'relojeria',
+    name: 'Relojería',
+    top: rgb('#2b1d12'),
+    bot: rgb('#0b0705'),
+    fog: rgb('#c9a46a'),
+    glow: rgb('#ffcf7a'),
+    part: rgb('#c9a46a'),
+    fogAmt: 0.22,
+    moon: 0,
+    sil: 13,
+    particles: 6,
+    bats: 0,
+    lightning: 0,
+    horizon: 0.3,
+    decor: ['⏰', '⏱️', '⌛', '🕰️', '⏳', '⏰', '🕰️', '⏱️'],
+  },
+  {
+    // Guerra de globos: globos rojos y azules (los equipos) que suben y explotan, en una noche de feria
+    id: 'globos',
+    name: 'Globos',
+    top: rgb('#35206a'),
+    bot: rgb('#0c0720'),
+    fog: rgb('#ff6fb5'),
+    glow: rgb('#ffe38a'),
+    part: rgb('#ffd23f'),
+    fogAmt: 0.18,
+    moon: 0,
+    sil: 14,
+    particles: 5,
+    bats: 0,
+    lightning: 0,
+    horizon: 0.4,
+    decor: ['🎈', '🎈', '💥', '📌', '🎈', '🎉', '🎈', '💥'],
+  },
 ];
 
 /** Discoteca: con sus focos en la tele (y su música con batería). */
@@ -332,7 +368,7 @@ export const TEST_ENV = 'millonario';
 export const SQUID_ENV = 'squid';
 
 /** Entornos que se reparten entre las secciones (en este orden). */
-// (los de temática —discoteca, luna llena, verano, galletas, refrescos, gimnasio— solo si la hoja los elige)
+// (los de temática —discoteca, luna llena, verano, galletas, refrescos, gimnasio, relojería, globos— solo si la hoja los elige)
 const SECTION_ENVS = ENVIRONMENTS.filter((e) => ![HOME_ENV, TEST_ENV, SQUID_ENV, DISCO_ENV, HANKY_ENV].includes(e.id) && !e.decor);
 
 const byId = new Map(ENVIRONMENTS.map((e) => [e.id, e]));

@@ -1801,6 +1801,44 @@ a.btn {
   opacity: 0.4;
 }
 
+/* Duelos (4 o menos): la cara (o el icono) en grande a la izquierda, y el nombre y su marca al lado */
+.free-cards.few li {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.4rem;
+}
+
+.free-avatar {
+  flex: none;
+  width: min(9rem, 16vh);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  overflow: hidden;
+  font-family: var(--emoji);
+  font-size: min(5.5rem, 10vh);
+  line-height: 1;
+  background: color-mix(in srgb, var(--pc) 35%, transparent);
+  box-shadow: 0 0 0 0.35rem var(--pc), 0 0.6rem 1.6rem rgb(0 0 0 / 0.45);
+}
+
+.free-cards .free-avatar .face {
+  width: 100%;
+  height: 100%;
+}
+
+.free-who {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.free-cards.few .free-name {
+  font-size: 2.4rem;
+}
+
 .free-name {
   font-size: 1.8rem;
   font-weight: 800;

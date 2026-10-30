@@ -306,6 +306,103 @@ float gym(vec2 p, out vec3 emit) {
   return m;
 }
 
+// Engranaje que gira (dientes, aro y agujero): <0 dentro.
+float gear(vec2 q, float r, float teeth, float rot) {
+  float a = atan(q.y, q.x) + rot;
+  float d = length(q) - r - 0.018 * r * 8.0 * step(0.0, sin(a * teeth));
+  return max(d, 0.35 * r - length(q));
+}
+
+// Relojería (Reloj interno): reloj de pared con agujas que giran a la izquierda, reloj de péndulo a la derecha y
+// engranajes por el suelo; las esferas brillan (y las agujas se recortan encima).
+float clocks(vec2 p, float aspect, out vec3 emit) {
+  emit = vec3(0.0);
+  float t = uTime;
+  float floorY = -0.34;
+  float m = step(p.y, floorY);
+  // reloj de pared
+  vec2 c = p - vec2(-aspect * 0.33, 0.08);
+  float R = 0.16;
+  float r = length(c);
+  float rim = step(abs(r - R), 0.014);
+  float face = step(r, R - 0.014);
+  float a = atan(c.x, c.y); // 0 arriba, en el sentido del reloj
+  float tick = step(abs(fract(a / (2.0 * PI) * 12.0 + 0.5) - 0.5), 0.06) * step(R - 0.04, r) * face;
+  float sec = t * (2.0 * PI / 6.0); // segundero: una vuelta cada 6 s
+  float mn = t * (2.0 * PI / 90.0);
+  vec2 ds = vec2(sin(sec), cos(sec));
+  vec2 dm = vec2(sin(mn), cos(mn));
+  float hands = max(step(sdSeg(c, -ds * 0.03, ds * (R - 0.03)), 0.004), step(sdSeg(c, vec2(0.0), dm * (R - 0.06)), 0.009));
+  hands = max(hands, step(r, 0.014));
+  float marks = max(tick, hands);
+  m = max(m, max(rim, marks));
+  emit += uGlow * 0.32 * face * (1.0 - marks) * (0.9 + 0.1 * smoothstep(R, 0.0, r));
+  // reloj de péndulo
+  vec2 g = p - vec2(aspect * 0.33, floorY);
+  float body = step(sdBox(g - vec2(0.0, 0.27), vec2(0.075, 0.27)), 0.0);
+  float hood = step(sdBox(g - vec2(0.0, 0.57), vec2(0.095, 0.03)), 0.0);
+  vec2 fc = g - vec2(0.0, 0.46);
+  float gface = step(length(fc), 0.055);
+  float win = step(sdBox(g - vec2(0.0, 0.22), vec2(0.045, 0.15)), 0.0);
+  float sw = 0.35 * sin(t * PI); // un vaivén por segundo
+  vec2 pv = vec2(sin(sw), -cos(sw));
+  vec2 piv = vec2(0.0, 0.36);
+  float pend = max(step(sdSeg(g, piv, piv + pv * 0.17), 0.004), step(length(g - piv - pv * 0.19), 0.028));
+  float gh = step(sdSeg(fc, vec2(0.0), vec2(sin(sec * 0.5), cos(sec * 0.5)) * 0.042), 0.004);
+  float lit = max(gface, win) * (1.0 - max(pend, gh));
+  m = max(m, max(max(body, hood) * (1.0 - lit), max(pend * win, gh * gface)));
+  emit += uGlow * 0.3 * lit;
+  // engranajes en el suelo, engranados entre sí
+  m = max(m, step(gear(p - vec2(-0.12, floorY - 0.02), 0.11, 12.0, t * 0.4), 0.0));
+  m = max(m, step(gear(p - vec2(0.1, floorY + 0.01), 0.07, 8.0, -t * 0.6), 0.0));
+  m = max(m, step(gear(p - vec2(-aspect * 0.12, floorY + 0.03), 0.05, 6.0, -t * 0.85), 0.0) * 0.8);
+  return m;
+}
+
+// Guerra de globos: globos rojos y azules (los equipos) que suben meciéndose y explotan arriba; los más lejanos,
+// más pequeños y más oscuros. Suelo oscuro.
+float balloons(vec2 p, out vec3 emit) {
+  emit = vec3(0.0);
+  float t = uTime;
+  float m = step(p.y, -0.38);
+  for (int L = 0; L < 2; L++) {
+    float fl = float(L);
+    float w = fl == 0.0 ? 0.2 : 0.13;
+    float rad = fl == 0.0 ? 0.05 : 0.032;
+    float cx = floor((p.x + 10.0) / w);
+    float h = hash(vec2(cx, 2.0 + fl));
+    if (h > 0.75) continue; // huecos
+    float speed = (0.05 + 0.04 * hash(vec2(cx, 5.0 + fl))) * (fl == 0.0 ? 1.0 : 0.7);
+    float cyc = fract(t * speed + h * 7.0);
+    float y = -0.55 + cyc * 1.05;
+    float x = (cx + 0.5) * w - 10.0 + 0.02 * sin(t * 1.3 + h * 20.0);
+    vec2 q = p - vec2(x, y);
+    vec3 colr = mix(vec3(1.0, 0.23, 0.31), vec3(0.23, 0.55, 1.0), step(0.5, hash(vec2(cx, 9.0 + fl))));
+    colr = mix(colr, vec3(1.0, 0.82, 0.25), step(0.88, hash(vec2(cx, 13.0 + fl))));
+    float dim = fl == 0.0 ? 1.0 : 0.55;
+    if (cyc < 0.92) {
+      // globo (óvalo), nudo e hilo que ondea
+      float d = length(q * vec2(1.0, 0.82)) - rad;
+      float knot = step(sdBox(q + vec2(0.0, rad * 1.25), vec2(rad * 0.15, rad * 0.12)), 0.0);
+      float sx = 0.012 * sin(q.y * 40.0 + t * 3.0);
+      float str = step(abs(q.x - sx), 0.0025) * step(q.y, -rad * 1.3) * step(-rad * 1.3 - 0.16, q.y);
+      float b = step(d, 0.0);
+      m = max(m, max(max(b, knot), str * 0.7));
+      float shine = smoothstep(rad * 0.45, 0.0, length(q - vec2(-rad * 0.35, rad * 0.45)));
+      emit += b * dim * (colr * (0.55 + 0.35 * smoothstep(rad, -rad, q.y + q.x * 0.5)) + vec3(0.9) * shine * 0.5);
+      emit += knot * colr * 0.4 * dim;
+    } else {
+      // ¡pum!: rayos que salen y se apagan
+      float k = (cyc - 0.92) / 0.08;
+      float ang = atan(q.y, q.x);
+      float ray = step(abs(fract(ang / (2.0 * PI) * 8.0) - 0.5), 0.12);
+      float ring = smoothstep(0.012, 0.0, abs(length(q) - rad * (0.6 + 1.4 * k)));
+      emit += (ray * ring + 0.4 * ring) * colr * (1.0 - k) * 1.4 * dim;
+    }
+  }
+  return m;
+}
+
 // Tormenta: un árbol seco solitario en lo alto de una loma.
 float loneTree(vec2 p, float aspect) {
   float m = max(hills(p), step(length((p - vec2(aspect * 0.22, -0.62)) * vec2(0.6, 1.0)), 0.35));
@@ -402,7 +499,7 @@ void main() {
   vec3 col = mix(uBot, uTop, smoothstep(-0.1, 1.0, uv.y));
   vec2 sg = floor(gl_FragCoord.xy / 2.5);
   float star = step(0.9965, hash(sg)) * (0.55 + 0.45 * sin(t * 2.0 + hash(sg + 7.0) * 30.0)) * smoothstep(0.35, 1.0, uv.y);
-  col += star * 0.7 * (1.0 - uFogAmt * 0.6) * (uSil == 12.0 ? 0.0 : 1.0); // (el gimnasio es cerrado: sin estrellas)
+  col += star * 0.7 * (1.0 - uFogAmt * 0.6) * (uSil == 12.0 || uSil == 13.0 ? 0.0 : 1.0); // (gimnasio y relojería son cerrados: sin estrellas)
 
   // nubes / niebla alta
   float clouds = fbm(vec2(p.x * 1.2 + t * 0.015, p.y * 2.5 - t * 0.008) + 3.0);
@@ -457,6 +554,8 @@ void main() {
   if (uSil == 10.0) sil = loneTree(p, aspect);
   if (uSil == 11.0) sil = stage(p, aspect, emit);
   if (uSil == 12.0) sil = gym(p, emit);
+  if (uSil == 13.0) sil = clocks(p, aspect, emit);
+  if (uSil == 14.0) sil = balloons(p, emit);
   col = mix(col, silCol, sil);
 
   // niebla baja que se arrastra (menos sobre las siluetas, para que se sigan viendo)
