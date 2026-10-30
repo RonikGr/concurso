@@ -76,7 +76,8 @@ const JUNK = /^(\.|~\$|desktop\.ini$|thumbs\.db$)/i;
  */
 export function classifyFolder(entries, { slots = [], sectionSlots = [], sections = [] } = {}) {
   const out = { sheet: null, millionaire: {}, faces: [], music: [], songs: [], squid: {}, videos: [], ignored: [] };
-  const slotOf = (name) => slots.find((s) => folderKey(s.label) === folderKey(name) || folderKey(s.id) === folderKey(name));
+  // (por su nombre en la ventana de música, su clave u otros nombres que se entienden mejor en algunos juegos)
+  const slotOf = (name) => slots.find((s) => [s.label, s.id, ...(s.aliases ?? [])].some((n) => folderKey(n) === folderKey(name)));
   const sectionOf = (name) => sections.find((s) => folderKey(s) === folderKey(name));
   for (const e of entries) {
     const name = e.path.at(-1);

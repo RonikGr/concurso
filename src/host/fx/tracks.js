@@ -8,11 +8,12 @@ export const MUSIC_SLOTS = [
   { id: 'title', label: 'Título del concurso', help: 'Suena al presentar el concurso (el título en grande), antes de que se conecte la gente' },
   { id: 'lobby', label: 'Preparación', help: 'Suena en la preparación y mientras se conecta la gente' },
   { id: 'versus', label: 'Presentación de equipos', help: 'Suena al presentar los equipos («Rojos contra Azules»), antes de la portada' },
-  { id: 'organ', label: 'Presentación', help: 'Suena en la portada y al presentar cada sección' },
-  { id: 'explore', label: 'Jugando', help: 'Suena entre preguntas, antes de abrirlas' },
-  { id: 'tension', label: 'Pregunta abierta', help: 'Suena durante la cuenta atrás y mientras se puede pulsar o responder' },
-  { id: 'suspense', label: 'Suspense', help: 'Suena al cerrar la pregunta, esperando el resultado' },
-  { id: 'reveal', label: 'Revelado', help: 'Suena al desvelar la respuesta y los puntos' },
+  // `aliases`: otros nombres de carpeta que valen (en las pruebas físicas no hay «pregunta»: «En marcha», «Ganador»…)
+  { id: 'organ', label: 'Presentación', aliases: ['Intro'], help: 'Suena en la portada y al presentar cada sección' },
+  { id: 'explore', label: 'Jugando', aliases: ['Preparando', 'Entre pruebas'], help: 'Suena entre preguntas, antes de abrirlas' },
+  { id: 'tension', label: 'Pregunta abierta', aliases: ['En marcha', 'Durante la prueba', 'Carrera'], help: 'Suena durante la cuenta atrás y mientras se puede pulsar o responder' },
+  { id: 'suspense', label: 'Suspense', aliases: ['Esperando', 'Parada'], help: 'Suena al cerrar la pregunta, esperando el resultado' },
+  { id: 'reveal', label: 'Revelado', aliases: ['Ganador', 'Resultado'], help: 'Suena al desvelar la respuesta y los puntos' },
   { id: 'march', label: 'Marcador', help: 'Suena en el marcador al acabar cada sección' },
   { id: 'waltz', label: 'Final', help: 'Suena en el podio final' },
 ];

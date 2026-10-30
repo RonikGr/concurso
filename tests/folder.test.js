@@ -58,6 +58,16 @@ describe('carpeta del concurso', () => {
     expect(r.ignored).toEqual(['Música/Nadie/x.mp3']);
   });
 
+  it('las partes de una sección valen con otros nombres («En marcha», «Ganador»…)', () => {
+    const e = (path) => ({ path: path.split('/'), lastModified: 1 });
+    const slots = [
+      { id: 'tension', label: 'Pregunta abierta', aliases: ['En marcha'] },
+      { id: 'reveal', label: 'Revelado', aliases: ['Ganador'] },
+    ];
+    const r = classifyFolder([e('Música/La galleta/En marcha/a.mp3'), e('Música/La galleta/Ganador/b.mp3'), e('Música/En marcha/c.mp3')], { slots, sectionSlots: ['tension', 'reveal'], sections: ['La galleta'] });
+    expect(r.music.map((m) => m.slot)).toEqual(['La galleta|tension', 'La galleta|reveal', 'tension']);
+  });
+
   it('vídeos de una sección: por el nombre del archivo o de su subcarpeta', () => {
     const e = (path) => ({ path: path.split('/'), lastModified: 1 });
     const r = classifyFolder([e('Vídeos/Twerking de pimpón.mp4'), e('Vídeos/La galleta/esqueleto.webm'), e('Vídeos/notas.txt')]);

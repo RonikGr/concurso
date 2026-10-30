@@ -429,7 +429,10 @@ con vibración). Mando: `hankyPanel` (chips por equipo para elegir en secreto, `
   Discoteca: el vídeo se mezcla en `.section-videos` (en el vídeo no servía: su capa es su propio contexto) y la bola
   va a un lado. Presentación de equipos sin «pulsa cualquier tecla».
 - **Música por sección:** `Música/<Sección>/x.mp3` suelto → `sectionWideSlot` (`Sección|all`): suena en todos sus
-  momentos sin cortarse (`#slotKey`: momento de la sección → toda la sección → general).
+  momentos sin cortarse (`#slotKey`: momento de la sección → toda la sección → general). Las carpetas de los momentos
+  aceptan otros nombres (`aliases` en `MUSIC_SLOTS`, `slotOf` en folder.js): «En marcha»/«Carrera» = Pregunta abierta,
+  «Preparando» = Jugando, «Parada»/«Esperando» = Suspense, «Ganador» = Revelado; la carpeta del presentador tiene ya
+  creadas las de cada sección según su tipo (ver su LÉEME).
 
 ### Pruebas con canción y contrarreloj (fase 11)
 
