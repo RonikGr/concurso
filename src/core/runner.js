@@ -60,6 +60,24 @@ export class ShowRunner {
     return true;
   }
 
+  /**
+   * Cambiar el orden (en la preparación): sube (−1) o baja (+1) una sección, saltando por encima de las que no se
+   * juegan esta noche (así cada toque se nota en lo que se va a jugar).
+   */
+  moveSection(sectionId, delta) {
+    if (this.screen !== SCREEN.SETUP) return false;
+    const list = this.show.sections;
+    const from = list.findIndex((s) => s.id === sectionId);
+    const step = Math.sign(Number(delta) || 0);
+    if (from < 0 || !step) return false;
+    let to = from + step;
+    while (to >= 0 && to < list.length && this.skipped.has(list[to].id) && !this.skipped.has(sectionId)) to += step;
+    if (to < 0 || to >= list.length) return false;
+    const [moved] = list.splice(from, 1);
+    list.splice(to, 0, moved);
+    return true;
+  }
+
   /** Las secciones que se juegan, en orden. */
   get playedSections() {
     return this.show.sections.filter((s) => !this.skipped.has(s.id));

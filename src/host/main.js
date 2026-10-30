@@ -616,6 +616,7 @@ function renderScreen(view) {
           onMoveTeam: (playerId, teamId) => run('moveTeam', { playerId, teamId }),
           onSpokesperson: (teamId, playerId) => run('setSpokesperson', { teamId, playerId }),
           onToggleSection: (id, on) => run('toggleSection', { id, on }),
+          onMoveSection: (id, delta) => run('moveSection', { id, delta }),
           folder: { name: folder.handle?.name ?? null, busy: folder.busy, report: folder.report, onChoose: () => loadFolder(false), onReread: () => loadFolder(true) },
           millionaireCount: [...trackStore.tracks.keys()].filter((k) => k.startsWith('mill:')).length,
           facesCount: faceStore.faces.length,

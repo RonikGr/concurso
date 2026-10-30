@@ -147,6 +147,19 @@ describe('recorrido del concurso', () => {
     expect(new ShowRunner(show(), JSON.parse(JSON.stringify(r.toJSON()))).skipped).toEqual(new Set(['s1', 's3']));
   });
 
+  it('en la preparación se cambia el orden (saltando por encima de las que no se juegan)', () => {
+    const r = new ShowRunner(show());
+    const names = () => r.show.sections.map((x) => x.name);
+    expect(r.moveSection('s3', -1)).toBe(true);
+    expect(names()).toEqual(['Uno', 'Tres', 'Dos']);
+    expect(r.moveSection('s1', -1)).toBe(false); // ya es la primera
+    r.setSkipped('s3', true);
+    expect(r.moveSection('s1', 1)).toBe(true); // salta «Tres», que no se juega
+    expect(names()).toEqual(['Tres', 'Dos', 'Uno']);
+    r.next(); // portada: ya no se cambia
+    expect(r.moveSection('s2', -1)).toBe(false);
+  });
+
   it('las de «Se juega: No» empiezan quitadas (salvo que lo fueran todas)', () => {
     const sh = show();
     sh.sections[0].play = false;

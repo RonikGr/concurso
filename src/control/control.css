@@ -698,6 +698,24 @@ body.c-playing .c-main {
   opacity: 0.55;
 }
 
+/* Cada juego con ↑ ↓ para el orden */
+.c-game-row {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.c-game-row .c-game {
+  flex: 1;
+  min-width: 0;
+  border-bottom: none;
+}
+
+.c-game-row .btn.hidden {
+  visibility: hidden;
+}
+
 /* Juegos nuevos en el mando */
 .c-clock {
   font-size: 1.6rem;

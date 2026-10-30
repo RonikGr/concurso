@@ -92,7 +92,7 @@ freeParticipants, freeCounter, freeStart, freeOut, freeRevive, freeCount, freeSt
 wordsStart, wordsOk, wordsPass, wordsFoul, wordsUndo, wordsStop, shakeStart, shakeStop, betClose, betReveal, betSet, betAnswer,
 punishClose, punishReopen, punishSpin, toggleSection, pause, resume,
 squidStart, squidStop, squidRevive, squidEliminate, squidChoose,
-hankyDraw, hankyChoose, hankyGo, hankyFalse, hankyCancel, hankyWin, hankyUndo, penalty, setPlaying,
+hankyDraw, hankyChoose, hankyGo, hankyFalse, hankyCancel, hankyWin, hankyUndo, penalty, setPlaying, moveSection,
 lockTeams, moveTeam, adjustScore, adjustTeamBonus, resetScores, removePlayer, approveControl, denyControl, updateSettings.
 
 - Emparejar mando: la tele (preparación) enseña un QR a `control.html?sala=CÓDIGO#k=CLAVE` (la clave tras `#` no sale del
@@ -259,6 +259,9 @@ jugador (null si está en el banquillo) y les pasa los `play` (`#onPlay`; `casti
 - **Pestañas sin sección:** las filas de un tipo sin ninguna sección en Concurso se ignoran (preguntas de reserva).
 - **Qué se juega:** `runner.skipped` (persistido) + orden `toggleSection {id, on}` (solo en la preparación; al menos
   una). La columna «Se juega» de Concurso (`section.play`) da las quitadas al cargar la hoja (si fueran todas, ninguna).
+  **Orden:** ↑ ↓ en la preparación (tele y mando) → orden `moveSection {id, delta}` → `runner.moveSection` (cambia
+  `show.sections`, que se guarda; salta por encima de las quitadas). Solo antes de jugar nada: lo jugado se guarda por
+  número de sección (`itemResults` con `playKey`, Squid), así que con algo jugado responde que se haga tras «Partida nueva».
   El enlace «Descargar plantilla» lleva `?v=` para que el navegador no dé una vieja de su caché. `next` / `prev` / fin de sección saltan las quitadas; nº de sección y total cuentan solo las que se juegan.
 - Los concursantes de prueba también juegan: hacen la tarjeta si les toca (65 % aciertan), pitan a veces, agitan a su
   ritmo, apuestan y responden si son portavoces y votan 3 castigos.

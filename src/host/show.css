@@ -2820,20 +2820,42 @@ body.splash-on {
 }
 
 /* Preparación: «¿Qué juegos jugamos?» */
+/* En columnas que se leen de arriba abajo (el orden de juego), cada uno con ↑ ↓ */
 .games-list {
   list-style: none;
   margin: 0.5rem 0;
   padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
-  gap: 0.3rem 1rem;
+  columns: 17rem auto;
+  column-gap: 1.2rem;
+}
+
+.games-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.1rem 0;
+  break-inside: avoid;
 }
 
 .games-list label {
   display: flex;
+  flex: 1;
   align-items: baseline;
   gap: 0.5rem;
+  min-width: 0;
   cursor: pointer;
+}
+
+.gl-move {
+  display: flex;
+  flex: none;
+  gap: 0.15rem;
+}
+
+.gl-move .btn {
+  min-height: 1.8rem;
+  padding: 0 0.5rem;
+  font-size: 0.95rem;
 }
 
 .games-list input {

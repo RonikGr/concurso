@@ -978,6 +978,13 @@ export class HostRoom extends EventTarget {
       return true;
     },
     // ¿Qué juegos jugamos? (en la preparación): quitar o poner una sección
+    // Cambiar el orden de los juegos (preparación). Lo jugado se guarda por número de sección: solo antes de empezar.
+    moveSection: ({ id, delta }) => {
+      if (this.runner.screen !== SCREEN.SETUP) return 'El orden se cambia en la preparación.';
+      if (Object.keys(this.itemResults).length || Object.keys(this.games.squid.toJSON().sections ?? {}).length)
+        return 'Ya se ha jugado algo: el orden solo se cambia antes de empezar (o tras «Partida nueva»).';
+      return this.runner.moveSection(String(id), Number(delta));
+    },
     toggleSection: ({ id, on }) => {
       if (this.runner.screen !== SCREEN.SETUP) return 'Los juegos se eligen en la preparación.';
       if (!on && this.runner.playedSections.length <= 1 && this.runner.playedSections[0]?.id === id) return 'Tiene que quedar al menos un juego.';

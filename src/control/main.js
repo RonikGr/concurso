@@ -748,13 +748,20 @@ function setupPanel() {
         'section',
         { class: 'c-card' },
         h('p', { class: 'c-kicker' }, `¿Qué juegos jugamos? · ${view.sections.filter((s) => s.on).length} de ${view.sections.length}`),
-        view.sections.map((s) =>
+        h('p', { class: 'muted small' }, 'Marca los que se juegan; ↑ ↓ cambia el orden.'),
+        view.sections.map((s, i) =>
           h(
-            'label',
-            { class: `c-game ${s.on ? '' : 'off'}` },
-            h('input', { type: 'checkbox', checked: s.on, onchange: (e) => cmd('toggleSection', { id: s.id, on: e.target.checked }) }),
-            h('span', {}, s.name),
-            h('small', { class: 'muted' }, s.label),
+            'div',
+            { class: 'c-game-row' },
+            h(
+              'label',
+              { class: `c-game ${s.on ? '' : 'off'}` },
+              h('input', { type: 'checkbox', checked: s.on, onchange: (e) => cmd('toggleSection', { id: s.id, on: e.target.checked }) }),
+              h('span', {}, s.name),
+              h('small', { class: 'muted' }, s.label),
+            ),
+            btn('↑', () => cmd('moveSection', { id: s.id, delta: -1 }), i === 0 ? 'round ghost hidden' : 'round ghost'),
+            btn('↓', () => cmd('moveSection', { id: s.id, delta: 1 }), i === view.sections.length - 1 ? 'round ghost hidden' : 'round ghost'),
           ),
         ),
       ),

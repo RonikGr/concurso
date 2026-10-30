@@ -82,9 +82,10 @@ function importBox(view, ctx) {
   );
 }
 
-/** «¿Qué juegos jugamos?»: casillas para quitar las secciones que esta noche no se juegan. */
+/** «¿Qué juegos jugamos?»: casillas para quitar las secciones que esta noche no se juegan, y ↑ ↓ para el orden. */
 function gamesBox(view, ctx) {
   const on = view.sections.filter((s) => s.on).length;
+  let n = 0; // número entre las que se juegan
   return h(
     'div',
     { class: 'import-box games-box' },
@@ -100,13 +101,19 @@ function gamesBox(view, ctx) {
             'label',
             {},
             h('input', { type: 'checkbox', checked: s.on, onchange: (e) => ctx.onToggleSection(s.id, e.target.checked) }),
-            h('span', { class: 'gl-name' }, `${i + 1}. ${s.name}`),
+            h('span', { class: 'gl-name' }, s.on ? `${++n}. ${s.name}` : s.name),
             h('span', { class: 'gl-type muted small' }, s.label),
+          ),
+          h(
+            'span',
+            { class: 'gl-move' },
+            h('button', { class: 'btn ghost', type: 'button', title: 'Antes', 'aria-label': `Subir ${s.name}`, disabled: i === 0, onclick: () => ctx.onMoveSection(s.id, -1) }, '↑'),
+            h('button', { class: 'btn ghost', type: 'button', title: 'Después', 'aria-label': `Bajar ${s.name}`, disabled: i === view.sections.length - 1, onclick: () => ctx.onMoveSection(s.id, 1) }, '↓'),
           ),
         ),
       ),
     ),
-    h('p', { class: 'muted small' }, 'Quita las que no te apetezcan esta noche: se saltan. También desde el mando.'),
+    h('p', { class: 'muted small' }, 'Quita las que no te apetezcan esta noche (se saltan) y cambia el orden con ↑ ↓. También desde el mando.'),
   );
 }
 
