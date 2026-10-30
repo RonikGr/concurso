@@ -28,7 +28,7 @@ describe('canciones de las pruebas', () => {
     const free = (phase) => ({ screen: 'play', free: { roundId: '9:0#1', phase, song: 'bachata 1', songStart: 30, beat: 52.5, silence: 3, tStart: 100 } });
     expect(songFor(free('setup'))).toBeNull();
     expect(songToPrepare(free('setup'))).toBe('bachata1');
-    expect(songFor(free('running'))).toEqual({ key: '9:0#1', track: 'bachata1', from: 30, playing: true, startAt: 100, silence: [49.5, 52.5], until: 56.5 });
+    expect(songFor(free('running'))).toEqual({ key: '9:0#1', track: 'bachata1', from: 30, playing: true, startAt: 100, silence: [49.5, 52.5], until: 56.5, fadeIn: 0 });
     expect(songFor(free('stopped')).playing).toBe(false);
   });
 });

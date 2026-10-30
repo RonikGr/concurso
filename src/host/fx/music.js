@@ -27,6 +27,10 @@ export const MOODS = {
   // Discoteca (twerking): rápida, con batería y pentatónica menor (si la sección no trae su canción)
   discoteca: { root: 41, scale: [0, 3, 5, 7, 10], tempo: 1.3, wave: 'square', cutoff: 1600, amb: [], drums: true },
   // Luna llena (el pañuelo: lobos contra vampiros): épica, con tambores, viento y búhos
+  // Temáticas: verano (pentatónica mayor, alegre), galletas (caja de música tranquila), refrescos (burbujeante)
+  verano: { root: 45, scale: [0, 2, 4, 7, 9], tempo: 1.15, wave: 'triangle', cutoff: 1500, amb: [], drums: true },
+  chocolate: { root: 43, scale: [0, 2, 4, 5, 7, 9, 11], tempo: 0.95, wave: 'sine', cutoff: 1200, amb: ['fire'] },
+  refrescos: { root: 48, scale: [0, 2, 4, 7, 9], tempo: 1.2, wave: 'square', cutoff: 1400, amb: ['bubbles'], drums: true },
   lunallena: { root: 38, scale: [0, 2, 3, 5, 7, 8, 10], tempo: 1.15, wave: 'sawtooth', cutoff: 850, amb: ['wind', 'owl'], drums: true },
   // Squid Games: su propia música (en vez de la de Halloween) para cada momento
   squid: {

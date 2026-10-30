@@ -7,6 +7,7 @@
 //     Caras/        una foto por persona, con sus nombres en el del archivo («Rodri, Rodrigo.jpg»)
 //     Música/<Momento>/…mp3             canciones para todo el concurso («Música/Marcador/…»)
 //     Música/<Sección>/<Momento>/…mp3   solo para una sección (su nombre en la hoja)
+//     Música/<Sección>/…mp3             suelta: suena en toda la sección (salvo en los momentos que tengan la suya)
 //     Canciones/…mp3    las de las pruebas (también en subcarpetas: «Adivina la canción», «Marcar el golpe»);
 //                       la hoja las nombra por su archivo
 //     Squid/…mp3        sonidos de Squid Games, reconocidos por el nombre (latido, respiración, cristal…: ver
@@ -45,6 +46,9 @@ export function squidSoundFor(name) {
   const key = folderKey(String(name).replace(/\.[^.]+$/, ''));
   return SQUID_SOUNDS.find(([, words]) => words.some((w) => key.includes(w)))?.[0] ?? null;
 }
+
+/** Hueco de la canción de toda una sección (`Música/<Sección>/cancion.mp3`): suena en todos sus momentos. */
+export const sectionWideSlot = (section) => `${section}|all`;
 
 /** Para comparar nombres de carpeta: sin tildes, mayúsculas, espacios ni signos. */
 export const folderKey = (s) =>
@@ -112,8 +116,13 @@ export function classifyFolder(entries, { slots = [], sectionSlots = [], section
     } else if (top === folderKey(FOLDER_NAMES.music) && AUDIO.test(name)) {
       if (rest.length === 2) {
         const slot = slotOf(rest[0]);
+        const section = slot ? null : sectionOf(rest[0]);
         if (slot) {
           out.music.push({ slot: slot.id, entry: e });
+          used = true;
+        } else if (section) {
+          // suelta en la carpeta de una sección: suena en toda ella (presentación, jugando, revelado…)
+          out.music.push({ slot: sectionWideSlot(section), entry: e });
           used = true;
         }
       } else if (rest.length === 3) {

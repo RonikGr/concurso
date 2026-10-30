@@ -8,6 +8,8 @@
 // Duelo actual: called (llamados al sillón) ──go──▶ running (cuenta atrás y «¡YA!») ──win──▶ done.
 
 export const SIDES = ['wolf', 'vampire'];
+/** La ruleta de caras de la tele: al pararse en los dos, ¡ya! (sin más espera ni cuenta atrás) */
+export const HANKY_REVEAL_MS = 2600;
 export const HSTEP = { CALLED: 'called', RUNNING: 'running', DONE: 'done' };
 
 export class HankyDuels {

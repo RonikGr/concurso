@@ -168,7 +168,7 @@ export function createDirector({ backdrop }) {
       if (n.screen === SCREEN.INTRO && view.section?.type === 'squid') {
         // Squid Games: megafonía y bienvenida
         sound.sq('pa');
-        later(() => sound.say('Bienvenidos a los juegos.'), 1900);
+        // (sin voz de megafonía: la bienvenida la dice el presentador)
       } else if (n.screen === SCREEN.INTRO) {
         sound.play('whoosh');
         if (!own) sound.play('gong', 250);
@@ -298,8 +298,7 @@ export function createDirector({ backdrop }) {
     const f = n.free;
     const pf = p.free?.round === f?.round ? p.free : null;
     if (f && pf) {
-      // (con Nota hay cuenta atrás: el «¡ya!» lo pone freeStage al acabarla)
-      if (f.phase === FPHASE.RUNNING && pf.phase !== FPHASE.RUNNING && f.tool !== 'score') sound.play('go');
+      // (todas empiezan con cuenta atrás: el «¡ya!» lo pone freeStage al acabarla)
       if (f.out > pf.out) sound.play('out');
       if (f.count !== pf.count) sound.play(f.count > pf.count ? 'blip' : 'pop');
       if (f.phase === FPHASE.STOPPED && pf.phase === FPHASE.RUNNING) sound.play('bell');

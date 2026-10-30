@@ -50,6 +50,7 @@ export const DEFAULT_SETTINGS = {
   musicOn: true,
   sfxOn: true,
   volume: 70,
+  muted: false, // 🔇 desde el mando: calla todo de golpe (y al quitarlo vuelve como estaba)
   quality: 'auto', // imagen de la tele: 'auto' se ajusta sola para ir fluida; 'high' / 'low' la fijan
 };
 
@@ -112,6 +113,8 @@ export class HostRoom extends EventTarget {
     this.setupStep = SETUP_STEPS.includes(saved?.setupStep) ? saved.setupStep : 'prep';
     // Jugadores que juegan desde el mando del presentador: en las secciones sin «El presentador juega», fuera
     this.presenterIds = new Set(saved?.presenterIds ?? []);
+    // Presentadores que ahora juegan (dos presentadores que se turnan: uno presenta y el otro juega, y al revés)
+    this.playingNow = new Set(saved?.playingNow ?? []);
     // Quién sale de la app (en cualquier momento): avisos y recuento para el mando
     this.awayLog = new AwayLog(saved?.awayLog);
     // Concurso en pausa para seguir otro día: {at: fecha} (lo guardado no caduca mientras tanto)
@@ -312,7 +315,8 @@ export class HostRoom extends EventTarget {
    */
   benched(playerId) {
     const s = this.runner.section;
-    return this.presenterIds.has(playerId) && !!s && !s.presenterPlays;
+    // (con dos presentadores que se turnan, el que «ahora juega» juega en todo, como un concursante más)
+    return this.presenterIds.has(playerId) && !this.playingNow.has(playerId) && !!s && !s.presenterPlays;
   }
 
   /** Portavoz de un equipo: el elegido por el presentador o, si no hay, el primero que entró (mejor no el presentador). */
@@ -404,6 +408,7 @@ export class HostRoom extends EventTarget {
       away: this.#away.has(p.id), // antitrampas: ahora mismo fuera de la app
       cheated: this.inAnswerPlay && this.answerRound.cheaters.has(p.id),
       presenter: this.presenterIds.has(p.id), // juega desde el mando
+      playingNow: this.presenterIds.has(p.id) && this.playingNow.has(p.id), // presentador que ahora juega (se turnan)
       benched: this.benched(p.id),
     }));
   }
@@ -573,6 +578,7 @@ export class HostRoom extends EventTarget {
       controlsConnected: this.connectedControls.size,
       lastImport: this.lastImport,
       cheatAlerts: this.cheatAlerts.slice(-5),
+      lastPenalty: this.lastPenalty ?? null,
       turns: this.#turnsView(),
       spokespeople: Object.fromEntries(this.roster.teams.map((t) => [t.id, this.spokespersonOf(t.id)])),
       settings: this.settings,
@@ -849,7 +855,8 @@ export class HostRoom extends EventTarget {
     },
     freeParticipants: ({ ids = '' }) => this.inFreePlay && this.freeRound.setParticipants(String(ids).split(',').filter(Boolean)),
     // Nota (marcar el golpe): cuenta atrás en la tele antes de que suene la canción
-    freeStart: () => this.inFreePlay && this.freeRound.start(now() + (this.freeRound.tool === 'score' ? Math.max(3, this.settings.countdownSec) * 1000 : 0)),
+    // Todas las pruebas Libre empiezan con cuenta atrás en la tele (el reloj y la canción, en tStart)
+    freeStart: () => this.inFreePlay && this.freeRound.start(now() + this.#freeCountdownMs),
     freeOut: ({ id }) => this.inFreePlay && this.freeRound.eliminate(id, now()),
     freeRevive: ({ id }) => this.inFreePlay && this.freeRound.revive(id),
     freeCount: ({ id, delta }) => this.inFreePlay && this.freeRound.count(id, Number(delta) || 0),
@@ -866,7 +873,7 @@ export class HostRoom extends EventTarget {
     freeAttempt: ({ n }) => this.inFreePlay && this.freeRound.attempt(Number(n), now()),
     freeUndoAttempt: () => this.inFreePlay && this.freeRound.undoAttempt(),
     freeDone: ({ gaveUp = false }) => this.inFreePlay && this.freeRound.trialDone(now(), gaveUp === true || gaveUp === 'true'),
-    freeNext: () => this.inFreePlay && this.freeRound.trialNext(now()),
+    freeNext: () => this.inFreePlay && this.freeRound.trialNext(now() + this.#freeCountdownMs), // (cada uno, con su cuenta atrás)
     freeAward: ({ ids = '' }) => {
       if (!this.inFreePlay) return false;
       const r = this.freeRound;
@@ -1012,6 +1019,33 @@ export class HostRoom extends EventTarget {
     moveTeam: ({ playerId, teamId }) => !!this.roster.moveToTeam(playerId, teamId),
     adjustScore: ({ playerId, delta }) => this.roster.adjustScore(playerId, Number(delta) || 0) != null,
     adjustTeamBonus: ({ teamId, delta }) => this.roster.adjustTeamBonus(teamId, Number(delta) || 0) != null,
+    // Presentadores que se turnan: {playerId, playing} (el que juega, como un concursante más), o {swap} (se cambian)
+    setPlaying: ({ playerId, playing, swap }) => {
+      if (swap) {
+        const ids = [...this.presenterIds].filter((id) => this.roster.get(id));
+        if (ids.length < 2) return 'Hacen falta dos presentadores jugando desde su mando.';
+        // (si aún no juega ninguno: presenta el primero y juegan los demás)
+        if (!ids.some((id) => this.playingNow.has(id))) ids.slice(1).forEach((id) => this.playingNow.add(id));
+        else for (const id of ids) this.playingNow.has(id) ? this.playingNow.delete(id) : this.playingNow.add(id);
+        return true;
+      }
+      if (!this.presenterIds.has(playerId)) return false;
+      if (playing === true || playing === 'true') this.playingNow.add(playerId);
+      else this.playingNow.delete(playerId);
+      return true;
+    },
+    // ⚖️ Trampa: quitar puntos a un equipo (o a alguien, sin equipos) en cualquier momento; la tele lo anuncia
+    penalty: ({ teamId, playerId, points }) => {
+      const pts = Math.abs(Number(points) || 0);
+      if (!pts) return false;
+      const team = teamId ? this.roster.team(teamId) : null;
+      const player = !team && playerId ? this.roster.get(playerId) : null;
+      if (!team && !player) return 'Elige a quién.';
+      if (team) this.roster.adjustTeamBonus(team.id, -pts);
+      else this.roster.adjustScore(player.id, -pts);
+      this.lastPenalty = { id: (this.lastPenalty?.id ?? 0) + 1, name: (team ?? player).name, color: (team ?? player).color, points: pts };
+      return true;
+    },
     resetScores: () => {
       // Partida nueva: marcadores, comodines y preguntas ya puntuadas.
       this.roster.resetScores();
@@ -1520,6 +1554,11 @@ export class HostRoom extends EventTarget {
     this.freeRound = stored ? FreeRound.fromJSON(this.runner.item, stored) : new FreeRound(this.runner.item, { roundId: `${key}#${++this.#roundSeq}` });
   }
 
+  /** Cuenta atrás de las pruebas Libre (la de los ajustes, al menos 3 s: hay que colocarse) */
+  get #freeCountdownMs() {
+    return Math.max(3, this.settings.countdownSec ?? 3) * 1000;
+  }
+
   /** Lo que ha dado la pregunta de pulsador actual (se crea si no hay): {correct: {id, points}, penalties: [...]} */
   #buzzerRecord() {
     const key = this.runner.playKey;
@@ -1703,12 +1742,9 @@ export class HostRoom extends EventTarget {
       // Nota: la suya (cuando ya se han dado los puntos: antes, ni pista) y lo que se lleva
       score: r.tool === 'score' && r.phase === FPHASE.AWARDED ? (r.points[me] ?? null) : null,
       roundId: r.roundId,
-      // Contador: lleva la cuenta este móvil (o nadie aún) → botones +1/−1; si la lleva otro, su nombre.
+      // Contador: la cuenta la llevan los presentadores desde el mando; el móvil solo la enseña
       count: participating && r.tool === 'counter' ? (r.counts[me] ?? 0) : null,
-      counter:
-        participating && r.tool === 'counter'
-          ? { mine: r.canCount(player.id, me), by: r.byTeams ? (this.roster.get(r.counters[me])?.name ?? null) : null }
-          : null,
+      counter: null,
     };
   }
 
@@ -1891,6 +1927,7 @@ export class HostRoom extends EventTarget {
       turnOrders: this.turnOrders,
       setupStep: this.setupStep,
       presenterIds: [...this.presenterIds],
+      playingNow: [...this.playingNow],
       awayLog: this.awayLog.toJSON(),
       paused: this.paused,
     });

@@ -30,6 +30,12 @@ describe('plantilla del concurso', () => {
     expect(show.sections.find((s) => s.name === 'Fit o Fat').items.map((i) => i.title)).not.toContain('La silla invisible');
     expect(show.sections.find((s) => s.type === 'squid').items.map((i) => i.game)).toEqual(['luzroja', 'panal', 'cuerda', 'puente', 'hucha']);
     expect(show.sections.find((s) => s.name === 'Twerking de pimpón').env).toBe('discoteca');
+    // Temáticas: la sandía en verano, la galleta en el obrador, las botellas entre refrescos (y se elige quién sale)
+    expect(show.sections.find((s) => s.name === 'Watermelon Sugar')).toMatchObject({ type: 'libre', env: 'verano' });
+    expect(show.sections.find((s) => s.name === 'La galleta').env).toBe('chocolate');
+    const bottles = show.sections.find((s) => s.name === 'Botellas en orden');
+    expect(bottles.env).toBe('refrescos');
+    expect(bottles.items[0].teams).toBeFalsy();
     for (const s of show.sections) expect(s.items.length, s.name).toBeGreaterThan(0);
   });
 });

@@ -2,7 +2,7 @@
 // sortea cada duelo (o elige la pareja en secreto), da la salida y dice quién ha cogido el pañuelo; los puntos de la
 // sección (10 por defecto) son para el ganador del duelo (y suman a su equipo). Los móviles solo avisan: es una prueba
 // física. Todo se guarda en itemResults (así R y «Partida nueva» lo borran como lo demás).
-import { HankyDuels, SIDES } from '../../core/hanky.js';
+import { HANKY_REVEAL_MS, HankyDuels, SIDES } from '../../core/hanky.js';
 
 const COUNTDOWN_MS = 3000;
 
@@ -66,6 +66,12 @@ export class HankyGame {
 
   stop() {}
 
+  /** Se sabe quién sale justo cuando la ruleta de la tele se para: en ese momento, ¡ya! */
+  #goOnReveal() {
+    this.duels.go(this.#ctx.now(), HANKY_REVEAL_MS);
+    return this.#save();
+  }
+
   #save() {
     const room = this.#room;
     room.itemResults[room.runner.playKey] = { hanky: this.duels.toJSON() };
@@ -90,13 +96,15 @@ export class HankyGame {
         const ok = ready();
         if (ok !== true) return ok;
         if (this.duels.finished) return 'Ya se han jugado todos los duelos.';
-        return (this.duels.draw(now(), Math.random, (id, side) => this.#available(id, side)) && this.#save()) || 'No hay nadie conectado para salir en algún equipo.';
+        if (!this.duels.draw(now(), Math.random, (id, side) => this.#available(id, side))) return 'No hay nadie conectado para salir en algún equipo.';
+        return this.#goOnReveal();
       },
       // En secreto: la pareja que elige el presentador
       hankyChoose: ({ wolf, vampire }) => {
         const ok = ready();
         if (ok !== true) return ok;
-        return (this.duels.choose(String(wolf), String(vampire), now()) && this.#save()) || 'Elige uno de cada equipo.';
+        if (!this.duels.choose(String(wolf), String(vampire), now())) return 'Elige uno de cada equipo.';
+        return this.#goOnReveal();
       },
       hankyGo: () => this.inPlay && this.duels.go(now(), COUNTDOWN_MS) && this.#save(),
       hankyFalse: () => this.inPlay && this.duels.falseStart() && this.#save(),

@@ -27,6 +27,7 @@ export function songFor(view) {
       startAt: f.tStart,
       silence: f.beat != null && f.silence > 0 ? [f.beat - f.silence, f.beat] : null,
       until: f.beat != null ? f.beat + 4 : null,
+      fadeIn: f.tool === 'score' ? 2 : 0, // marcar el golpe: entra poco a poco (s)
     };
   }
   const g = view.game;

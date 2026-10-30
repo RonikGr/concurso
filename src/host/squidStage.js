@@ -58,8 +58,9 @@ export function createSquidStage() {
   let outTimer = 0;
   let talkingUntil = 0; // hasta cuándo habla (más o menos) la megafonía: lo siguiente espera a que acabe
   let lastScene = null; // juego en pantalla (para callar la megafonía al cambiar)
+  // Sin voz: los anuncios los canta el presentador (la voz del navegador sobraba). Se sigue esperando lo que tardaría
+  // en decirlo, para que lo que va detrás (campana, siguiente anuncio) no se amontone.
   function speak(text) {
-    sound.say(text);
     talkingUntil = Math.max(talkingUntil, performance.now()) + 900 + text.length * 80;
   }
   function announceOut(players) {

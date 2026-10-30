@@ -77,7 +77,7 @@ export function shapePoints(shapeId) {
  * FAST_GRACE_MS, grieta (una por cada vez que se acelera, no por cada movimiento). Se mide sobre los últimos
  * SPEED_WINDOW_MS para que un temblor del dedo no cuente.
  */
-export const MAX_SPEED = 0.55;
+export const MAX_SPEED = 0.4;
 export const FAST_WARN = 0.8; // desde el 80 % del máximo, «¡Más despacio!»
 const FAST_GRACE_MS = 250;
 const SPEED_WINDOW_MS = 150;

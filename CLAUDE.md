@@ -92,7 +92,7 @@ freeParticipants, freeCounter, freeStart, freeOut, freeRevive, freeCount, freeSt
 wordsStart, wordsOk, wordsPass, wordsFoul, wordsUndo, wordsStop, shakeStart, shakeStop, betClose, betReveal, betSet, betAnswer,
 punishClose, punishReopen, punishSpin, toggleSection, pause, resume,
 squidStart, squidStop, squidRevive, squidEliminate, squidChoose,
-hankyDraw, hankyChoose, hankyGo, hankyFalse, hankyCancel, hankyWin, hankyUndo,
+hankyDraw, hankyChoose, hankyGo, hankyFalse, hankyCancel, hankyWin, hankyUndo, penalty, setPlaying,
 lockTeams, moveTeam, adjustScore, adjustTeamBonus, resetScores, removePlayer, approveControl, denyControl, updateSettings.
 
 - Emparejar mando: la tele (preparación) enseña un QR a `control.html?sala=CÓDIGO#k=CLAVE` (la clave tras `#` no sale del
@@ -140,9 +140,8 @@ según la columna Participan) → `running` (cronómetro: "eliminado" guarda el 
 contador: ±1 por participante) → `stopped` → `awarded` (el mando propone ganador según la herramienta; se puede cambiar
 y marcar varios; cada ganador recibe los puntos de la fila; con equipos van al bonus del equipo). Sin herramienta se elige
 ganador directamente. Las pruebas puntuadas se guardan en `itemResults` (`{free, byTeams}`) y R las reinicia quitando
-los puntos. El móvil del jugador informa ("¡Te toca!", "¡Eliminado!", "¡Has ganado!") y, con la herramienta contador,
-cuenta: sin equipos, cada uno lo suyo; con equipos, solo el jugador que el presentador elige en el mando para cada equipo
-(`freeCounter` → `FreeRound.setCounter()`; `countFrom()` responde `not-counter` a los demás). El mando sigue pudiendo corregir.
+los puntos. El móvil del jugador informa ("¡Te toca!", "¡Eliminado!", "¡Has ganado!"); el contador lo llevan solo los
+presentadores desde el mando (fase 14: `countFrom()` responde `not-counter` a todos los móviles).
 
 **Antitrampas** (para quien sale de la app a buscar la respuesta en Google): el móvil manda `away out` al ocultarse la
 página (`visibilitychange`) y `away back {ms}` al volver (si no hay conexión, en cuanto reconecta). La tele marca la
@@ -371,7 +370,7 @@ con vibración). Mando: `hankyPanel` (chips por equipo para elegir en secreto, `
 - **Libre con «Jugadores» y equipos:** el mando agrupa por equipo (`pool` lleva `teamId`): se elige quién sale y los
   puntos son suyos. La plantilla usa así twerking, galleta y flexiones. Sin «La silla invisible».
 - **Nota:** `freeStart` pone `tStart` = ahora + la cuenta atrás; la tele cuenta 3-2-1 y la canción entra en `tStart`.
-- **Panal:** tres pasadas (`LAPS`), velocidad de la aguja (`MAX_SPEED` 0,55 galletas/s medida en 150 ms; pasarse más
+- **Panal:** tres pasadas (`LAPS`), velocidad de la aguja (`MAX_SPEED` 0,4 galletas/s medida en 150 ms; pasarse más
   de 250 ms = una grieta por acelerón; aviso «¡Más despacio!» desde el 80 %), 60 s. `restoreTrace` al recargar.
 - **Squid:** 5 puntos por eliminado (plantilla y `#perHead` por defecto); `SQUID_ORDER` sin canicas (con su fila, sí).
 - **Vídeo de sección** (`Vídeos/<sección>.mp4` o `Vídeos/<sección>/…`, `classifyFolder` → `videos`, trackStore
@@ -405,6 +404,29 @@ con vibración). Mando: `hankyPanel` (chips por equipo para elegir en secreto, `
   «Ana, Luis y Eva», el puesto propio en el móvil sin equipos, «✓ Apuesta guardada».
 - Pendiente (raro, no arreglado): una prueba Libre a medias o los comodines del millonario antes de revelar no se
   guardan si la tele se recarga; volver a cargar la hoja borra lo jugado pero no los puntos.
+
+### Fase 14: temáticas, dos presentadores y ajustes de juego
+
+- **Libre:** todas se empiezan («▶ 3, 2, 1…»): `freeStart` / `freeNext` ponen `tStart` = ahora + `#freeCountdownMs`
+  (los ajustes, mínimo 3 s); la tele (`runClock` en freeStage) cuenta 3-2-1 en el sitio del reloj y luego «¡ya!»; sin
+  herramienta enseña un reloj (y el mando, el elegir ganador) — `startable` siempre. **Contar** solo desde el mando:
+  `canCount()` → false (los concursantes se sumaban de más); sin `countersCard`. Marcar el golpe: `fadeIn` de 2 s
+  (`songFor` → audio `setSong`).
+- **Mando:** 🔊/🔇 (ajuste `muted`: volumen 0 sin tocar lo demás) y ⚖️ (orden `penalty {teamId|playerId, points}`: quita
+  puntos y `lastPenalty` sale en la tele, `renderPenalty`) arriba, siempre. **Dos presentadores** que se turnan:
+  `sala.playingNow` (persistido): un presentador que «ahora juega» no está en el banquillo (`benched`) y juega en todo;
+  orden `setPlaying {playerId, playing}` o `{swap: true}`; `presentersCard` en Juego («⇄ Cambiar»).
+- **El pañuelo:** sortear (o elegir) = ¡ya! en cuanto la ruleta se para (`HANKY_REVEAL_MS`, `#goOnReveal`), sin cuenta
+  atrás; la tele repinta al pararse. «▶ ¡Ya!» solo tras una salida nula.
+- **Squid:** sin voz de megafonía (`speak` solo espera lo que tardaría); Luz roja más dura (verdes de 4,2 a 1,4 s, 22 %
+  de golpe, `HOLD_SHARE` 0,6, gracia 380 ms). Panal: `MAX_SPEED` 0,4 y el lienzo se borra entero en cada dibujo (la
+  aguja dejaba rastro fuera de la galleta).
+- **Temáticas** (entornos con `decor`, solo si la hoja los elige): Verano (Watermelon Sugar), Galletas (la galleta),
+  Refrescos (botellas en orden, que ahora es por jugadores); `syncDecor` (host/main.js) hace subir lo suyo por detrás.
+  Discoteca: el vídeo se mezcla en `.section-videos` (en el vídeo no servía: su capa es su propio contexto) y la bola
+  va a un lado. Presentación de equipos sin «pulsa cualquier tecla».
+- **Música por sección:** `Música/<Sección>/x.mp3` suelto → `sectionWideSlot` (`Sección|all`): suena en todos sus
+  momentos sin cortarse (`#slotKey`: momento de la sección → toda la sección → general).
 
 ### Pruebas con canción y contrarreloj (fase 11)
 
@@ -609,5 +631,6 @@ con vibración). Mando: `hankyPanel` (chips por equipo para elegir en secreto, `
     contrarreloj con intentos (botellas); calidad automática de la imagen de la tele. ✔ Parar y seguir otro día. ✔
 12. Squid Games: Luz roja, El panal, El puente, Tira y afloja y Canicas, con eliminados y hucha. ✔
 13. Lobos contra vampiros (el pañuelo) como colofón; twerking con discoteca y vídeo; panal más exigente. ✔
+14. Temáticas (Watermelon Sugar, galletas, refrescos), dos presentadores, penalizar, silenciar, música por sección. ✔
 
 Hoja de ruta posterior: mandos físicos (Gamepad API), imagen pixelada, rosco, dibuja y adivina.

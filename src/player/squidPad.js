@@ -423,6 +423,8 @@ export function createSquidPad({ send, toLocal, toHost, vibrate = () => {} }) {
     let finger = null;
     const draw = () => {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
+      // (la galleta es redonda: fuera de ella no se borraba y la aguja dejaba un rastro blanco)
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(base, 0, 0);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       // lo tallado: más claro y hundido; cada pasada terminada, la línea entera más honda

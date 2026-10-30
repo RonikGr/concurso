@@ -9,6 +9,7 @@ import { LADDER_SCENES, SFX_SLOT } from './tracks.js';
 import { getCues } from './cueSettings.js';
 import { SQUID_SFX } from './squidSound.js';
 import { splitSong } from '../../core/voicing.js';
+import { sectionWideSlot } from '../../core/folder.js';
 
 const CROSSFADE = 0.7; // s (constante de tiempo del fundido entre estilos)
 const SHORT_TRACK_S = 15; // un archivo más corto en un momento de música es un efecto: suena una vez
@@ -124,8 +125,9 @@ class SoundEngine extends EventTarget {
     const sameScene = this.#scene === scene;
     this.#scene = scene;
     this.#section = section;
-    // Misma música (p. ej. la general de «Jugando» al pasar de sección): que no vuelva a empezar
-    if (sameScene && before === this.#slotKey()) return;
+    // Misma música (la general de «Jugando» al pasar de sección, o la de toda una sección al cambiar de momento): que
+    // no vuelva a empezar
+    if (before === this.#slotKey() && (before || sameScene)) return;
     if (this.unlocked) this.#switchLayer();
   }
 
@@ -134,10 +136,15 @@ class SoundEngine extends EventTarget {
     return slot.includes('|') && LADDER_SCENES.has(this.#scene) && this.#step != null && (this.#tracks.get(slot)?.length ?? 0) > 1;
   }
 
-  /** Hueco de canciones que toca ahora: el de la sección si tiene, si no el general; null = música generada. */
+  /**
+   * Hueco de canciones que toca ahora: el del momento de la sección si tiene, si no el de toda la sección (la misma en
+   * todos sus momentos: sigue sin cortarse), si no el general; null = música generada.
+   */
   #slotKey() {
     const own = this.#section ? `${this.#section}|${this.#scene}` : null;
     if (own && this.#tracks.get(own)?.length) return own;
+    const whole = this.#section ? sectionWideSlot(this.#section) : null;
+    if (whole && this.#tracks.get(whole)?.length) return whole;
     return this.#tracks.get(this.#scene)?.length ? this.#scene : null;
   }
 
@@ -716,7 +723,8 @@ class SoundEngine extends EventTarget {
     src.buffer = buf;
     const g = c.createGain();
     g.gain.setValueAtTime(0, t);
-    g.gain.setTargetAtTime(1, t, 0.015);
+    // entrada: casi al momento, o con fundido (marcar el golpe); si se retoma por donde iba, rápida
+    g.gain.setTargetAtTime(1, t, s.fadeIn && from <= s.from + 0.1 ? s.fadeIn / 3 : 0.015);
     // Silencio antes del golpe: calla en «a» y vuelve de golpe en «b» (programado: exacto)
     if (s.silence && s.silence[1] > from) {
       const [a, b] = s.silence;

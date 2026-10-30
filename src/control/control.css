@@ -92,6 +92,38 @@ body.offline .c-net {
   background: var(--danger);
 }
 
+/* 🔊 / ⚖️ arriba a la derecha */
+.c-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: none;
+}
+
+.c-top-btn {
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  background: var(--surface-2);
+  color: inherit;
+  font-size: 1.3rem;
+}
+
+.c-top-btn.on {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 30%, var(--surface-2));
+}
+
+.c-penalty {
+  border: 2px solid var(--danger);
+}
+
+.c-presenters .c-row p {
+  margin: 0;
+  font-weight: 800;
+}
+
 .c-banner {
   padding: 0.6rem 1rem;
   background: color-mix(in srgb, var(--warn) 22%, var(--surface));

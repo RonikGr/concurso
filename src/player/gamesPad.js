@@ -177,7 +177,8 @@ export function createGamesPad({ send, vibrate = () => {} }) {
       let went = false;
       const step = () => {
         const left = Math.ceil((end - performance.now()) / 1000);
-        big.textContent = left > 0 ? String(left) : c.mine ? '¡CORRE!' : '¡YA!';
+        // (mientras la ruleta de la tele busca a quién, sin números: en cuanto se sabe, ¡ya!)
+        big.textContent = left > 0 ? '👀 Mira la tele…' : c.mine ? '¡CORRE!' : '¡YA!';
         if (left <= 0 && !went) {
           went = true;
           if (c.mine) vibrate(600);

@@ -17,8 +17,9 @@ export function formatClock(ms) {
 export function createFreeStage() {
   const root = h('section', { class: 'free-stage' });
   let raf = 0;
-  let songTimer = 0; // bachata: el letrero sigue la canción
+  let songTimer = 0; // el letrero de la canción o el reloj de la prueba
   const lastCounts = new Map(); // id → último valor pintado del contador, para que la cifra ruede
+  const heard = new Set(); // números de la cuenta atrás que ya sonaron (al repintar no se repiten)
 
   function render(view) {
     cancelAnimationFrame(raf);
@@ -59,6 +60,7 @@ export function createFreeStage() {
 
     if (f.tool === TOOL.TRIAL) return renderTrial(f, header);
     if ((f.tool === TOOL.NONE && f.song) || f.tool === TOOL.SCORE) return renderSong(f, header);
+    // (sin herramienta ni canción: la cuenta atrás y un reloj mientras suena la música de la sección)
 
     // En marcha o parada: reloj en grande y cada participante.
     const clock = h('p', { class: `big-clock free-clock ${f.phase === FPHASE.STOPPED ? 'stopped' : ''}` });
@@ -77,15 +79,47 @@ export function createFreeStage() {
             h('span', { class: 'free-name' }, p.icon || p.face ? h('span', { class: 'emoji' }, avatarOf(p)) : null, ' ', p.name),
             f.tool === TOOL.COUNTER
               ? h('span', { class: 'free-count' }, odometer(p.count, lastCounts.get(p.id) ?? p.count, { duration: 500 }))
-              : h('span', { class: 'free-status' }, p.out != null ? `Cayó a los ${formatClock(p.out)}` : f.phase === FPHASE.STOPPED ? '¡Aguantó!' : 'Aguanta…'),
+              : f.tool === TOOL.STOPWATCH
+                ? h('span', { class: 'free-status' }, p.out != null ? `Cayó a los ${formatClock(p.out)}` : f.phase === FPHASE.STOPPED ? '¡Aguantó!' : 'Aguanta…')
+                : null, // sin herramienta: el reloj y quién juega (el ganador lo dice el presentador)
           ),
         ),
       ),
     );
     for (const p of f.participants) lastCounts.set(p.id, p.count);
+    runClock(clock, f.tStart, f.tStop != null ? f.tStop - f.tStart : null, f.phase === FPHASE.RUNNING);
+  }
+
+  /**
+   * Reloj de una prueba con su cuenta atrás: hasta `tStart`, 3-2-1 en grande (con su sonido); al llegar, «¡ya!» y el
+   * reloj corriendo (o parado en `fixed` ms). Con setTimeout: el navegador frena rAF si la ventana no se ve.
+   */
+  function runClock(el, tStart, fixed, running) {
+    let lastN = null;
     const tick = () => {
-      clock.textContent = formatClock((f.tStop ?? performance.now()) - f.tStart);
-      if (f.phase === FPHASE.RUNNING) raf = requestAnimationFrame(tick);
+      const now = performance.now();
+      const left = tStart - now;
+      if (running && fixed == null && left > 0) {
+        const n = Math.ceil(left / 1000);
+        if (n !== lastN) {
+          lastN = n;
+          el.textContent = String(n);
+          el.dataset.mode = 'count';
+          if (!heard.has(`${tStart}|${n}`)) {
+            heard.add(`${tStart}|${n}`);
+            sound.play('count');
+          }
+        }
+      } else {
+        // el «¡ya!» solo justo al acabar la cuenta (no al volver a pintar una prueba que ya corría)
+        if (running && fixed == null && -left < 700 && !heard.has(`${tStart}|ya`)) {
+          heard.add(`${tStart}|ya`);
+          sound.play('go');
+        }
+        delete el.dataset.mode;
+        el.textContent = formatClock(fixed ?? now - tStart);
+      }
+      if (running && fixed == null) songTimer = setTimeout(tick, 50);
     };
     tick();
   }
@@ -133,12 +167,8 @@ export function createFreeStage() {
         }),
       ),
     );
-    const tick = () => {
-      if (tr) clock.textContent = formatClock(tr.time ?? performance.now() - tr.tStart);
-      else clock.textContent = formatClock(0);
-      if (f.trialRunning) raf = requestAnimationFrame(tick);
-    };
-    tick();
+    if (tr) runClock(clock, tr.tStart, tr.time, f.trialRunning);
+    else clock.textContent = formatClock(0);
   }
 
   /** Prueba con canción (marcar el golpe bailando): suena… y, si la fila tiene golpe, se calla antes y ¡golpe! */

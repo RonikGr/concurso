@@ -59,10 +59,9 @@ describe('sección Libre', () => {
     expect(r.suggestion(0)).toEqual([]);
   });
 
-  it('sin herramienta: se elige ganador directamente', () => {
+  it('sin herramienta: se puede elegir ganador directamente (sin empezar)', () => {
     const r = new FreeRound(item('none', { points: 5 }), { roundId: 'f3' });
     r.setParticipants(['rojos', 'azules']);
-    expect(r.start(0)).toBe(false);
     expect(r.award(['azules', 'verdes'], 0)).toEqual({ azules: 5 });
     expect(r.phase).toBe(FPHASE.AWARDED);
     expect(r.award(['rojos'], 0)).toBeNull(); // ya dados
@@ -91,32 +90,27 @@ describe('sección Libre', () => {
   });
 });
 
-describe('contador desde el móvil', () => {
-  it('con equipos cuenta solo el jugador que elige el presentador', () => {
+describe('contador', () => {
+  it('solo cuentan los presentadores (mando): los móviles de los concursantes, no', () => {
     const r = new FreeRound(item('counter', { teams: true }), { roundId: 'f9' });
     r.setParticipants(['rojos', 'azules']);
     r.setCounter('rojos', 'ana');
-    r.setCounter('azules', 'dani');
     expect(r.countFrom('ana', 'rojos', 1)).toBe('closed'); // aún no ha empezado
     r.start(0);
-    expect(r.countFrom('ana', 'rojos', 1)).toBe('ok');
-    expect(r.countFrom('ana', 'rojos', 1)).toBe('ok');
-    expect(r.countFrom('bea', 'rojos', 1)).toBe('not-counter'); // de los rojos, pero no es quien cuenta
-    expect(r.countFrom('cris', 'verdes', 1)).toBe('closed'); // no participa
-    expect(r.countFrom('dani', 'azules', -1)).toBe('ok'); // no baja de 0
-    r.setCounter('azules', null); // ahora cuenta el presentador
-    expect(r.countFrom('dani', 'azules', 1)).toBe('not-counter');
-    expect(r.counts).toEqual({ rojos: 2, azules: 0 });
-    expect(FreeRound.fromJSON(r.item, JSON.parse(JSON.stringify(r))).counters).toEqual({ rojos: 'ana' });
+    expect(r.countFrom('ana', 'rojos', 1)).toBe('not-counter');
+    expect(r.countFrom('ana', 'ana', 1)).toBe('closed'); // no participa
+    expect(r.count('rojos', 1)).toBe(true); // el mando
+    expect(r.count('azules', -1)).toBe(true); // no baja de 0
+    expect(r.counts).toEqual({ rojos: 1, azules: 0 });
   });
 
-  it('sin equipos, cada uno cuenta lo suyo', () => {
-    const r = new FreeRound(item('counter'), { roundId: 'f10' });
+  it('sin herramienta también se empieza (la tele enseña un reloj)', () => {
+    const r = new FreeRound(item('none'), { roundId: 'f10' });
     r.setParticipants(['ana', 'bea']);
-    r.start(0);
-    expect(r.countFrom('ana', 'ana', 1)).toBe('ok');
-    expect(r.countFrom('ana', 'bea', 1)).toBe('not-counter');
-    expect(r.setCounter('ana', 'bea')).toBe(false);
+    expect(r.startable).toBe(true);
+    expect(r.start(3000)).toBe(true);
+    expect(r.award(['bea'], 9000)).toEqual({ bea: r.item.points });
+    expect(r.phase).toBe('awarded');
   });
 });
 
@@ -164,9 +158,6 @@ describe('contrarreloj (p. ej. las botellas)', () => {
   });
 
   it('sin herramienta pero con canción: «¡Empezar!» la hace sonar', () => {
-    const plain = new FreeRound(item('none'), { roundId: 'f1' });
-    plain.setParticipants(['ana']);
-    expect(plain.start(0)).toBe(false);
     const song = new FreeRound(item('none', { song: 'bachata' }), { roundId: 'f2' });
     song.setParticipants(['ana', 'bea']);
     expect(song.start(0)).toBe(true);

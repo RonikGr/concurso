@@ -241,6 +241,61 @@ export const ENVIRONMENTS = [
     lightning: 0,
     horizon: 0.2,
   },
+  // Temáticas de pruebas (solo si la hoja las elige en «Entorno»). `decor`: lo que flota por la tele.
+  {
+    // Watermelon Sugar: atardecer de verano, sol grande y luciérnagas doradas
+    id: 'verano',
+    name: 'Verano',
+    top: rgb('#ff8a5c'),
+    bot: rgb('#3a1450'),
+    fog: rgb('#ffb37a'),
+    glow: rgb('#fff1a0'),
+    part: rgb('#ffe08a'),
+    fogAmt: 0.25,
+    moon: 1,
+    sil: 6,
+    particles: 1,
+    bats: 0,
+    lightning: 0,
+    horizon: 0.55,
+    decor: ['🍉', '🍉', '🌞', '🍹', '🍉', '🏖️', '🍉', '🕶️'],
+  },
+  {
+    // La galleta: obrador de galletas de chocolate, cálido, con harina en el aire
+    id: 'chocolate',
+    name: 'Galletas',
+    top: rgb('#4a2a17'),
+    bot: rgb('#140904'),
+    fog: rgb('#9a6a42'),
+    glow: rgb('#ffd9a8'),
+    part: rgb('#f6e3c6'),
+    fogAmt: 0.3,
+    moon: 0,
+    sil: 0,
+    particles: 6,
+    bats: 0,
+    lightning: 0,
+    horizon: 0.5,
+    decor: ['🍪', '🍪', '🍫', '🥛', '🍪', '🍪', '🍫'],
+  },
+  {
+    // Botellas en orden: refrescos con burbujas (las siluetas de matraces parecen botellas)
+    id: 'refrescos',
+    name: 'Refrescos',
+    top: rgb('#0b3a5e'),
+    bot: rgb('#02101c'),
+    fog: rgb('#2fd3ff'),
+    glow: rgb('#b8ffef'),
+    part: rgb('#d8fbff'),
+    fogAmt: 0.35,
+    moon: 0,
+    sil: 8,
+    particles: 3,
+    bats: 0,
+    lightning: 0,
+    horizon: 0.45,
+    decor: ['🥤', '🍾', '🧃', '🫧', '🥤', '🍋', '🧊', '🍾'],
+  },
 ];
 
 /** Discoteca: con sus focos en la tele (y su música con batería). */
@@ -259,7 +314,8 @@ export const TEST_ENV = 'millonario';
 export const SQUID_ENV = 'squid';
 
 /** Entornos que se reparten entre las secciones (en este orden). */
-const SECTION_ENVS = ENVIRONMENTS.filter((e) => ![HOME_ENV, TEST_ENV, SQUID_ENV, DISCO_ENV, HANKY_ENV].includes(e.id));
+// (los de temática —discoteca, luna llena, verano, galletas, refrescos— solo si la hoja los elige)
+const SECTION_ENVS = ENVIRONMENTS.filter((e) => ![HOME_ENV, TEST_ENV, SQUID_ENV, DISCO_ENV, HANKY_ENV].includes(e.id) && !e.decor);
 
 const byId = new Map(ENVIRONMENTS.map((e) => [e.id, e]));
 export const getEnv = (id) => byId.get(id) ?? byId.get(HOME_ENV);

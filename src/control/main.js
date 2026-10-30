@@ -218,7 +218,14 @@ function render() {
       'header',
       { class: 'c-top' },
       h('div', {}, h('strong', {}, view.title), h('span', {}, `Sala ${view.code} · ${view.peekScoreboard ? 'Marcador' : SCREEN_LABEL[view.screen]}`)),
-      h('span', { class: 'c-net', title: 'Conexión' }),
+      // siempre a mano: silenciar la tele y quitar puntos por trampas
+      h(
+        'div',
+        { class: 'c-top-actions' },
+        h('button', { class: `c-top-btn ${view.settings?.muted ? 'on' : ''}`, 'aria-label': view.settings?.muted ? 'Quitar silencio' : 'Silenciar la tele', onclick: () => cmd('updateSettings', { muted: !view.settings?.muted }) }, view.settings?.muted ? '🔇' : '🔊'),
+        h('button', { class: `c-top-btn ${penaltyOpen ? 'on' : ''}`, 'aria-label': 'Quitar puntos por trampas', onclick: () => togglePenalty() }, '⚖️'),
+        h('span', { class: 'c-net', title: 'Conexión' }),
+      ),
     ),
     h('div', { id: 'c-banner', class: 'c-banner', hidden: true }),
     h('main', { class: 'c-main' }, tab === 'game' ? gameTab() : tab === 'players' ? playersTab() : tab === 'sections' ? sectionsTab() : null),
@@ -327,7 +334,70 @@ function awayNowCard() {
 }
 
 function gameTab() {
-  return [cheatCard(), awayNowCard(), gameTabBody()];
+  return [penaltyOpen ? penaltyCard() : null, presentersCard(), cheatCard(), awayNowCard(), gameTabBody()];
+}
+
+/** ⚖️ Quitar puntos por trampas, en cualquier momento (se abre con el botón de arriba). */
+let penaltyOpen = false;
+function penaltyCard() {
+  const targets = view.teams.length ? view.teams.map((t) => ({ key: 'teamId', id: t.id, name: t.name, color: t.color })) : view.players.map((p) => ({ key: 'playerId', id: p.id, name: p.name, color: p.color }));
+  return h(
+    'section',
+    { class: 'c-card c-penalty' },
+    h('div', { class: 'c-row' }, h('p', { class: 'c-kicker' }, '⚖️ ¡Trampa! Quitar puntos'), btn('Cerrar', () => togglePenalty(false), 'small')),
+    targets.map((t) =>
+      h(
+        'div',
+        { class: 'c-score-row' },
+        h('p', { class: 'c-pname' }, h('span', { class: 'c-team-dot', style: { '--tc': getColor(t.color).bg } }), ` ${t.name}`),
+        h(
+          'div',
+          { class: 'c-bet-amounts' },
+          [1, 3, 5, 10].map((n) =>
+            btn(`−${n}`, () => {
+              cmd('penalty', { [t.key]: t.id, points: n });
+              toast(`−${n} para ${t.name}`);
+            }, 'danger small'),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+function togglePenalty(on = !penaltyOpen) {
+  penaltyOpen = on;
+  tab = 'game';
+  lastSignature = null;
+  render();
+}
+
+/**
+ * Dos presentadores que se turnan (cada uno juega desde la pestaña «Jugar» de su mando): quién presenta ahora y quién
+ * juega, con «⇄ Cambiar». El que juega lo hace en todo, como un concursante más.
+ */
+function presentersCard() {
+  const presenters = view.players.filter((p) => p.presenter);
+  if (!presenters.length) return null;
+  if (presenters.length === 1) {
+    // uno solo: puede pasar a jugar en todo (p. ej. mientras otro presenta sin mando)
+    const p = presenters[0];
+    return h(
+      'section',
+      { class: 'c-card c-presenters' },
+      h('div', { class: 'c-row' }, h('p', {}, `${p.playingNow ? '🎮 Juegas en todo' : '🎤 Presentas'} · ${p.name}`), btn(p.playingNow ? '🎤 Presentar' : '🎮 Jugar en todo', () => cmd('setPlaying', { playerId: p.id, playing: !p.playingNow }), 'small')),
+    );
+  }
+  return h(
+    'section',
+    { class: 'c-card c-presenters' },
+    h(
+      'div',
+      { class: 'c-row' },
+      h('p', {}, presenters.map((p) => `${p.playingNow ? '🎮' : '🎤'} ${p.name}`).join(' · ')),
+      btn('⇄ Cambiar', () => cmd('setPlaying', { swap: true }), 'small'),
+    ),
+  );
 }
 
 function gameTabBody() {
@@ -926,29 +996,6 @@ function millionairePanel() {
   return [seatCard, optionsCard, ...jokerCards, h('div', { class: 'c-actions' }, actions), navRow()];
 }
 
-/** Libre con contador y equipos: qué jugador de cada equipo cuenta desde su móvil (solo ese móvil puede sumar). */
-function countersCard(f) {
-  return h(
-    'section',
-    { class: 'c-card' },
-    h('p', { class: 'c-kicker' }, '¿Quién cuenta por cada equipo?'),
-    h('p', { class: 'muted small' }, 'Solo el móvil de ese jugador tendrá los botones +1 / −1.'),
-    f.participants.map((t) =>
-      h(
-        'label',
-        { class: 'c-counter-row' },
-        h('span', {}, t.name),
-        h(
-          'select',
-          { class: 'c-select', onchange: (e) => cmd('freeCounter', { teamId: t.id, playerId: e.target.value }) },
-          h('option', { value: '', selected: !t.counter }, 'Nadie (cuento yo)'),
-          (t.members ?? []).map((m) => h('option', { value: m.id, selected: m.id === t.counter }, m.name)),
-        ),
-      ),
-    ),
-  );
-}
-
 function freePanel() {
   const f = view.free;
   const toolLabel = { none: f.song ? 'Con canción' : 'Sin herramienta', stopwatch: 'Cronómetro', counter: 'Contador', trial: 'Contrarreloj' }[f.tool];
@@ -999,15 +1046,14 @@ function freePanel() {
         h('div', { class: 'c-row' }, btn('Todos', () => send(f.pool.map((p) => p.id))), btn('Ninguno', () => send([]))),
       ),
     );
-    if (f.tool === 'counter' && f.byTeams && f.participants.length) body.push(countersCard(f));
     if (f.startable) {
       const first = f.participants[0]?.name;
-      const label = f.tool === 'stopwatch' ? '¡Empezar! (cronómetro)' : f.tool === 'trial' ? `¡Empezar! Sale ${first ?? '…'}` : f.tool === 'none' || (f.tool === 'score' && f.song) ? '🎵 ¡Que suene la canción!' : '¡Empezar!';
+      const label = f.tool === 'trial' ? `▶ 3, 2, 1… Sale ${first ?? '…'}` : f.song ? '🎵 3, 2, 1… ¡que suene la canción!' : '▶ 3, 2, 1… ¡Empezar!';
       if (f.song) body.push(h('p', { class: 'muted small' }, `🎵 «${f.song}» desde el segundo ${f.songStart}${f.beat != null ? ` · se calla ${f.silence} s antes del golpe (${f.beat} s) y vuelve en el golpe` : ''}`));
       body.push(h('button', { class: 'btn primary big', disabled: !chosen.size, onclick: () => cmd('freeStart') }, label));
-    } else if (chosen.size) {
-      body.push(winnersPicker(f));
     }
+    // sin herramienta, también se puede dar el ganador sin empezar (si la prueba ya se hizo)
+    if (f.tool === 'none' && chosen.size) body.push(winnersPicker(f));
   } else if (f.tool === 'score' && (f.phase === 'running' || f.phase === 'stopped')) {
     // Nota: mientras suena (o al acabar), una nota del 1 al 10 a cada uno; luego, dar los puntos
     body.push(h('p', { class: 'c-live' }, f.phase === 'running' ? (f.song ? '🎵 Suena la canción: pon una nota del 1 al 10 a cada uno' : 'Pon una nota del 1 al 10 a cada uno') : 'Pon las notas que falten y da los puntos'), scoreCard(f));
@@ -1016,9 +1062,8 @@ function freePanel() {
     body.push(trialCard(f), btn('Parar la prueba', () => cmd('freeStop')));
   } else if (f.phase === 'running' && f.tool === 'none') {
     // Con canción: mientras suena (o al acabar), eliges a quien lo ha hecho bien
-    body.push(h('p', { class: 'c-live' }, '🎵 Suena la canción: al acabar, marca a quien lo ha hecho bien'), winnersPicker(f), btn('Parar la canción', () => cmd('freeStop')));
+    body.push(h('p', { class: 'c-live' }, f.song ? '🎵 Suena la canción: al acabar, marca a quien lo ha hecho bien' : '⏱ En marcha: cuando acaben, marca al ganador'), winnersPicker(f), btn(f.song ? 'Parar la canción' : 'Parar el reloj', () => cmd('freeStop')));
   } else if (f.phase === 'running') {
-    if (f.tool === 'counter' && f.byTeams) body.push(countersCard(f)); // se puede cambiar quién cuenta en marcha
     body.push(
       h('p', { class: 'c-live' }, f.tool === 'stopwatch' ? 'Cronómetro en marcha: marca a quien caiga' : 'En marcha: suma lo que haga cada uno'),
       h(

@@ -142,12 +142,13 @@ export class SquidState {
 
 // ------------------------------------------------------------------------------------------ 1. Luz roja, luz verde
 
-const RED_GRACE_MS = 450; // al ponerse en rojo, un momento para soltar (reflejos humanos; lo que tarda en girarse)
-const HOLD_SHARE = 0.42; // hay que mantener el botón algo más de un tercio del tiempo en verde para llegar
+const RED_GRACE_MS = 380; // al ponerse en rojo, un momento para soltar (reflejos humanos; lo que tarda en girarse)
+const HOLD_SHARE = 0.6; // el recorrido: hay que mantener el botón más de la mitad del tiempo en verde para llegar
 const MAX_OUT_SHARE = 0.4; // sin tope (squidCap), cae como mucho el 40 %
 const defaultCap = (n) => Math.max(1, Math.round(n * MAX_OUT_SHARE));
-const GREEN_FIRST_MS = 5800; // la muñeca canta despacio al principio…
-const GREEN_LAST_MS = 1800; // …y cada vez más deprisa
+const GREEN_FIRST_MS = 4200; // la muñeca canta deprisa ya al principio…
+const GREEN_LAST_MS = 1400; // …y cada vez más
+const SUDDEN_SHARE = 0.22; // de vez en cuando (22 %), una frase de golpe, a la mitad
 
 /** Lo que canta la muñeca en cada luz verde: «el hibisco ha florecido». La luz se pone roja al acabar la frase. */
 export const CHANT = ['Mu', 'gung', 'hwa', 'kko', 'chi', 'pi', 'eot', 'seum', 'ni', 'da'];
@@ -169,8 +170,8 @@ export function chantTimes(dur, rush = 0) {
 }
 
 /**
- * El presentador da la salida; tras 3-2-1 se alternan verde y rojo. En verde la muñeca canta (de 5,8 s al principio a
- * 2,4 s al final, con algo de azar y alguna muy rápida) y la luz se pone roja justo al acabar la frase; el rojo dura
+ * El presentador da la salida; tras 3-2-1 se alternan verde y rojo. En verde la muñeca canta (de 4,2 s al principio a
+ * 1,4 s al final, con algo de azar y bastantes de golpe) y la luz se pone roja justo al acabar la frase; el rojo dura
  * 2–3,4 s. En verde, mantener el botón avanza (el móvil lleva la cuenta y la manda); en rojo, tocar o moverse (sensor)
  * deja fuera. Quien llega al 100 % se salva; al acabar el tiempo, quien no ha llegado, fuera.
  */
@@ -200,8 +201,8 @@ export class RedLightRound {
       if (light === 'green') {
         const k = (t - this.tOpen) / span;
         let len = (GREEN_FIRST_MS + (GREEN_LAST_MS - GREEN_FIRST_MS) * k) * (0.92 + this.rng() * 0.16);
-        if (k > 0.15 && this.rng() < 0.12) len *= 0.6; // de vez en cuando, una de golpe
-        len = Math.min(Math.round(Math.max(1500, len)), this.endsAt - t);
+        if (k > 0.1 && this.rng() < SUDDEN_SHARE) len *= 0.5; // de vez en cuando, una de golpe
+        len = Math.min(Math.round(Math.max(1100, len)), this.endsAt - t);
         const rush = this.rng() < 0.4 ? Math.round((0.3 + this.rng() * 0.5) * 100) / 100 : 0;
         this.cues.push({ t, light, len, rush });
         green += len;

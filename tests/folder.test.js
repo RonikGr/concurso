@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classifyFolder, folderKey, songKey, squidSoundFor } from '../src/core/folder.js';
+import { classifyFolder, folderKey, sectionWideSlot, songKey, squidSoundFor } from '../src/core/folder.js';
 
 const slots = [
   { id: 'lobby', label: 'Preparación' },
@@ -45,6 +45,17 @@ describe('carpeta del concurso', () => {
     expect(r.songs.map((x) => songKey(x.path.at(-1)))).toEqual(['propuestaindecente']);
     expect(songKey('propuesta indecente')).toBe('propuestaindecente'); // así se escribe en la hoja (sin .mp3, da igual)
     expect(r.ignored).toEqual(['millonario/notas.txt', 'Música/Halloween total/Preparación/no vale aquí.mp3', 'Música/Otra sección/Marcador/x.mp3', 'Música/Nada/x.mp3', 'canciones/letra.txt']);
+  });
+
+  it('una canción suelta en la carpeta de una sección suena en toda ella', () => {
+    const e = (path) => ({ path: path.split('/'), lastModified: 1 });
+    const r = classifyFolder([e('Música/Watermelon Sugar/sandia.mp3'), e('Música/Watermelon Sugar/Revelado/fin.mp3'), e('Música/Nadie/x.mp3')], {
+      slots: [{ id: 'reveal', label: 'Revelado' }],
+      sectionSlots: ['reveal'],
+      sections: ['Watermelon Sugar'],
+    });
+    expect(r.music.map((m) => m.slot)).toEqual([sectionWideSlot('Watermelon Sugar'), 'Watermelon Sugar|reveal']);
+    expect(r.ignored).toEqual(['Música/Nadie/x.mp3']);
   });
 
   it('vídeos de una sección: por el nombre del archivo o de su subcarpeta', () => {

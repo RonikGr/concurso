@@ -8,9 +8,10 @@ import { kinetic } from './fx/motion.js';
 import { sound } from './fx/audio.js';
 import { burst, celebrate } from './fx/confetti.js';
 import { formatClock } from './freeStage.js';
+import { HANKY_REVEAL_MS } from '../core/hanky.js';
 
 const ICON = { wolf: '🐺', vampire: '🧛' };
-const ROULETTE_MS = 2600; // la ruleta de caras hasta pararse en el elegido
+const ROULETTE_MS = HANKY_REVEAL_MS; // la ruleta de caras hasta pararse en el elegido (y ¡ya!)
 
 export function createHankyStage() {
   const root = h('section', { class: 'hanky-stage' });
@@ -70,22 +71,19 @@ export function createHankyStage() {
     // (la ruleta va con el reloj de la tele: si se repinta a mitad, sigue donde iba)
     const rouletteKey = `ruleta|${v.key}|${c.calledAt}`;
     const spinLeft = c.calledAt + ROULETTE_MS - performance.now();
-    if (c.step === 'called' && spinLeft > 0) {
+    // (con el sorteo ya está en marcha: al pararse la ruleta es el «¡YA!»; se vuelve a pintar entonces)
+    if (c.step !== 'done' && spinLeft > 0) {
       spin(wolfSide, pool('wolf'), 'wolf', spinLeft);
       spin(vampSide, pool('vampire'), 'vampire', spinLeft);
       if (first(`${rouletteKey}|redoble`)) sound.play('drumroll');
       later(spinLeft, () => {
         if (first(`${rouletteKey}|golpe`)) {
-          sound.play('hit');
-          sound.play('howl', 150);
-          sound.play('hiss', 900);
+          sound.play('howl', 300);
+          sound.play('hiss', 1100);
         }
-        fill(wolfSide, card('wolf'));
-        fill(vampSide, card('vampire'));
-        status.textContent = '¡Al sillón!';
-        clock.textContent = 'Sentados… y atentos a la señal';
+        render(view);
       });
-      status.textContent = c.mode === 'secret' ? 'El presentador ha elegido…' : 'Sorteando…';
+      status.textContent = c.mode === 'secret' ? 'El presentador ha elegido…' : '¿Quién sale?';
       return;
     }
     wolfSide.append(card('wolf'));

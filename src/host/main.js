@@ -55,7 +55,7 @@ import { openBotsDialog } from './botsDialog.js';
 import { canRemember, chooseFolder, importFolder, rereadFolder, savedFolder } from './contestFolder.js';
 import { createDirector, envFor, screenKey } from './fx/director.js';
 import { enterScreen, kinetic, odometer } from './fx/motion.js';
-import { DISCO_ENV, envGradient, HOME_ENV } from '../shared/environments.js';
+import { DISCO_ENV, envGradient, getEnv, HOME_ENV } from '../shared/environments.js';
 
 // Marca de esta pestaña: si se recarga, se recupera la sala sin preguntar.
 const TAB_KEY = 'concurso.host.tab';
@@ -261,6 +261,7 @@ function startRoom(saved) {
   writeTabMark(code);
   room = new HostRoom({ code, saved });
   lastCheatAlert = null; // los avisos de la sala nueva empiezan a contar de 0
+  lastPenalty = null;
   room.setFaces(faceStore.faces);
   if (import.meta.env.DEV) window.__room = room; // para probar desde la consola
   qrs = makeQrs();
@@ -281,7 +282,8 @@ function syncSplash(view) {
   else if (splash) splash.querySelector('.splash-hint').textContent = splashHint();
 }
 
-const splashHint = () => (sound.unlocked ? 'Pulsa cualquier tecla o haz clic para continuar' : 'Pulsa para activar el sonido');
+// (con el sonido ya activado, nada: el título se queda limpio; se sigue pasando con una tecla, un clic o el mando)
+const splashHint = () => (sound.unlocked ? '' : 'Pulsa para activar el sonido');
 let splashReady = false; // ¿el siguiente toque ya pasa de pantalla?
 sound.addEventListener('unlock', () => setTimeout(() => (splashReady = true), 400)); // el mismo toque no cuenta
 
@@ -397,6 +399,42 @@ function renderShell() {
  * Vídeo de la sección (carpeta Vídeos/, p. ej. el esqueleto del twerking): dos bailarines, uno a cada lado de la tele y
  * en bucle, sin sonido. Con fondo negro, el negro desaparece (mix-blend-mode: screen) y se ve el decorado detrás.
  */
+/**
+ * Decorado de las secciones temáticas (Verano, Galletas, Refrescos: `decor` del entorno): sandías, galletas o
+ * botellas que suben despacio por la tele, detrás de todo. Se monta una vez por entorno (no en cada repintado).
+ */
+let decor = { env: null, el: null };
+function syncDecor(envId) {
+  const items = envId ? getEnv(envId).decor : null;
+  const key = items ? envId : null;
+  if (key === decor.env) return;
+  decor.el?.remove();
+  decor = { env: key, el: null };
+  if (!items) return;
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  decor.el = h(
+    'div',
+    { class: 'env-decor', 'aria-hidden': 'true' },
+    Array.from({ length: 16 }, (_, i) =>
+      h(
+        'span',
+        {
+          style: {
+            left: `${rnd(2, 96)}%`,
+            '--size': `${rnd(2.2, 4.8)}rem`,
+            '--dur': `${rnd(14, 26)}s`,
+            '--delay': `${-rnd(0, 26)}s`,
+            '--sway': `${rnd(-6, 6)}vw`,
+            '--spin': `${rnd(-200, 200)}deg`,
+          },
+        },
+        items[i % items.length],
+      ),
+    ),
+  );
+  document.body.append(decor.el);
+}
+
 let sectionVideo = { url: null, el: null };
 function syncSectionVideo(section) {
   const url = section ? (trackStore.tracks.get(videoSlot(folderKey(section.name)))?.[0]?.url ?? null) : null;
@@ -427,9 +465,11 @@ function render() {
   const inSection = [SCREEN.INTRO, SCREEN.PLAY].includes(view.screen) && !view.paused && !view.peekScoreboard;
   document.body.classList.toggle('disco-on', inSection && envFor(view) === DISCO_ENV);
   syncSectionVideo(inSection ? view.section : null);
+  syncDecor(inSection ? envFor(view) : null);
   // El navegador no deja sonar nada hasta que se toca la página: aviso hasta la primera tecla o clic.
   $('#sound-chip').hidden = sound.unlocked || !(view.settings.musicOn || view.settings.sfxOn);
-  sound.configure({ musicOn: view.settings.musicOn, sfxOn: view.settings.sfxOn, volume: view.settings.volume });
+  // (🔇 del mando: el volumen a 0, sin tocar lo demás: al quitarlo, todo vuelve como estaba)
+  sound.configure({ musicOn: view.settings.musicOn, sfxOn: view.settings.sfxOn, volume: view.settings.muted ? 0 : view.settings.volume });
   if (backdrop.ok) backdrop.setMode(view.settings.quality);
   else document.body.classList.add('fx-lite');
   if (!backdrop.ok) document.body.style.backgroundImage = envGradient(envFor(view));
@@ -445,6 +485,7 @@ function render() {
   renderApproval(view);
   syncSplash(view);
   renderCheatAlert(view);
+  renderPenalty(view);
   debug.render(room);
 }
 
@@ -758,6 +799,27 @@ function renderCheatAlert(view) {
   document.body.append(el);
   sound.play('wrong');
   setTimeout(() => el.remove(), 7000);
+}
+
+/** ⚖️ Penalización por trampas (desde el mando): aviso grande unos segundos. */
+let lastPenalty = null;
+function renderPenalty(view) {
+  const p = view.lastPenalty;
+  if (lastPenalty === null) {
+    lastPenalty = p?.id ?? 0; // al cargar, la de antes no se repite
+    return;
+  }
+  if (!p || p.id <= lastPenalty) return;
+  lastPenalty = p.id;
+  const el = h(
+    'div',
+    { class: 'cheat-alert penalty', role: 'alert', style: { '--pc': getColor(p.color).bg } },
+    h('span', { class: 'emoji' }, '⚖️'),
+    h('div', {}, h('strong', {}, `¡Trampa! −${p.points} ${p.points === 1 ? 'punto' : 'puntos'}`), h('small', {}, `para ${p.name}`)),
+  );
+  document.body.append(el);
+  sound.play('wrong');
+  setTimeout(() => el.remove(), 5000);
 }
 
 /** Un móvil pide ser el mando: se confirma aquí (Enter) o se rechaza (Esc). */

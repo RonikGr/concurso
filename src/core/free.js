@@ -48,9 +48,9 @@ export class FreeRound {
     return true;
   }
 
-  /** ¿Tiene «¡Empezar!»? (sin herramienta, solo si hay canción) */
+  /** ¿Tiene «¡Empezar!»? Todas: sin herramienta, la tele enseña un reloj (y suena la canción si la hay). */
   get startable() {
-    return this.tool !== TOOL.NONE || !!this.item.song;
+    return true;
   }
 
   start(now) {
@@ -164,10 +164,12 @@ export class FreeRound {
     return true;
   }
 
-  /** ¿Puede contar este móvil por este participante? Sin equipos, cada uno lo suyo; con equipos, el elegido. */
-  canCount(playerId, participantId) {
-    if (this.tool !== TOOL.COUNTER || !this.participants.includes(participantId)) return false;
-    return this.byTeams ? this.counters[participantId] === playerId : participantId === playerId;
+  /**
+   * ¿Puede contar este móvil por este participante? Ya no: cuentan los presentadores desde el mando (los
+   * concursantes se sumaban de más). Se deja la orden para que un móvil viejo reciba «not-counter».
+   */
+  canCount() {
+    return false;
   }
 
   /**
