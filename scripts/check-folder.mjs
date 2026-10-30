@@ -28,7 +28,7 @@ const opts = (sections) => ({ slots: [...MUSIC_SLOTS, ...EFFECT_SLOTS], sectionS
 let found = classifyFolder(entries, opts([]));
 let sections = [];
 if (found.sheet) {
-  sections = parseShowWorkbook(await readXlsxFile(readFileSync(found.sheet.full))).show.sections.map((s) => s.name);
+  sections = parseShowWorkbook(await readXlsxFile(readFileSync(found.sheet.full))).show.sections.map((s) => ({ name: s.name, items: s.items.map((it) => it.title).filter(Boolean) }));
   found = classifyFolder(entries, opts(sections)); // ya con las secciones (para su música)
 }
 console.log(`Hoja: ${found.sheet?.path.join('/') ?? '(ninguna)'} · ${sections.length} secciones`);

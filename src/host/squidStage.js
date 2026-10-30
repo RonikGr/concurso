@@ -41,7 +41,7 @@ export function createSquidStage() {
   const root = h('section', { class: 'squid-stage' });
   let timers = [];
   let ticks = [];
-  let loops = []; // sonidos que duran (respiración, viento…): {stop()}
+  let loops = []; // sonidos que duran (respiración, latidos…): {stop()}
   let raf = 0;
   let key = null; // escena montada: si no cambia, solo se actualiza lo que se mueve
   let update = null; // (vista) → actualizar en su sitio
@@ -843,7 +843,6 @@ export function createSquidStage() {
       setCam(camState);
       raf = requestAnimationFrame(frame);
     }
-    loops.push(sound.sq('wind'));
     return h('div', { class: `sq-scene sq-bridge ${jump ? 'jumping' : ''}` }, h('div', { class: 'sq-abyss' }), cam, floor, vignette, hudTop, stampEl, queue, black, countdown(g.tOpen));
   }
 

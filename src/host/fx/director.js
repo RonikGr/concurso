@@ -10,6 +10,7 @@ import { APHASE, isChoice } from '../../core/answers.js';
 import { FPHASE } from '../../core/free.js';
 import { millionaireCue } from '../../core/millionaireMusic.js';
 import { songFor, songToPrepare } from '../../core/songs.js';
+import { itemSongKey } from '../../core/folder.js';
 import { getCues } from './cueSettings.js';
 
 /** Entorno de una vista: el de la sección en juego; preparación, portada y final, la noche de luna. */
@@ -156,9 +157,11 @@ export function createDirector({ backdrop }) {
         getCues(),
       ),
     );
-    // Canciones de las pruebas (carpeta «Canciones»)
-    sound.prepareSong(songToPrepare(view));
-    sound.setSong(songFor(view));
+    // Canciones de las pruebas (carpeta «Canciones», o la de la carpeta del juego: «Música/Fit o Fat/Flexiones»)
+    const itemKey = view.free && view.section && view.item?.title ? itemSongKey(view.section.name, view.item.title) : null;
+    const songOpts = { itemTrack: itemKey && sound.hasSong(itemKey) ? itemKey : null };
+    sound.prepareSong(songToPrepare(view, songOpts));
+    sound.setSong(songFor(view, songOpts));
     const own = sound.cueActive; // las canciones ya traen sus golpes
 
     if (!p) return;

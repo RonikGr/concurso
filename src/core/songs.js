@@ -12,12 +12,14 @@ import { songKey } from './folder.js';
  *    al no acertar nadie o al enseñar la respuesta, sigue sonando.
  *  - Libre con canción (marcar el golpe): suena desde «¡Empezar!» hasta el final; si la fila tiene golpe, calla antes
  *    y vuelve en el golpe, y acaba 4 s después.
+ * `itemTrack`: la canción de la carpeta del juego (`Música/<Sección>/<Juego>/`, la tele sabe si la tiene); vale si la
+ * fila no nombra otra.
  */
-export function songFor(view) {
+export function songFor(view, { itemTrack = null } = {}) {
   if (view.screen !== SCREEN.PLAY || view.peekScoreboard || view.paused) return null;
   const f = view.free;
-  if (f?.song) {
-    const track = songKey(f.song);
+  if (f?.song || (f && itemTrack)) {
+    const track = f.song ? songKey(f.song) : itemTrack;
     if (f.phase === FPHASE.SETUP) return null; // aún no: suena la música de siempre
     return {
       key: f.roundId,
@@ -46,8 +48,8 @@ export function songFor(view) {
 }
 
 /** La canción de la pregunta en pantalla (para descodificarla antes de que haga falta), o null. */
-export function songToPrepare(view) {
+export function songToPrepare(view, { itemTrack = null } = {}) {
   if (view.screen !== SCREEN.PLAY) return null;
   const name = view.free?.song ?? (view.game ? view.item?.song : null);
-  return name ? songKey(name) : null;
+  return name ? songKey(name) : view.free ? itemTrack : null;
 }

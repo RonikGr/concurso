@@ -13,25 +13,27 @@ import { bell, brush, hat, held, mtof, organ, pizz, pluck, recorder, snare, thum
 
 /** Tonalidad y ambiente de cada entorno. */
 export const MOODS = {
-  luna: { root: 45, scale: [0, 2, 3, 5, 7, 8, 10], tempo: 1, wave: 'sawtooth', cutoff: 700, amb: ['wind'] },
-  cementerio: { root: 38, scale: [0, 1, 3, 5, 7, 8, 10], tempo: 0.9, wave: 'sawtooth', cutoff: 520, amb: ['wind', 'owl'] },
-  bosque: { root: 40, scale: [0, 2, 3, 5, 7, 9, 10], tempo: 0.95, wave: 'triangle', cutoff: 900, amb: ['wind', 'owl'] },
+  luna: { root: 45, scale: [0, 2, 3, 5, 7, 8, 10], tempo: 1, wave: 'sawtooth', cutoff: 700, amb: [] },
+  cementerio: { root: 38, scale: [0, 1, 3, 5, 7, 8, 10], tempo: 0.9, wave: 'sawtooth', cutoff: 520, amb: ['owl'] },
+  bosque: { root: 40, scale: [0, 2, 3, 5, 7, 9, 10], tempo: 0.95, wave: 'triangle', cutoff: 900, amb: ['owl'] },
   calabazas: { root: 43, scale: [0, 2, 3, 5, 7, 8, 11], tempo: 1.15, wave: 'sawtooth', cutoff: 800, amb: ['fire'] },
   laboratorio: { root: 36, scale: [0, 2, 4, 6, 8, 10], tempo: 1.05, wave: 'square', cutoff: 600, amb: ['bubbles'] },
   mansion: { root: 35, scale: [0, 2, 3, 5, 7, 8, 11], tempo: 0.9, wave: 'square', cutoff: 650, amb: [] },
-  telarana: { root: 42, scale: [0, 1, 3, 6, 7, 9], tempo: 1, wave: 'triangle', cutoff: 750, amb: ['wind'] },
+  telarana: { root: 42, scale: [0, 1, 3, 6, 7, 9], tempo: 1, wave: 'triangle', cutoff: 750, amb: [] },
   aquelarre: { root: 38, scale: [0, 1, 4, 5, 7, 8, 10], tempo: 1.2, wave: 'sawtooth', cutoff: 900, amb: ['fire'], drums: true },
-  cripta: { root: 37, scale: [0, 2, 3, 5, 7, 8, 10], tempo: 0.85, wave: 'sine', cutoff: 1200, amb: ['wind'] },
+  cripta: { root: 37, scale: [0, 2, 3, 5, 7, 8, 10], tempo: 0.85, wave: 'sine', cutoff: 1200, amb: [] },
   millonario: { root: 40, scale: [0, 2, 3, 5, 7, 8, 10], tempo: 1, wave: 'sawtooth', cutoff: 1100, amb: [] },
-  tormenta: { root: 33, scale: [0, 1, 3, 5, 7, 8, 10], tempo: 0.9, wave: 'sawtooth', cutoff: 480, amb: ['wind'] }, // sin lluvia (molestaba)
+  tormenta: { root: 33, scale: [0, 1, 3, 5, 7, 8, 10], tempo: 0.9, wave: 'sawtooth', cutoff: 480, amb: [] }, // sin lluvia ni viento (molestaban)
   // Discoteca (twerking): rápida, con batería y pentatónica menor (si la sección no trae su canción)
   discoteca: { root: 41, scale: [0, 3, 5, 7, 10], tempo: 1.3, wave: 'square', cutoff: 1600, amb: [], drums: true },
-  // Luna llena (el pañuelo: lobos contra vampiros): épica, con tambores, viento y búhos
+  // Luna llena (el pañuelo: lobos contra vampiros): épica, con tambores y búhos
   // Temáticas: verano (pentatónica mayor, alegre), galletas (caja de música tranquila), refrescos (burbujeante)
   verano: { root: 45, scale: [0, 2, 4, 7, 9], tempo: 1.15, wave: 'triangle', cutoff: 1500, amb: [], drums: true },
   chocolate: { root: 43, scale: [0, 2, 4, 5, 7, 9, 11], tempo: 0.95, wave: 'sine', cutoff: 1200, amb: ['fire'] },
   refrescos: { root: 48, scale: [0, 2, 4, 7, 9], tempo: 1.2, wave: 'square', cutoff: 1400, amb: ['bubbles'], drums: true },
-  lunallena: { root: 38, scale: [0, 2, 3, 5, 7, 8, 10], tempo: 1.15, wave: 'sawtooth', cutoff: 850, amb: ['wind', 'owl'], drums: true },
+  // Gimnasio (Fit o Fat): rápida y con batería, para entrenar
+  gimnasio: { root: 40, scale: [0, 3, 5, 7, 10], tempo: 1.35, wave: 'sawtooth', cutoff: 1500, amb: [], drums: true },
+  lunallena: { root: 38, scale: [0, 2, 3, 5, 7, 8, 10], tempo: 1.15, wave: 'sawtooth', cutoff: 850, amb: ['owl'], drums: true },
   // Squid Games: su propia música (en vez de la de Halloween) para cada momento
   squid: {
     root: 50,

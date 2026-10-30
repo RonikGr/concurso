@@ -255,6 +255,57 @@ float stage(vec2 p, float aspect, out vec3 emit) {
   return isFloor * 0.85;
 }
 
+// Gimnasio (Fit o Fat): suelo de caucho, y en fila racks con la barra cargada, mancuerneros y bancos; neones en la
+// pared que laten como al ritmo de la música.
+float gym(vec2 p, out vec3 emit) {
+  emit = vec3(0.0);
+  float t = uTime;
+  float floorY = -0.3;
+  float m = step(p.y, floorY);
+  // líneas del suelo (losetas de caucho) con el reflejo de los neones
+  emit += m * uGlow * 0.06 * smoothstep(0.004, 0.0, abs(fract(p.x * 4.0 + p.y * 1.5) - 0.5) - 0.48);
+  // neones que laten: una tira arriba del todo y un zócalo de luz a ras de suelo (lejos de los textos)
+  float wall = 1.0 - m;
+  float beat = 0.75 + 0.25 * pow(0.5 + 0.5 * sin(t * 6.0), 4.0);
+  emit += wall * uGlow * (smoothstep(0.005, 0.0, abs(p.y - 0.465)) * 0.8 + 0.1 * exp(-abs(p.y - 0.465) * 18.0)) * beat;
+  emit += wall * uFog * (smoothstep(0.005, 0.0, abs(p.y - floorY - 0.008)) * 0.8 + 0.18 * exp(-(p.y - floorY) * 22.0)) * beat;
+  float w = 0.9;
+  float cx = floor((p.x + 10.0) / w);
+  vec2 q = vec2(mod(p.x + 10.0, w) - w * 0.5, p.y - floorY);
+  float kind = mod(cx, 3.0);
+  float d = 1.0;
+  if (kind < 0.5) {
+    // rack: dos postes, travesaño y la barra con discos
+    d = min(sdBox(vec2(abs(q.x) - 0.17, q.y - 0.21), vec2(0.012, 0.21)), sdBox(q - vec2(0.0, 0.41), vec2(0.18, 0.01)));
+    d = min(d, sdBox(q - vec2(0.0, 0.27), vec2(0.33, 0.006)));
+    d = min(d, sdBox(vec2(abs(q.x) - 0.25, q.y - 0.27), vec2(0.016, 0.075)));
+    d = min(d, sdBox(vec2(abs(q.x) - 0.215, q.y - 0.27), vec2(0.011, 0.055)));
+    d = min(d, sdBox(vec2(abs(q.x) - 0.17, q.y - 0.005), vec2(0.06, 0.005))); // pies
+  } else if (kind < 1.5) {
+    // mancuernero: dos baldas con mancuernas
+    d = min(sdBox(vec2(abs(q.x) - 0.24, q.y - 0.09), vec2(0.01, 0.09)), sdBox(q - vec2(0.0, 0.07), vec2(0.25, 0.006)));
+    d = min(d, sdBox(q - vec2(0.0, 0.16), vec2(0.25, 0.006)));
+    for (int s = 0; s < 2; s++) {
+      float y = s == 0 ? 0.094 : 0.184;
+      float r = s == 0 ? 0.019 : 0.015;
+      float dx = mod(q.x + 0.25, 0.1) - 0.05;
+      vec2 c = vec2(dx, q.y - y);
+      float db = min(length(vec2(abs(c.x) - 0.022, c.y)) - r, sdBox(c, vec2(0.022, 0.004)));
+      d = min(d, max(db, abs(q.x) - 0.23));
+    }
+  } else {
+    // banco plano con la barra en sus soportes y unas pesas rusas al lado
+    d = min(sdBox(q - vec2(0.0, 0.085), vec2(0.17, 0.016)), sdBox(vec2(abs(q.x) - 0.13, q.y - 0.04), vec2(0.008, 0.04)));
+    d = min(d, sdBox(vec2(q.x + 0.15, q.y - 0.12), vec2(0.008, 0.12)));
+    d = min(d, sdBox(q - vec2(-0.15, 0.24), vec2(0.27, 0.005)));
+    d = min(d, sdBox(vec2(q.x + 0.15, q.y - 0.24) - vec2(sign(q.x + 0.15) * 0.21, 0.0), vec2(0.014, 0.065)));
+    vec2 k = q - vec2(0.3, 0.035);
+    d = min(d, min(length(k) - 0.035, length(vec2(k.x, k.y - 0.045)) - 0.022));
+  }
+  m = max(m, step(d, 0.0));
+  return m;
+}
+
 // Tormenta: un árbol seco solitario en lo alto de una loma.
 float loneTree(vec2 p, float aspect) {
   float m = max(hills(p), step(length((p - vec2(aspect * 0.22, -0.62)) * vec2(0.6, 1.0)), 0.35));
@@ -351,7 +402,7 @@ void main() {
   vec3 col = mix(uBot, uTop, smoothstep(-0.1, 1.0, uv.y));
   vec2 sg = floor(gl_FragCoord.xy / 2.5);
   float star = step(0.9965, hash(sg)) * (0.55 + 0.45 * sin(t * 2.0 + hash(sg + 7.0) * 30.0)) * smoothstep(0.35, 1.0, uv.y);
-  col += star * 0.7 * (1.0 - uFogAmt * 0.6);
+  col += star * 0.7 * (1.0 - uFogAmt * 0.6) * (uSil == 12.0 ? 0.0 : 1.0); // (el gimnasio es cerrado: sin estrellas)
 
   // nubes / niebla alta
   float clouds = fbm(vec2(p.x * 1.2 + t * 0.015, p.y * 2.5 - t * 0.008) + 3.0);
@@ -405,6 +456,7 @@ void main() {
   if (uSil == 9.0) sil = cauldron(p, emit);
   if (uSil == 10.0) sil = loneTree(p, aspect);
   if (uSil == 11.0) sil = stage(p, aspect, emit);
+  if (uSil == 12.0) sil = gym(p, emit);
   col = mix(col, silCol, sil);
 
   // niebla baja que se arrastra (menos sobre las siluetas, para que se sigan viendo)

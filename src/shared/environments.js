@@ -296,6 +296,24 @@ export const ENVIRONMENTS = [
     horizon: 0.45,
     decor: ['🥤', '🍾', '🧃', '🫧', '🥤', '🍋', '🧊', '🍾'],
   },
+  {
+    // Fit o Fat: gimnasio de noche, racks con barras, mancuernas y neones; magnesio en el aire
+    id: 'gimnasio',
+    name: 'Gimnasio',
+    top: rgb('#1b2233'),
+    bot: rgb('#06070b'),
+    fog: rgb('#ff4a2e'),
+    glow: rgb('#ffd23f'),
+    part: rgb('#8f97ab'),
+    fogAmt: 0.2,
+    moon: 0,
+    sil: 12,
+    particles: 6,
+    bats: 0,
+    lightning: 0,
+    horizon: 0.35,
+    decor: ['💪', '🏋️', '🔥', '⏱️', '💪', '🏆', '🥵', '🏋️'],
+  },
 ];
 
 /** Discoteca: con sus focos en la tele (y su música con batería). */
@@ -314,7 +332,7 @@ export const TEST_ENV = 'millonario';
 export const SQUID_ENV = 'squid';
 
 /** Entornos que se reparten entre las secciones (en este orden). */
-// (los de temática —discoteca, luna llena, verano, galletas, refrescos— solo si la hoja los elige)
+// (los de temática —discoteca, luna llena, verano, galletas, refrescos, gimnasio— solo si la hoja los elige)
 const SECTION_ENVS = ENVIRONMENTS.filter((e) => ![HOME_ENV, TEST_ENV, SQUID_ENV, DISCO_ENV, HANKY_ENV].includes(e.id) && !e.decor);
 
 const byId = new Map(ENVIRONMENTS.map((e) => [e.id, e]));

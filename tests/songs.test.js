@@ -31,4 +31,16 @@ describe('canciones de las pruebas', () => {
     expect(songFor(free('running'))).toEqual({ key: '9:0#1', track: 'bachata1', from: 30, playing: true, startAt: 100, silence: [49.5, 52.5], until: 56.5, fadeIn: 0 });
     expect(songFor(free('stopped')).playing).toBe(false);
   });
+
+  it('libre con la canción de la carpeta del juego: suena desde el «¡ya!» si la fila no nombra otra', () => {
+    const free = (phase, song = null) => ({ screen: 'play', free: { roundId: '17:1#1', phase, song, songStart: 0, beat: null, silence: 0, tStart: 200, tool: 'counter' } });
+    const itemTrack = 'juego-fitofat-flexiones';
+    expect(songToPrepare(free('setup'), { itemTrack })).toBe(itemTrack);
+    expect(songFor(free('setup'), { itemTrack })).toBeNull();
+    expect(songFor(free('running'), { itemTrack })).toEqual({ key: '17:1#1', track: itemTrack, from: 0, playing: true, startAt: 200, silence: null, until: null, fadeIn: 0 });
+    expect(songFor(free('stopped'), { itemTrack }).playing).toBe(false);
+    expect(songFor(free('running'))).toBeNull(); // sin carpeta: la música de siempre
+    expect(songFor(free('running', 'bachata 1'), { itemTrack }).track).toBe('bachata1'); // manda la columna «Canción»
+    expect(songToPrepare({ screen: 'play', game: { phase: 'idle' }, item: {} }, { itemTrack })).toBeNull(); // solo en Libre
+  });
 });

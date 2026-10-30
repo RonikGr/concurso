@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classifyFolder, folderKey, sectionWideSlot, songKey, squidSoundFor } from '../src/core/folder.js';
+import { classifyFolder, folderKey, itemSongKey, sectionWideSlot, songKey, squidSoundFor } from '../src/core/folder.js';
 
 const slots = [
   { id: 'lobby', label: 'Preparación' },
@@ -66,6 +66,17 @@ describe('carpeta del concurso', () => {
     ];
     const r = classifyFolder([e('Música/La galleta/En marcha/a.mp3'), e('Música/La galleta/Ganador/b.mp3'), e('Música/En marcha/c.mp3')], { slots, sectionSlots: ['tension', 'reveal'], sections: ['La galleta'] });
     expect(r.music.map((m) => m.slot)).toEqual(['La galleta|tension', 'La galleta|reveal', 'tension']);
+  });
+
+  it('cada juego de una sección puede tener su carpeta con su canción (una)', () => {
+    const e = (path) => ({ path: path.split('/'), lastModified: 1 });
+    const r = classifyFolder(
+      [e('Música/Fit o Fat/Flexiones/sally.m4a'), e('Música/Fit o Fat/Flexiones/otra.mp3'), e('Música/Fit o Fat/Plancha/flower.mp3'), e('Música/Fit o Fat/En marcha/a.mp3'), e('Música/Fit o Fat/Nadie/b.mp3')],
+      { slots: [{ id: 'tension', label: 'Pregunta abierta', aliases: ['En marcha'] }], sectionSlots: ['tension'], sections: [{ name: 'Fit o Fat', items: ['Plancha', 'Flexiones'] }] },
+    );
+    expect(r.music.map((m) => m.slot)).toEqual([`song:${itemSongKey('Fit o Fat', 'Flexiones')}`, `song:${itemSongKey('Fit o Fat', 'Plancha')}`, 'Fit o Fat|tension']);
+    expect(itemSongKey('Fit o Fat', 'Flexiones')).toBe('juego-fitofat-flexiones');
+    expect(r.ignored).toEqual(['Música/Fit o Fat/Flexiones/otra.mp3', 'Música/Fit o Fat/Nadie/b.mp3']);
   });
 
   it('vídeos de una sección: por el nombre del archivo o de su subcarpeta', () => {

@@ -15,6 +15,7 @@ servidor de enlace público (`0.peerjs.com`). **El presentador es la autoridad**
   Un test comprueba que la plantilla se lee sin errores ni avisos: si se cambian columnas, cambiar a la vez `src/core/show.js`.
 
 En este Windows, Node y Git se instalaron con winget; si una terminal antigua no los encuentra, refrescar `PATH`.
+En el segundo ordenador no había Node: `winget install --id OpenJS.NodeJS.LTS --exact` (queda en `C:\Program Files\nodejs`).
 Ojo con PowerShell 5.1: `Get-Content`/`Set-Content` sin `-Encoding` rompen los acentos (leen ANSI, escriben BOM). Editar con las herramientas de archivo.
 `npm run dev:http` (puerto 5174, sin certificado) sirve para probar en el navegador del portátil.
 
@@ -466,7 +467,9 @@ con vibración). Mando: `hankyPanel` (chips por equipo para elegir en secreto, `
   de golpe, `HOLD_SHARE` 0,6, gracia 380 ms). Panal: `MAX_SPEED` 0,4 y el lienzo se borra entero en cada dibujo (la
   aguja dejaba rastro fuera de la galleta).
 - **Temáticas** (entornos con `decor`, solo si la hoja los elige): Verano (Watermelon Sugar), Galletas (la galleta),
-  Refrescos (botellas en orden, que ahora es por jugadores); `syncDecor` (host/main.js) hace subir lo suyo por detrás.
+  Refrescos (botellas en orden, que ahora es por jugadores), Gimnasio (Fit o Fat: silueta 12 `gym()` en backdrop.js,
+  racks, mancuernero, banco y pesa rusa, zócalo de neón que late, sin estrellas, magnesio en el aire; mood con batería);
+  `syncDecor` (host/main.js) hace subir lo suyo por detrás.
   Discoteca: el vídeo se mezcla en `.section-videos` (en el vídeo no servía: su capa es su propio contexto) y la bola
   va a un lado. Presentación de equipos sin «pulsa cualquier tecla».
 - **Música por sección:** `Música/<Sección>/x.mp3` suelto → `sectionWideSlot` (`Sección|all`): suena en todos sus
@@ -474,6 +477,11 @@ con vibración). Mando: `hankyPanel` (chips por equipo para elegir en secreto, `
   aceptan otros nombres (`aliases` en `MUSIC_SLOTS`, `slotOf` en folder.js): «En marcha»/«Carrera» = Pregunta abierta,
   «Preparando» = Jugando, «Parada»/«Esperando» = Suspense, «Ganador» = Revelado; la carpeta del presentador tiene ya
   creadas las de cada sección según su tipo (ver su LÉEME).
+- **Canción por juego:** `Música/<Sección>/<Juego>/x.mp3` (el título de la fila de Libre; si no es un momento) →
+  `song:` + `itemSongKey(sección, juego)` (una por juego). `classifyFolder` recibe `sections` como `{name, items}`
+  (main.js y check-folder pasan los títulos). El realizador la da a `songFor(view, {itemTrack})` si la tele la tiene
+  (`sound.hasSong`): suena como la columna «Canción» (desde el «¡ya!», `tStart`; se para al parar), y la columna manda.
+  Fit o Fat tiene ya sus carpetas (Plancha, Flexiones, Sentadillas…).
 
 ### Pruebas con canción y contrarreloj (fase 11)
 
@@ -540,16 +548,22 @@ con vibración). Mando: `hankyPanel` (chips por equipo para elegir en secreto, `
   (preparación, swing), organ (portada e intros), explore (jugando: colchón y caja de música del entorno), tension
   (pregunta abierta: ostinato que sube y latido), suspense (esperando veredicto: timbales y acorde disonante), reveal
   (revelado: resolución en mayor), march (marcador) y waltz (final). El realizador elige el estilo (`musicScene`); la
-  tonalidad, escala y ambiente (viento, lluvia, fuego, burbujas, búhos) son del entorno. Las melodías son motivos que se
+  tonalidad, escala y ambiente (fuego, burbujas, búhos; sin viento ni lluvia: molestaban, tampoco en el puente de
+  Squid) son del entorno. Las melodías son motivos que se
   repiten y cambian cada 8 compases.
 - **Tus canciones** (`fx/tracks.js`, ventana `musicDialog.js`): huecos con nombre y «dónde suena» para cada momento,
   generales (mismas claves que los estilos) y por sección (`Nombre de la sección|momento`: presentación, jugando,
   pregunta abierta, suspense, revelado, marcador). Se arrastra el .mp3 encima del hueco o «Examinar…». Manda el de la
-  sección, luego el general, luego la música generada (`setScene(scene, sección, nº de pregunta)`). Ordenadas por nombre.
+  sección, luego el general, luego **sigue la canción que sonaba** (`#keepable`: la actual o la última larga que calló
+  por una prueba con canción o un efecto; no en `hush` ni con entornos de música propia, como Squid), y si no hay
+  ninguna, la música generada (`setScene(scene, sección, nº de pregunta)`). El mismo archivo en varios momentos sigue
+  sin empezar de nuevo (`#sameSong`: compara por nombre). Ordenadas por nombre.
   **Escalera** (`LADDER_SCENES`): en una sección, «Jugando», «Pregunta abierta» y «Suspense» con varias canciones ponen la
   1ª en la 1ª pregunta, la 2ª en la 2ª… (la última sigue). **Efectos con canción** (`EFFECT_SLOTS`, `SFX_SLOT`): respuesta
-  definitiva (al cerrar), acierto, fallo y cada comodín (la tele detecta su uso con `jokersUsed`) suenan una vez en vez
-  del efecto generado, con la música bajada mientras. Se guardan en IndexedDB del portátil
+  definitiva (al cerrar), acierto, fallo, redoble (`sfx:drumroll`, carpeta `Música/Redoble/`) y cada comodín (la tele
+  detecta su uso con `jokersUsed`) suenan una vez en vez del efecto generado, con la música bajada mientras. El redoble
+  acaba a los 2,6 s (`SFX_ENDS_AT`): un archivo más largo empieza por el final, para que su golpe caiga con el del
+  revelado. Se guardan en IndexedDB del portátil
   (no en el repositorio, que es público). Un hueco con varias las alterna (al volver antes de 3 min, sigue donde iba).
 - **Canciones del millonario** (`core/millionaireMusic.js`, huecos `mill:<canción>` en tracks.js, uno por hueco):
   tema, explicación, fácil, media, difícil, público y llamada. `MILLIONAIRE_CUES` = puntos sacados de analizar los

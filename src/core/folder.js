@@ -8,6 +8,8 @@
 //     Música/<Momento>/…mp3             canciones para todo el concurso («Música/Marcador/…»)
 //     Música/<Sección>/<Momento>/…mp3   solo para una sección (su nombre en la hoja)
 //     Música/<Sección>/…mp3             suelta: suena en toda la sección (salvo en los momentos que tengan la suya)
+//     Música/<Sección>/<Juego>/…mp3     la de un juego de una prueba Libre («Fit o Fat/Flexiones»): suena desde el
+//                                       «¡ya!» hasta que se para, como la columna «Canción» (una por juego)
 //     Canciones/…mp3    las de las pruebas (también en subcarpetas: «Adivina la canción», «Marcar el golpe»);
 //                       la hoja las nombra por su archivo
 //     Squid/…mp3        sonidos de Squid Games, reconocidos por el nombre (latido, respiración, cristal…: ver
@@ -50,6 +52,12 @@ export function squidSoundFor(name) {
 /** Hueco de la canción de toda una sección (`Música/<Sección>/cancion.mp3`): suena en todos sus momentos. */
 export const sectionWideSlot = (section) => `${section}|all`;
 
+/**
+ * Clave de la canción de un juego (`Música/<Sección>/<Juego>/`): va con las de las pruebas («song:…») y suena como
+ * la columna «Canción» de ese juego.
+ */
+export const itemSongKey = (section, title) => `juego-${folderKey(section)}-${folderKey(title)}`;
+
 /** Para comparar nombres de carpeta: sin tildes, mayúsculas, espacios ni signos. */
 export const folderKey = (s) =>
   String(s)
@@ -70,7 +78,8 @@ const JUNK = /^(\.|~\$|desktop\.ini$|thumbs\.db$)/i;
  * @param entries [{path: ['Millonario', 'x.mp3'], lastModified}] (rutas dentro de la carpeta, sin ella)
  * @param slots huecos de la ventana de música [{id, label}] (generales y efectos)
  * @param sectionSlots ids de los huecos que puede tener una sección
- * @param sections nombres de las secciones del concurso cargado
+ * @param sections secciones del concurso cargado: nombres, o {name, items: [nombre de cada juego]} (para las carpetas
+ *   de cada juego)
  * @returns {sheet, millionaire: {track: entry}, faces: [entry], music: [{slot, entry}], songs: [entry], squid: {kind: entry},
  *   videos: [{key, entry}] (key = folderKey de la sección), ignored: [ruta]}
  */
@@ -78,7 +87,9 @@ export function classifyFolder(entries, { slots = [], sectionSlots = [], section
   const out = { sheet: null, millionaire: {}, faces: [], music: [], songs: [], squid: {}, videos: [], ignored: [] };
   // (por su nombre en la ventana de música, su clave u otros nombres que se entienden mejor en algunos juegos)
   const slotOf = (name) => slots.find((s) => [s.label, s.id, ...(s.aliases ?? [])].some((n) => folderKey(n) === folderKey(name)));
-  const sectionOf = (name) => sections.find((s) => folderKey(s) === folderKey(name));
+  const secs = sections.map((s) => (typeof s === 'string' ? { name: s, items: [] } : { name: s.name, items: s.items ?? [] }));
+  const sectionOf = (name) => secs.find((s) => folderKey(s.name) === folderKey(name))?.name;
+  const itemOf = (section, name) => secs.find((s) => s.name === section)?.items.find((t) => folderKey(t) === folderKey(name));
   for (const e of entries) {
     const name = e.path.at(-1);
     if (e.path.some((p) => JUNK.test(p))) continue;
@@ -129,9 +140,17 @@ export function classifyFolder(entries, { slots = [], sectionSlots = [], section
       } else if (rest.length === 3) {
         const section = sectionOf(rest[0]);
         const slot = slotOf(rest[1]);
+        const item = section && !slot ? itemOf(section, rest[1]) : null;
         if (section && slot && sectionSlots.includes(slot.id)) {
           out.music.push({ slot: `${section}|${slot.id}`, entry: e });
           used = true;
+        } else if (item) {
+          // la de un juego: una sola (si hay más, sobran)
+          const songSlot = `song:${itemSongKey(section, item)}`;
+          if (!out.music.some((m) => m.slot === songSlot)) {
+            out.music.push({ slot: songSlot, entry: e });
+            used = true;
+          }
         }
       }
     }

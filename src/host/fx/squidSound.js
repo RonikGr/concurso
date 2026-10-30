@@ -278,35 +278,6 @@ export function hold(s, t) {
   [62, 66, 69, 74].forEach((m, i) => bell(s, s.sfxBus, mtof(m), t + i * 0.05, { gain: 0.07, decay: 1.6 }));
 }
 
-/** Viento en lo alto (puente), hasta stop(). */
-export function wind(s, t) {
-  const c = s.ctx;
-  const src = c.createBufferSource();
-  src.buffer = s.noise();
-  src.loop = true;
-  const f = c.createBiquadFilter();
-  f.type = 'bandpass';
-  f.frequency.value = 420;
-  f.Q.value = 2.5;
-  const lfo = c.createOscillator();
-  lfo.frequency.value = 0.08;
-  const lg = c.createGain();
-  lg.gain.value = 220;
-  lfo.connect(lg).connect(f.frequency);
-  const g = c.createGain();
-  g.gain.setValueAtTime(0, t);
-  g.gain.setTargetAtTime(0.06, t, 1);
-  src.connect(f).connect(g).connect(s.sfxBus);
-  for (const n of [src, lfo]) n.start(t);
-  return {
-    stop() {
-      const now = c.currentTime;
-      g.gain.setTargetAtTime(0, now, 0.4);
-      for (const n of [src, lfo]) n.stop(now + 2);
-    },
-  };
-}
-
 // ------------------------------------------------------------------ cuerda, canicas y hucha
 
 /** Tambor grave (taiko) de la cuerda. */
@@ -338,4 +309,4 @@ export function coins(s, t, { dur = 1.5, gain = 0.8 } = {}) {
   for (let k = 0; k < dur * 14; k++) bell(s, s.sfxBus, 2000 + Math.random() * 2500, t + Math.random() * dur, { gain: 0.025, decay: 0.3 });
 }
 
-export const SQUID_SFX = { chant, headTurn, scan, pa, eliminated, stamp, breathLoop, inhale, exhale, jump, land, heartbeats, crack, shatter, fall, hold, wind, drum, ropeSnap, marbles, coins };
+export const SQUID_SFX = { chant, headTurn, scan, pa, eliminated, stamp, breathLoop, inhale, exhale, jump, land, heartbeats, crack, shatter, fall, hold, drum, ropeSnap, marbles, coins };

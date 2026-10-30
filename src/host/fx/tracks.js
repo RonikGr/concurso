@@ -41,13 +41,18 @@ export const EFFECT_SLOTS = [
   { id: 'sfx:lock', label: 'Respuesta definitiva', help: 'Suena una vez al cerrar la pregunta (como «¿es su respuesta definitiva?»)' },
   { id: 'sfx:correct', label: 'Acierto', help: 'Suena una vez al iluminar la respuesta buena o al marcar un acierto' },
   { id: 'sfx:wrong', label: 'Fallo', help: 'Suena una vez si nadie acierta o al marcar un fallo' },
+  // (si dura más que el de la app, empieza más tarde: así su golpe final cae con el del revelado)
+  { id: 'sfx:drumroll', label: 'Redoble', aliases: ['Drumroll', 'Drum roll'], help: 'Suena antes de cada revelado con suspense, en vez del redoble generado' },
   { id: 'sfx:fifty', label: 'Comodín 50 %', help: 'Suena una vez cuando alguien usa el 50 %' },
   { id: 'sfx:audience', label: 'Comodín del público', help: 'Suena una vez cuando alguien usa el público' },
   { id: 'sfx:call', label: 'Comodín de la llamada', help: 'Suena una vez cuando alguien usa la llamada' },
 ];
 
 /** Efecto generado → su hueco de canción (audio.js). */
-export const SFX_SLOT = { bell: 'sfx:lock', correct: 'sfx:correct', wrong: 'sfx:wrong', fifty: 'sfx:fifty', audience: 'sfx:audience', call: 'sfx:call' };
+export const SFX_SLOT = { bell: 'sfx:lock', correct: 'sfx:correct', wrong: 'sfx:wrong', drumroll: 'sfx:drumroll', fifty: 'sfx:fifty', audience: 'sfx:audience', call: 'sfx:call' };
+
+/** Efectos que tienen que acabar a su hora (s desde que empiezan): un archivo más largo empieza por el final. */
+export const SFX_ENDS_AT = { drumroll: 2.6 };
 
 /**
  * Escalera (como el millonario): en una sección, si «Jugando», «Pregunta abierta» o «Suspense» tienen varias canciones,

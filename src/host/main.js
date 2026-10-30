@@ -143,7 +143,7 @@ async function loadFolder(again) {
     if (canRemember) folder.handle = await savedFolder();
     folder.report = {
       name: picked.name,
-      ...(await importFolder(picked, { trackStore, faceStore, importSheet: importFile, sections: () => room.view().sections.map((s) => s.name) })),
+      ...(await importFolder(picked, { trackStore, faceStore, importSheet: importFile, sections: () => room.show.sections.map((s) => ({ name: s.name, items: s.items.map((it) => it.title).filter(Boolean) })) })),
     };
   } catch (e) {
     console.error(e);

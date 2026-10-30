@@ -1,11 +1,11 @@
 // Sonido del espectáculo, generado al momento con Web Audio (sin archivos: nada que descargar ni licencias).
 //  - Música (music.js): 7 estilos según el momento (preparación, portada, juego, tensión, revelado, marcador, final),
-//    en la tonalidad y con el ambiente (viento, lluvia, fuego, burbujas, búhos) del entorno de la sección.
+//    en la tonalidad y con el ambiente (fuego, burbujas, búhos) del entorno de la sección.
 //  - Efectos: entrada de pantalla, gong, ¡pulsad!, pulsación, acierto, fallo, tictac, campana, redoble, trueno…
 // El navegador no deja sonar nada hasta que alguien toca la página: se activa con la primera tecla o clic.
 import { bell, bubble, crackle, mtof, noiseHit, owl, snare, thump, tone } from './synth.js';
 import { MOODS, STYLES } from './music.js';
-import { LADDER_SCENES, SFX_SLOT } from './tracks.js';
+import { LADDER_SCENES, SFX_ENDS_AT, SFX_SLOT } from './tracks.js';
 import { getCues } from './cueSettings.js';
 import { SQUID_SFX } from './squidSound.js';
 import { splitSong } from '../../core/voicing.js';
@@ -26,6 +26,7 @@ class SoundEngine extends EventTarget {
   #tracks = new Map(); // tus canciones: slot → [{url, name}]
   #players = new Map(); // slot → reproductor de canciones
   #slot = null; // reproductor que suena ahora
+  #lastSong = null; // la última canción larga que sonó (un momento sin canciones sigue con ella)
   #amb = null; // ambiente del entorno
   #timers = new Set();
   // Canciones del millonario (core/millionaireMusic.js): se descodifican enteras para saltar a sus puntos y hacer
@@ -157,7 +158,7 @@ class SoundEngine extends EventTarget {
     const fire = () => {
       this.log('efecto', name);
       const own = this.#effectTrack(name);
-      if (own) this.#playOnce(own);
+      if (own) this.#playOnce(own, SFX_ENDS_AT[name]);
       else fn(this, this.ctx.currentTime + 0.01);
     };
     if (delayMs <= 0) return fire();
@@ -175,9 +176,16 @@ class SoundEngine extends EventTarget {
     return list?.length ? list[(Math.random() * list.length) | 0].url : null;
   }
 
-  /** Efecto con canción: suena una vez y, mientras, la música de fondo baja. */
-  #playOnce(url) {
+  /**
+   * Efecto con canción: suena una vez y, mientras, la música de fondo baja. `endsAt` (s): si dura más, empieza por el
+   * final (el redoble: su golpe cae con el del revelado).
+   */
+  #playOnce(url, endsAt = null) {
     const audio = new Audio(url);
+    if (endsAt) {
+      audio.preload = 'auto';
+      audio.addEventListener('loadedmetadata', () => Number.isFinite(audio.duration) && audio.duration > endsAt && (audio.currentTime = audio.duration - endsAt), { once: true });
+    }
     const src = this.ctx.createMediaElementSource(audio);
     src.connect(this.sfxBus);
     const t = this.ctx.currentTime;
@@ -598,8 +606,17 @@ class SoundEngine extends EventTarget {
   #switchLayer(force = false) {
     if (this.#cueHeld || this.#songHeld) return; // suenan las canciones del millonario o la de una prueba
     const c = this.ctx;
-    // Si hay canciones tuyas para este momento, suenan ellas; si no, la música generada.
+    // Si hay canciones tuyas para este momento, suenan ellas; si no, sigue la que sonaba; si no, la música generada.
     const slot = this.#slotKey();
+    if (slot && !force && this.#sameSong(slot)) return;
+    const keep = slot ? null : this.#keepable();
+    if (keep) {
+      if (keep !== this.#slot) {
+        this.log('música', `sigue: ${keep.slot}`);
+        this.#playSlot(keep.slot, false);
+      }
+      return;
+    }
     if (slot) {
       this.#fadeOut(this.#layer);
       this.#layer = null;
@@ -638,6 +655,25 @@ class SoundEngine extends EventTarget {
     if (style.pad) this.#buildPad(layer);
     style.start?.(layer.st, mood);
     this.#layer = layer;
+  }
+
+  /** ¿Suena ya una canción de este hueco (el mismo archivo en varios momentos)? Entonces sigue sin empezar de nuevo. */
+  #sameSong(slot) {
+    const p = this.#slot;
+    if (!p || p.slot === slot || p.audio.paused || this.#isLadder(slot)) return false;
+    const name = this.#tracks.get(p.slot)?.find((t) => t.url === p.audio.src)?.name;
+    return !!name && this.#tracks.get(slot).some((t) => t.name === name);
+  }
+
+  /**
+   * Un momento sin canciones (ni de la sección ni generales): sigue la canción que sonaba, o la última que calló por
+   * una prueba o un efecto corto. null = música generada (también en los silencios y en los entornos con música
+   * propia, como Squid Games).
+   */
+  #keepable() {
+    if (this.#scene === 'hush' || MOODS[this.#moodId].styles?.[this.#scene]) return null;
+    const ok = (p) => p && !(p.audio.duration < SHORT_TRACK_S) && !p.audio.ended && this.#tracks.get(p.slot)?.some((t) => t.url === p.audio.src);
+    return [this.#slot, this.#lastSong].find(ok) ?? null;
   }
 
   // ------------------------------------------------------------------------------------------ canciones de las pruebas
@@ -811,6 +847,7 @@ class SoundEngine extends EventTarget {
     const p = this.#slot;
     if (!p) return;
     this.#slot = null;
+    if (!(p.audio.duration < SHORT_TRACK_S)) this.#lastSong = p; // (para seguir con ella si el momento siguiente no trae)
     p.gain.gain.setTargetAtTime(0, this.ctx.currentTime, CROSSFADE * 0.6);
     p.pausedAt = performance.now();
     setTimeout(() => this.#slot !== p && p.audio.pause(), 3000);
@@ -850,7 +887,7 @@ class SoundEngine extends EventTarget {
     }
   }
 
-  /** Ambiente continuo del entorno (viento, lluvia); lo puntual (fuego, burbujas, búhos) va en #tick. */
+  /** Ambiente continuo del entorno (lluvia); lo puntual (fuego, burbujas, búhos) va en #tick. */
   #switchAmbience() {
     const c = this.ctx;
     this.#fadeOut(this.#amb);
@@ -873,18 +910,7 @@ class SoundEngine extends EventTarget {
       return f;
     };
     if (m.amb.includes('rain')) loop('highpass', 2500, 0.05);
-    if (m.amb.includes('wind')) {
-      const bp = loop('bandpass', 500, m.amb.includes('rain') ? 0.05 : 0.07, 3, 0.3);
-      // Ráfagas: el filtro sube y baja despacio
-      const wl = c.createOscillator();
-      const wg = c.createGain();
-      wl.frequency.value = 0.09;
-      wg.gain.value = 300;
-      wl.connect(wg).connect(bp.frequency);
-      wl.start();
-      amb.nodes.push(wl);
-    }
-    if (m.amb.includes('rain') && m.amb.includes('wind')) loop('lowpass', 350, 0.12, 1, 0.7); // tormenta: retumbo grave
+    // (sin viento: molestaba)
     this.#amb = amb;
   }
 
