@@ -363,10 +363,13 @@ body.squid-on .banners {
   line-height: 1.35;
 }
 
+/* (flex, no grid: en una rejilla el 100 % de alto de la muñeca no se resolvía, se estiraba a lo ancho y el recorte
+   solo dejaba ver su pelo) */
 .sq-art {
   height: 22vh;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
 }
 
