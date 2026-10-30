@@ -173,7 +173,7 @@ export function createMillionairePad({ onAnswer, onJoker }) {
     ];
   }
 
-  /** Confirmar con un segundo toque (en vez de confirm(), que congela la página y la conexión). */
+  /** Confirmar con un segundo toque (en vez de la ventana de confirmar del navegador, que congela la página y la conexión). */
   let armed = null; // {key, until}
   const isArmed = (key) => armed?.key === key && performance.now() < armed.until;
   function confirmTap(key) {

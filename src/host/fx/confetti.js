@@ -1,6 +1,9 @@
-// Confeti de Halloween sobre toda la tele: calabazas, murciélagos, caramelos y fantasmas, más tiras de papel
-// naranja, violeta y verde (o billetes y monedas, en la hucha de Squid Games). Un solo canvas que solo dibuja mientras quedan partículas.
+// Confeti sobre toda la tele: el de la temática del entorno que se ve (body.dataset.env → `ui.confetti` de
+// shared/environments.js: sandías en Verano, notas en el karaoke, monedas en el casino…) y, en los de Halloween,
+// calabazas, murciélagos, caramelos y fantasmas con tiras de papel naranja, violeta y verde. Un tema explícito
+// (`money`, la hucha de Squid Games) manda. Un solo canvas que solo dibuja mientras quedan partículas.
 import { reducedMotion } from './motion.js';
+import { envConfetti } from '../../shared/environments.js';
 
 // Temas: el de siempre (Halloween) y el dinero de la hucha de Squid Games
 const THEMES = {
@@ -49,9 +52,16 @@ function sprite(glyph) {
   return c;
 }
 
-function spawn(x, y, { spread = Math.PI / 2.2, angle = -Math.PI / 2, speed = 18, glyph = Math.random() < 0.35, theme = 'halloween' } = {}) {
+/** Glifos y papel: el tema pedido ('money', 'halloween' o {glyphs, paper}) o, sin tema, el del entorno de la tele. */
+function themeOf(theme) {
+  const t = theme ?? envConfetti(globalThis.document?.body?.dataset.env);
+  if (t && typeof t === 'object' && t.glyphs?.length && t.paper?.length) return t;
+  return THEMES[t] ?? THEMES.halloween;
+}
+
+function spawn(x, y, { spread = Math.PI / 2.2, angle = -Math.PI / 2, speed = 18, glyph = Math.random() < 0.35, theme } = {}) {
   if (lite && Math.random() < 0.5) return;
-  const { glyphs, paper } = THEMES[theme] ?? THEMES.halloween;
+  const { glyphs, paper } = themeOf(theme);
   const a = angle + (Math.random() - 0.5) * spread;
   const v = speed * (0.55 + Math.random() * 0.6) * devicePixelRatio;
   parts.push({

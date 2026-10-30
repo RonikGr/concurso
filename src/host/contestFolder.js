@@ -2,7 +2,7 @@
 // permiso para leerla; en otros navegadores hay que volver a elegirla). Al leerla, todo se copia a este portátil
 // (IndexedDB), así que después funciona aunque la carpeta no esté; volver a leerla sustituye lo que vino de ella.
 import { classifyFolder, songKey } from '../core/folder.js';
-import { EFFECT_SLOTS, MUSIC_SLOTS, SECTION_SLOTS, videoSlot } from './fx/tracks.js';
+import { EFFECT_SLOTS, MUSIC_SLOTS, SECTION_SLOTS, introVideoSlot, videoSlot } from './fx/tracks.js';
 
 const DB = 'concurso-carpeta';
 const STORE = 'handles';
@@ -102,7 +102,7 @@ export async function importFolder({ entries }, { trackStore, faceStore, importS
   for (const { slot, entry } of found.music) await trackStore.add(slot, [entry.file], { source: SOURCE, reload: false });
   for (const e of found.songs) await trackStore.add(`song:${songKey(e.path.at(-1))}`, [e.file], { source: SOURCE, reload: false });
   for (const [kind, e] of Object.entries(found.squid)) await trackStore.add(`sq:${kind}`, [e.file], { source: SOURCE, reload: false });
-  for (const { key, entry } of found.videos) await trackStore.add(videoSlot(key), [entry.file], { source: SOURCE, reload: false });
+  for (const { key, entry, intro } of found.videos) await trackStore.add(intro ? introVideoSlot(key) : videoSlot(key), [entry.file], { source: SOURCE, reload: false });
   await trackStore.load();
   await faceStore.removeSource(SOURCE);
   if (found.faces.length) await faceStore.add(found.faces.map((e) => e.file), { source: SOURCE });

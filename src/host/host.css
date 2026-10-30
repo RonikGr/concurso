@@ -2,7 +2,8 @@
 
 /* Pensado para leerse a 3 m: todo escala con el ancho de la pantalla (≈22 px en una tele 1080p). */
 html {
-  font-size: clamp(14px, 1.15vw, 30px);
+  /* también con la altura: la tele sin pantalla completa (con la barra del navegador) no se corta */
+  font-size: clamp(14px, min(1.15vw, 2.05vh), 30px);
 }
 
 .host-shell {
@@ -282,6 +283,25 @@ kbd {
   margin-top: 0.5rem;
 }
 
+/* Durante el espectáculo la tele no crece nunca: la pantalla se ajusta al hueco que dejan las tarjetas */
+.show-mode .host-shell {
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr); /* ni a lo ancho: una lista ancha no puede ensanchar la tele */
+}
+
+.show-mode #screen {
+  grid-row: 3;
+  min-width: 0; /* (sin avisos, la fila de los avisos no existe: sin fila fija, la pantalla caía en la suya) */
+  min-height: 0;
+}
+
+.show-mode .players-panel {
+  grid-row: 4;
+}
+
 .players-head {
   display: flex;
   align-items: baseline;
@@ -446,7 +466,8 @@ kbd {
 }
 
 /* Durante el espectáculo la tele no enseña controles: la barra y el cursor solo aparecen al mover el ratón. */
-.show-mode .toolbar {
+.show-mode .toolbar,
+.join-step .toolbar {
   position: fixed;
   left: 0;
   right: 0;
@@ -459,7 +480,8 @@ kbd {
   transition: opacity 200ms;
 }
 
-.show-mode.mouse-active .toolbar {
+.show-mode.mouse-active .toolbar,
+.join-step.mouse-active .toolbar {
   opacity: 1;
   pointer-events: auto;
 }
@@ -488,6 +510,18 @@ kbd {
 
 .answer-question.big {
   font-size: 4.2rem;
+}
+
+/* Revelado: la pregunta ya se conoce; más pequeña y más ancha para que la lista (hasta 7 + 7 filas) quepa sobre las
+   tarjetas (V1, ronda 2: una pregunta de tres líneas empujaba la Votación 18 px dentro de la tira) */
+.answer-stage[data-phase='revealed'] {
+  gap: 0.6rem;
+  padding-top: 0.4rem;
+}
+
+.answer-stage[data-phase='revealed'] .answer-question {
+  max-width: 76rem;
+  font-size: 2.2rem;
 }
 
 .answer-image {
@@ -729,11 +763,11 @@ kbd {
   color: var(--accent);
 }
 
-/* Con más de 8 filas (hasta 20 jugadores): dos columnas y filas más bajas, para que quepa en la tele */
+/* Con 7 filas o más (hasta 20 jugadores): dos columnas y filas más bajas, para que quepa en la tele */
 .vote-bars.many,
 .estimates.many {
   width: min(96rem, 100%);
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   grid-auto-flow: column;
   grid-template-rows: repeat(var(--rows, 10), auto);
   column-gap: 1.5rem;
@@ -741,7 +775,7 @@ kbd {
 }
 
 .vote-bars.many li {
-  grid-template-columns: auto 9rem 1fr 5.5rem;
+  grid-template-columns: auto 9rem minmax(0, 1fr) 5.5rem;
   gap: 0.5rem;
   font-size: 1.15rem;
 }
@@ -1768,6 +1802,26 @@ a.btn {
   animation: pop-in 0.35s ease-out;
 }
 
+/* La nota, en un círculo grande junto a la cara (V14) */
+.free-chips li:has(.free-score) {
+  padding-right: 0.35rem;
+}
+
+.free-chips .free-score:not(.none) {
+  display: inline-grid;
+  place-items: center;
+  width: 3.4rem;
+  height: 3.4rem;
+  min-width: 0;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 2.2rem;
+  font-weight: 900;
+  background: #fff;
+  color: #140a1e;
+  box-shadow: 0 0 1rem rgb(255 255 255 / 0.5);
+}
+
 .free-chips .free-score.none {
   opacity: 0.5;
   animation: none;
@@ -1865,4 +1919,16 @@ a.btn {
   font-weight: 900;
   color: var(--accent);
   animation: pop 400ms ease-out;
+}
+
+/* Ventana de confirmar (en vez de confirm(), main.js askConfirm) */
+.confirm-dialog {
+  max-width: 40rem;
+}
+
+.confirm-text {
+  margin: 0 0 1rem;
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1.3;
 }

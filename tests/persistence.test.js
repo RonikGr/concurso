@@ -29,4 +29,12 @@ describe('sala guardada', () => {
     expect(roomFromFile('{"kind":"otra cosa"}')).toBeNull();
     expect(roomFromFile('no es json')).toBeNull();
   });
+
+  it('guarda los pasos de la portada y la ruleta, y las caras puestas a mano', () => {
+    const steps = { rulesFor: 3, versus: false, punish: true, roulette: false };
+    saveRoom(room({ steps, faceOverrides: { a: 'f1', b: null } }));
+    const back = loadSavedRoom();
+    expect(back.steps).toEqual(steps);
+    expect(back.faceOverrides).toEqual({ a: 'f1', b: null });
+  });
 });

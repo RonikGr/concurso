@@ -227,7 +227,7 @@ function extrasBox(ctx) {
     h(
       'p',
       { class: 'muted small' },
-      'En la carpeta: la hoja (.xlsx), «Millonario» (sus 7 canciones), «Caras» (fotos con los nombres en el del archivo), «Música/<momento>» y «Canciones» (las de las pruebas, con el nombre que pone la hoja). ',
+      'En la carpeta: la hoja (.xlsx), «Millonario» (sus 7 canciones), «Caras» (fotos con los nombres en el del archivo), «Música» (una canción suelta en «Música/<Sección>» suena en toda la sección; en «Música/<Sección>/<Juego>», solo en ese juego), «Vídeos» y «Canciones» (las de las pruebas, con el nombre que pone la hoja). ',
       'Todo se copia a este portátil: si se pierde la sala, sigue aquí.',
     ),
   );
@@ -582,38 +582,49 @@ export function scoreboardScreen(view, { title = 'Marcador' } = {}) {
         ),
       )
     : null;
-  const playerList = h(
-    'ol',
-    { class: `sb-players ${teams.length ? 'compact' : ''} ${players.length > 12 ? 'many' : ''}` },
-    byOld(players).map((r) =>
-      h(
-        'li',
-        { 'data-key': r.key, style: { '--pc': getColor(r.p.color).bg } },
-        h('span', { class: 'sb-place' }),
-        avatar(r.p, 'mini-avatar'),
-        h('span', { class: 'member-name' }, r.p.name),
-        h('span', { class: 'sb-score' }, odometer(r.score, r.old, { delay: ROLL_AT })),
-      ),
-    ),
-  );
-  const root = h('div', { class: 'scoreboard anim-in' }, kinetic('h1', 'sb-title display', title), teamList, playerList);
+  const playerRow = (r) =>
+    h(
+      'li',
+      { 'data-key': r.key, style: { '--pc': getColor(r.p.color).bg } },
+      h('span', { class: 'sb-place' }),
+      avatar(r.p, 'mini-avatar'),
+      h('span', { class: 'member-name' }, r.p.name),
+      h('span', { class: 'sb-score' }, odometer(r.score, r.old, { delay: ROLL_AT })),
+    );
+  // Con equipos: una columna por equipo (7 + 7 en la fiesta), filas grandes; el puesto es el de todos los concursantes
+  const columns = teams.length
+    ? [...teams.map((t) => ({ team: t.s.team, rows: players.filter((r) => r.p.teamId === t.s.team.id) })), { team: null, rows: players.filter((r) => !teams.some((t) => t.s.team.id === r.p.teamId)) }].filter((c) => c.rows.length)
+    : [{ team: null, rows: players }];
+  const playerLists = columns.map((c) => ({
+    rows: c.rows,
+    el: h('ol', { class: `sb-players ${teams.length ? 'by-team' : players.length > 12 ? 'many' : ''}`, style: c.team ? { '--tc': getColor(c.team.color).bg } : {} }, byOld(c.rows).map(playerRow)),
+  }));
+  const playerBlock = teams.length ? h('div', { class: 'sb-team-cols', style: { '--cols': playerLists.length } }, playerLists.map((l) => l.el)) : playerLists[0].el;
+  const root = h('div', { class: `scoreboard anim-in ${teams.length ? 'with-teams' : ''}` }, kinetic('h1', 'sb-title display', title), teamList, playerBlock);
 
   const places = (list) => [...list.children].forEach((li, i) => (li.querySelector('.sb-place').textContent = `${i + 1}º`));
-  for (const list of [teamList, playerList]) if (list) places(list);
+  // Puesto de cada concursante entre todos (empates con el mismo puesto), según un orden de filas
+  const placePlayers = (ordered, scoreOf) => {
+    const at = new Map();
+    ordered.forEach((r, i) => at.set(r.key, i && scoreOf(r) === scoreOf(ordered[i - 1]) ? at.get(ordered[i - 1].key) : i + 1));
+    for (const { el } of playerLists) for (const li of el.children) li.querySelector('.sb-place').textContent = `${at.get(li.dataset.key)}º`;
+  };
+  if (teamList) places(teamList);
+  placePlayers(byOld(players), (r) => r.old);
   later(root, ROLL_AT, () =>
     teamList?.querySelectorAll('li').forEach((li) => li.style.setProperty('--w', width(teams.find((r) => r.key === li.dataset.key).score))),
   );
   later(root, REORDER_AT, () => {
-    for (const [list, rows] of [
-      [teamList, teams],
-      [playerList, players],
-    ]) {
+    let moved = false;
+    for (const [list, rows] of [[teamList, teams], ...playerLists.map((l) => [l.el, l.rows])]) {
       if (!list) continue;
       const before = [...list.children].map((li) => li.dataset.key).join();
       flipReorder(list, rows.map((r) => r.key));
-      places(list);
-      if (before !== rows.map((r) => r.key).join()) sound.play('pop');
+      if (before !== rows.map((r) => r.key).join()) moved = true;
     }
+    if (teamList) places(teamList);
+    placePlayers(players, (r) => r.score);
+    if (moved) sound.play('pop');
   });
   for (const r of [...teams, ...players]) shownScores.set(r.key, r.score);
   return root;
@@ -622,27 +633,52 @@ export function scoreboardScreen(view, { title = 'Marcador' } = {}) {
 // Podio: aparece el 3º, luego el 2º y, tras un redoble, el 1º con confeti y fanfarria.
 const PODIUM_AT = { 3: 800, 2: 2300, 1: 4300 };
 
-export function finalScreen(view) {
-  const podium = (entries) =>
-    h(
+/**
+ * Puestos con empate (D1): los que tienen los mismos puntos comparten escalón; los siguientes cuentan como en el
+ * ranking denso (dos primeros empatados → el siguiente es 2.º). Hasta tres escalones.
+ */
+function podiumPlaces(entries) {
+  const sorted = [...entries].sort((a, b) => b.score - a.score);
+  const places = [];
+  for (const e of sorted) {
+    const last = places.at(-1);
+    if (last && last.score === e.score) last.entries.push(e);
+    else if (places.length < 3) places.push({ place: places.length + 1, score: e.score, entries: [e] });
+    else break;
+  }
+  return places;
+}
+
+const andNames = (names) => (names.length > 1 ? `${names.slice(0, -1).join(', ')} y ${names.at(-1)}` : (names[0] ?? ''));
+
+export function finalScreen(view, { quiet = false } = {}) {
+  const podium = (entries) => {
+    const places = podiumPlaces(entries);
+    // Orden visual 2º · 1º · 3º (con dos escalones, 2º · 1º centrados)
+    const order = [places[1], places[0], places[2]].filter(Boolean);
+    return h(
       'div',
-      { class: 'podium' },
-      // Orden visual 2º · 1º · 3º
-      [1, 0, 2].map((i) => {
-        const e = entries[i];
-        if (!e) return h('div', { class: 'podium-step empty' });
+      { class: 'podium', style: { '--steps': order.length } },
+      order.map(({ place, score, entries: group }) => {
+        const tie = group.length > 1;
+        const color = tie ? null : getColor(group[0].color);
+        const shown = group.slice(0, 4);
         return h(
           'div',
-          { class: `podium-step p${i + 1}`, style: { '--pc': getColor(e.color).bg, '--pc-fg': getColor(e.color).fg, '--d': `${PODIUM_AT[i + 1]}ms` } },
-          e.icon || e.face ? h('span', { class: 'podium-icon emoji' }, avatarOf(e)) : null,
-          h('span', { class: 'podium-name' }, e.name),
-          h('span', { class: 'podium-score' }, `${e.score} pts`),
-          h('span', { class: 'podium-block' }, `${i + 1}º`),
+          {
+            class: `podium-step p${place} ${tie ? 'tie' : ''}`,
+            style: { '--pc': color?.bg ?? 'var(--accent)', '--pc-fg': color?.fg ?? '#140a1e', '--d': `${PODIUM_AT[place]}ms` },
+          },
+          shown.some((e) => e.icon || e.face) ? h('span', { class: `podium-icon emoji ${shown.length > 1 ? 'many' : ''}` }, shown.map((e) => h('span', {}, avatarOf(e)))) : null,
+          h('span', { class: 'podium-name' }, group.length > 4 ? `${shown.map((e) => e.name).join(', ')} y ${group.length - 4} más` : andNames(group.map((e) => e.name))),
+          h('span', { class: 'podium-score' }, `${score} pts`),
+          h('span', { class: 'podium-block' }, `${place}º`, tie ? h('small', { class: 'podium-tie' }, 'Empate') : null),
         );
       }),
     );
+  };
   const teamEntries = view.standings.map((s) => ({ name: s.team.name, color: s.team.color, score: s.score }));
-  const playerEntries = [...view.players].sort((a, b) => b.score - a.score);
+  const playerEntries = view.players;
   const root = h(
     'div',
     { class: 'final' },
@@ -650,10 +686,12 @@ export function finalScreen(view) {
     h(
       'div',
       { class: `final-podiums ${teamEntries.length ? 'two' : ''}` },
-      teamEntries.length ? h('div', {}, h('h2', {}, 'Equipos'), podium(teamEntries)) : null,
-      h('div', {}, h('h2', {}, teamEntries.length ? 'Concursantes' : 'Podio'), podium(playerEntries)),
+      teamEntries.length ? h('div', { class: 'final-col' }, h('h2', {}, 'Equipos'), podium(teamEntries)) : null,
+      h('div', { class: 'final-col' }, h('h2', {}, teamEntries.length ? 'Concursantes' : 'Podio'), podium(playerEntries)),
     ),
   );
+  // Repintado de la misma pantalla (alguien entra, una cara nueva): sin repetir redoble, fanfarria ni confeti
+  if (quiet) return root;
   sound.play('pop', PODIUM_AT[3]);
   sound.play('pop', PODIUM_AT[2]);
   sound.play('roll', PODIUM_AT[1] - 900);
@@ -673,12 +711,9 @@ export function punishVoteScreen(view) {
     'div',
     { class: 'punish anim-in' },
     h('p', { class: 'intro-kicker' }, view.title),
-    kinetic('h1', 'punish-title display', p.closed ? '¡Estos van a la ruleta!' : '¿Qué castigo para quien pierda?'),
-    h(
-      'p',
-      { class: 'answer-prompt' },
-      p.closed ? 'Al final del concurso, la ruleta elegirá uno para el equipo que quede último.' : `Votad en el móvil vuestros 3 favoritos · ${p.voters} ${p.voters === 1 ? 'ha votado' : 'han votado'}`,
-    ),
+    // título largo (6 palabras): en Outfit, no en la letra de terror (regla 3 de coherencia)
+    kinetic('h1', 'punish-title phrase', p.closed ? '¡Estos van a la ruleta!' : '¿Qué castigo para quien pierda?'),
+    h('p', { class: 'answer-prompt punish-voters' }, p.closed ? 'Al final del concurso, la ruleta elegirá uno para el equipo que quede último.' : votersText(p.voters)),
     h(
       'ol',
       { class: 'punish-list' },
@@ -693,6 +728,26 @@ export function punishVoteScreen(view) {
       ),
     ),
   );
+}
+
+function votersText(n) {
+  return `Votad en el móvil vuestros 3 favoritos · ${n} ${n === 1 ? 'ha votado' : 'han votado'}`;
+}
+
+/** Votación abierta: cada voto cambia solo las cifras y las barras, en su sitio (sin rehacer la pantalla). */
+export function updatePunishVote(root, view) {
+  const p = view.punish;
+  const rows = root.querySelectorAll('.punish-list > li');
+  if (!p || p.closed || rows.length !== p.options.length) return false;
+  const max = Math.max(1, ...p.tally);
+  rows.forEach((li, i) => {
+    li.style.setProperty('--w', `${(p.tally[i] / max) * 100}%`);
+    const n = li.querySelector('.pl-votes');
+    if (n && n.textContent !== String(p.tally[i])) n.textContent = String(p.tally[i]);
+  });
+  const voters = root.querySelector('.punish-voters');
+  if (voters) voters.textContent = votersText(p.voters);
+  return true;
 }
 
 const SPIN_MS = 6000; // lo que tarda la ruleta en pararse
@@ -711,7 +766,7 @@ export function rouletteScreen(view) {
     label.style.transform = `rotate(${i * slice + slice / 2}deg)`; // el texto, en la mitad de arriba de su porción
     wheel.append(label);
   });
-  const result = h('p', { class: 'roulette-result display', hidden: true });
+  const result = h('p', { class: 'roulette-result', hidden: true });
   if (p.spin) {
     const k = list.findIndex((f) => f.index === p.spin.index);
     const target = 360 * 6 + (360 - (k * slice + slice / 2));

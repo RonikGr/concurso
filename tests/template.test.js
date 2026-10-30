@@ -37,5 +37,15 @@ describe('plantilla del concurso', () => {
     expect(bottles.env).toBe('refrescos');
     expect(bottles.items[0].teams).toBeFalsy();
     for (const s of show.sections) expect(s.items.length, s.name).toBeGreaterThan(0);
+    // Las seis temáticas del Gauntlet (la lista del desplegable va en la pestaña oculta «Listas»: no cabe escrita)
+    const env = (name) => show.sections.find((s) => s.name === name).env;
+    expect(['Agita el móvil', '¿Qué canción es?', 'Reflejos', 'Marca el golpe', 'Dos verdades y una mentira', 'La gran apuesta'].map(env)).toEqual([
+      'cocteleria',
+      'karaoke',
+      'oeste',
+      'latina',
+      'noir',
+      'casino',
+    ]);
   });
 });

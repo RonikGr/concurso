@@ -22,6 +22,7 @@ export class SquidGame {
   #closing = false; // el juego ya ha acabado antes de tiempo y se está viendo lo último
   #tick = 0;
   #awardTimer = 0;
+  #pendingAward = null; // {key, rec, state}: el reparto de la hucha que espera a que la tele acabe de contarla
 
   constructor(ctx, saved = null) {
     this.#ctx = ctx;
@@ -66,6 +67,8 @@ export class SquidGame {
 
   /** Al cambiar de pregunta: el estado de la sección y la ronda del juego que toca. */
   sync() {
+    // Se deja la hucha antes de que acabe de contarse (Espacio, «Al marcador», saltar…): el reparto se apunta ya
+    this.#flushAward();
     this.stop();
     const room = this.#room;
     const r = room.runner;
@@ -82,6 +85,8 @@ export class SquidGame {
       this.state.begin(ids);
       rec.state = this.state.toJSON();
     }
+    this.round = null;
+    this.#admitLate(); // quien no estaba (p. ej. la tele se recargó antes del primer juego)
     const key = r.playKey;
     const game = this.#item.game;
     if (game === 'hucha') {
@@ -115,6 +120,7 @@ export class SquidGame {
     clearTimeout(this.#timer);
     clearTimeout(this.#live);
     clearTimeout(this.#awardTimer);
+    this.#pendingAward = null; // (sync lo apunta antes; «Partida nueva» y R, no)
     clearInterval(this.#tick);
     this.#tick = 0;
     this.#timer = 0;
@@ -141,6 +147,8 @@ export class SquidGame {
       // El presentador corrige: devolver a alguien al juego o dejarle fuera (entre juegos o en la hucha)
       squidRevive: ({ id }) => this.inPlay && !this.round?.phase?.startsWith('run') && this.#revive(String(id)),
       squidEliminate: ({ id }) => this.inPlay && !this.round?.phase?.startsWith('run') && this.#eliminate(String(id)),
+      // Meter a quien se quedó fuera (no estaba al empezar): número libre y vivo, sin tocar la hucha; no en la hucha
+      squidJoin: ({ id }) => this.inPlay && this.#item.game !== 'hucha' && !this.round?.phase?.startsWith('run') && this.#join(String(id)),
       // Puente: si el móvil de quien está delante falla, elige el presentador
       squidChoose: ({ side }) => this.inPlay && this.round?.choose && this.#choose(this.round.current, side),
     };
@@ -149,6 +157,7 @@ export class SquidGame {
   // ------------------------------------------------------------------ marcha del juego
 
   #start() {
+    this.#admitLate(); // quien acaba de entrar, aún juega
     const r = this.round;
     if (!r || !r.start(this.#ctx.now())) return false;
     if (r.players.length < SQUID_GAMES[this.#item.game].min) {
@@ -237,15 +246,72 @@ export class SquidGame {
       const ms = 2600 + n * HUCHA_GAP_MS(n) + 2100;
       this.awardAt = this.#ctx.now() + ms;
       clearTimeout(this.#awardTimer);
+      this.#pendingAward = { key, rec, state: this.state };
       this.#awardTimer = setTimeout(() => {
         if (this.#room.runner.playKey !== key) return;
-        this.#award(key);
+        this.#flushAward();
         this.#ctx.changed();
       }, ms);
       return;
     }
-    rec.awards[key] = this.state.shares();
+    this.#giveAward(key, rec, this.state);
+  }
+
+  /** Reparte (si no estaba ya repartida esa hucha). */
+  #giveAward(key, rec, state) {
+    if (rec.awards[key]) return;
+    rec.awards[key] = state.shares();
     for (const [id, pts] of Object.entries(rec.awards[key])) if (pts) this.#room.roster.adjustScore(id, pts);
+  }
+
+  /** El reparto que esperaba a la animación, ya (al dejar la hucha o al acabar de contarla). Una vez. */
+  #flushAward() {
+    const p = this.#pendingAward;
+    this.#pendingAward = null;
+    clearTimeout(this.#awardTimer);
+    this.#awardTimer = 0;
+    if (p) this.#giveAward(p.key, p.rec, p.state);
+  }
+
+  /**
+   * Hasta que empiece el primer juego, quien entra o vuelve (conectado y que no presenta) recibe número solo. Después,
+   * solo a mano (squidJoin).
+   */
+  #admitLate() {
+    if (this.#launched || this.#item?.game === 'hucha') return false;
+    const room = this.#room;
+    const ids = room.roster.list().filter((p) => p.connected && !room.benched(p.id)).map((p) => p.id);
+    const added = ids.filter((id) => this.state.join(id));
+    if (!added.length) return false;
+    this.#afterJoin();
+    return true;
+  }
+
+  /** ¿Ha empezado ya algún juego de la sección? (uno en marcha o ya jugado) */
+  get #launched() {
+    const rec = this.#record;
+    return !!(this.round && this.round.phase !== SPHASE.READY) || Object.keys(rec.results).length > 0 || Object.keys(rec.started ?? {}).length > 0;
+  }
+
+  #join(id) {
+    const room = this.#room;
+    if (!room.roster.get(id) || room.benched(id) || !this.state.join(id)) return false;
+    this.#afterJoin();
+    return true;
+  }
+
+  /** Alguien nuevo vivo: lo guardado y el juego que aún no ha empezado cuentan con él. */
+  #afterJoin() {
+    const rec = this.#record;
+    rec.state = this.state.toJSON();
+    if (this.round?.phase === SPHASE.READY) {
+      const key = this.#room.runner.playKey;
+      const old = this.round;
+      this.round = this.#newRound(old.roundId);
+      // El panal: las latas que ya habían elegido los demás se quedan como estaban
+      if (old.picks && this.round.picks) Object.assign(this.round, { envelopes: old.envelopes, picks: { ...old.picks } });
+      rec.before[key] = this.state.toJSON();
+    }
   }
 
   #revive(id) {
@@ -272,6 +338,8 @@ export class SquidGame {
       rec.before[key] = this.state.toJSON();
     }
     if (this.#item.game === 'hucha') {
+      this.#pendingAward = null; // se reparte ya, con los que quedan ahora
+      clearTimeout(this.#awardTimer);
       this.#undoAward(key);
       this.#award(key);
     }
@@ -289,6 +357,7 @@ export class SquidGame {
     const key = this.#room.runner.playKey;
     this.#forgetAfter(); // lo jugado después de esta prueba ya no vale (se ha vuelto atrás)
     if (this.#item?.game === 'hucha') {
+      this.stop(); // el reparto pendiente no se apunta: se vuelve a contar
       this.#undoAward(key);
       this.sync();
       return true;
@@ -504,6 +573,8 @@ export class SquidGame {
     const rec = this.#record;
     const now = this.#ctx.now();
     const info = SQUID_GAMES[game];
+    // Quien acaba de entrar o volver (antes del primer juego) recibe número: la vista se hace tras cada hello
+    this.#admitLate();
     const gameView = this.round ? this.#gameView(forControl) : (rec.results[key] ?? null);
     return {
       game,
@@ -525,8 +596,20 @@ export class SquidGame {
       alive: this.state.alive.map((id) => this.#person(id)),
       fallen: this.state.out.map((x) => ({ ...this.#person(x.id), game: x.game })),
       awarded: game === 'hucha' ? (rec.awards[key] ?? null) : null,
+      // Mando: conectados que juegan y no tienen número en Squid (no estaban al empezar): «➕ Meter en Squid» (squidJoin)
+      joinable: forControl ? this.#joinable() : null,
       shapes: game === 'panal' && forControl ? Object.fromEntries(Object.entries(DALGONA_SHAPES).map(([id, s]) => [id, s.label])) : null,
     };
+  }
+
+  #joinable() {
+    if (this.#item?.game === 'hucha') return [];
+    const room = this.#room;
+    const inside = new Set([...this.state.alive, ...this.state.out.map((x) => x.id)]);
+    return room.roster
+      .list()
+      .filter((p) => p.connected && !room.benched(p.id) && !inside.has(p.id))
+      .map((p) => p.id);
   }
 
   /** Para el móvil de cada uno: lo suyo (número, si sigue vivo) y lo que necesita su juego. */

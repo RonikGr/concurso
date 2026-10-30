@@ -20,6 +20,31 @@ describe('Squid Games: la sección', () => {
     expect([s.alive.length, s.pot]).toEqual([3, 2]);
     expect(new SquidState(JSON.parse(JSON.stringify(s.toJSON()))).toJSON()).toEqual(s.toJSON());
   });
+
+  it('entrar tarde: número libre, vivo y sin tocar la hucha; quien ya juega o cayó, no', () => {
+    const s = new SquidState();
+    expect(s.join('a')).toBe(false); // sin empezar: entra con begin
+    s.begin(['a', 'b', 'c'], seeded(4));
+    s.eliminate(['b'], 'luzroja', 5);
+    const before = { ...s.numbers };
+    expect(s.join('z', seeded(9))).toBe(true);
+    expect(s.alive).toEqual(['a', 'c', 'z']);
+    expect(s.pot).toBe(5);
+    expect(Object.values(before)).not.toContain(s.numbers.z); // número que no tenía nadie
+    expect(s.numbers.z).toBeGreaterThanOrEqual(1);
+    expect(s.numbers.z).toBeLessThan(456); // el 456 ya lo lleva otro
+    expect(Object.entries(before).every(([id, n]) => s.numbers[id] === n)).toBe(true);
+    expect(s.join('z')).toBe(false); // ya juega
+    expect(s.join('b')).toBe(false); // cayó: eso es revivir
+    expect(Object.keys(s.shares()).sort()).toEqual(['a', 'c', 'z']); // reparte entre los tres
+    expect(Object.values(s.shares()).reduce((x, y) => x + y, 0)).toBe(5);
+    // nadie empezó con número (sección sin nadie conectado): el primero que entra se lleva el 456
+    const e = new SquidState();
+    e.begin([]);
+    expect(e.join('x')).toBe(true);
+    expect(e.numbers.x).toBe(456);
+    expect(new SquidState(JSON.parse(JSON.stringify(s.toJSON()))).toJSON()).toEqual(s.toJSON());
+  });
 });
 
 describe('Luz roja, luz verde', () => {

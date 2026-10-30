@@ -6,6 +6,9 @@
 //    │                                                   └─ wrong sin nadie más ─▶ closed
 //    └──────── next / restart (desde cualquier fase)
 //
+// `unjudge` deshace el último juicio de la pregunta (solo uno): un acierto vuelve a `result` sin juzgar; un fallo
+// desbloquea al que falló, tira el rebote que se abrió (y sus pulsaciones) y vuelve a `result` con él.
+//
 // `epoch` crece con cada apertura, reinicio o pregunta nueva. El móvil manda la época que conocía al pulsar:
 // así una pulsación de una ronda anterior que llega tarde no bloquea ni gana nada por error.
 import { rankBuzzes } from './ranking.js';
@@ -15,6 +18,8 @@ export const BUZZ = { OK: 'ok', EARLY: 'early', LOCKED: 'locked', DUPLICATE: 'du
 export const LOCK = { EARLY: 'early', WRONG: 'wrong', CHEAT: 'cheat' };
 
 export class QuestionEngine {
+  #undo = null; // el último juicio, para deshacerlo: {kind: 'correct'|'wrong', playerId, round?: {…}}
+
   /** @param settings objeto vivo: {scheduledOpenMs, countdownSec, decisionWindowMs, nearTieMs, lockEarlyBuzz} */
   constructor(settings, { qid = 1 } = {}) {
     this.settings = settings;
@@ -28,6 +33,7 @@ export class QuestionEngine {
     this.phase = PHASE.IDLE;
     this.tOpen = null;
     this.lockouts = new Map(); // playerId → LOCK.*
+    this.#undo = null;
     this.#clearRound();
   }
 
@@ -99,6 +105,7 @@ export class QuestionEngine {
   correct() {
     if (this.phase !== PHASE.RESULT || this.judged) return null;
     this.judged = 'correct';
+    this.#undo = { kind: 'correct', playerId: this.winnerId };
     return this.winnerId;
   }
 
@@ -110,6 +117,9 @@ export class QuestionEngine {
   wrong(now, activeIds) {
     if (this.phase !== PHASE.RESULT || this.judged) return null;
     const loserId = this.winnerId;
+    // lo que había antes del juicio (el rebote lo borra): para deshacerlo
+    const round = { tOpen: this.tOpen, buzzes: this.buzzes, windowEndsAt: this.windowEndsAt, winnerId: this.winnerId };
+    this.#undo = { kind: 'wrong', playerId: loserId, round };
     this.lockouts.set(loserId, LOCK.WRONG);
     if (activeIds.some((id) => !this.lockouts.has(id))) {
       this.#openRound(now, this.settings.scheduledOpenMs);
@@ -118,6 +128,34 @@ export class QuestionEngine {
     this.judged = 'wrong';
     this.phase = PHASE.CLOSED;
     return { loserId, reopened: false };
+  }
+
+  /** ¿Se puede deshacer el último juicio de esta pregunta? */
+  get canUndo() {
+    return !!this.#undo;
+  }
+
+  /**
+   * Deshace el último juicio (solo uno). Acierto → vuelve a `result` con el mismo ganador sin juzgar. Fallo → el que
+   * falló deja de estar bloqueado y vuelve a ser el ganador sin juzgar; el rebote que se abrió se cierra y sus
+   * pulsaciones se tiran. La época sube: lo que llegue tarde del rebote ya no cuenta.
+   * @returns {{kind: 'correct'|'wrong', playerId}} o null si no hay nada que deshacer
+   */
+  unjudge() {
+    const u = this.#undo;
+    if (!u) return null;
+    this.#undo = null;
+    if (u.kind === 'correct') {
+      if (this.phase !== PHASE.RESULT || this.judged !== 'correct') return null;
+      this.judged = null;
+      return { kind: u.kind, playerId: u.playerId };
+    }
+    if (this.lockouts.get(u.playerId) === LOCK.WRONG) this.lockouts.delete(u.playerId);
+    this.epoch++;
+    Object.assign(this, u.round);
+    this.phase = PHASE.RESULT;
+    this.judged = null;
+    return { kind: u.kind, playerId: u.playerId };
   }
 
   /** "R": la misma pregunta desde cero (también quita los bloqueos). */

@@ -11,7 +11,7 @@ import { avatarOf, getColor, setFaceImages } from '../shared/appearance.js';
 import { generateRoomCode } from '../shared/roomCode.js';
 import { LOCK, PHASE } from '../core/game.js';
 import { SCREEN } from '../core/runner.js';
-import { parseShowWorkbook } from '../core/show.js';
+import { parseShowWorkbook, SECTION_TYPES } from '../core/show.js';
 import { folderKey, songKey } from '../core/folder.js';
 import { HostRoom } from './room.js';
 import { adoptSavedRoom, clearSavedRoom, currentSavedRoom, loadSavedRoom, roomFromFile, roomToFile } from './persistence.js';
@@ -24,10 +24,6 @@ import { createShakeStage } from './shakeStage.js';
 import { createSquidStage } from './squidStage.js';
 import { createBetStage } from './betStage.js';
 import { createHankyStage } from './hankyStage.js';
-import { WPHASE } from '../core/words.js';
-import { SPHASE } from '../core/shake.js';
-import { BPHASE } from '../core/bet.js';
-import { MPHASE } from '../core/millionaire.js';
 import { APHASE } from '../core/answers.js';
 import {
   coverScreen,
@@ -37,6 +33,7 @@ import {
   pausedScreen,
   pausedWhere,
   punishVoteScreen,
+  updatePunishVote,
   rouletteScreen,
   scoreboardScreen,
   setupScreen,
@@ -47,7 +44,7 @@ import { createDebugPanel } from './debugPanel.js';
 import { Backdrop } from './fx/backdrop.js';
 import { setLite as setConfettiLite } from './fx/confetti.js';
 import { sound } from './fx/audio.js';
-import { TrackStore, videoSlot } from './fx/tracks.js';
+import { introVideoSlot, TrackStore, videoSlot } from './fx/tracks.js';
 import { FaceStore } from './faceStore.js';
 import { openFacesDialog } from './facesDialog.js';
 import { openMusicDialog } from './musicDialog.js';
@@ -55,7 +52,7 @@ import { openBotsDialog } from './botsDialog.js';
 import { canRemember, chooseFolder, importFolder, rereadFolder, savedFolder } from './contestFolder.js';
 import { createDirector, envFor, screenKey } from './fx/director.js';
 import { enterScreen, kinetic, odometer } from './fx/motion.js';
-import { DISCO_ENV, envGradient, getEnv, HOME_ENV } from '../shared/environments.js';
+import { applyEnvUi, DISCO_ENV, envGradient, getEnv, HOME_ENV } from '../shared/environments.js';
 
 // Marca de esta pestaña: si se recarga, se recupera la sala sin preguntar.
 const TAB_KEY = 'concurso.host.tab';
@@ -211,8 +208,8 @@ function showRecover(saved) {
   }));
   const scores = (teams.length ? teams : [...saved.players].slice(0, 3)).sort((x, y) => y.score - x.score).map((x) => `${x.name} ${x.score}`);
   const startNew = () => {
-    if (saved.paused && !confirm('El concurso en pausa se perderá (salvo que guardes antes una copia en archivo). ¿Empezar uno nuevo?')) return;
-    newRoom();
+    if (!saved.paused) return newRoom();
+    askConfirm('El concurso en pausa se perderá (salvo que guardes antes una copia en archivo). ¿Empezar uno nuevo?', newRoom, 'Empezar uno nuevo');
   };
   clear(app).append(
     h(
@@ -420,11 +417,12 @@ function syncDecor(envId) {
         'span',
         {
           style: {
-            left: `${rnd(2, 96)}%`,
+            // solo en las franjas de los lados (regla 5): nunca detrás de la pregunta, la cifra o los nombres
+            left: `${i % 2 ? rnd(82, 96) : rnd(2, 16)}%`,
             '--size': `${rnd(2.2, 4.8)}rem`,
             '--dur': `${rnd(14, 26)}s`,
             '--delay': `${-rnd(0, 26)}s`,
-            '--sway': `${rnd(-6, 6)}vw`,
+            '--sway': `${rnd(-2, 2)}vw`,
             '--spin': `${rnd(-200, 200)}deg`,
           },
         },
@@ -451,6 +449,58 @@ function syncSectionVideo(section) {
   }
 }
 
+/**
+ * Vídeo de la presentación de una sección (`Vídeos/<Sección>/Presentación/`, hueco `video:<clave>|intro`): en la
+ * intro de esa sección, grande y CON su sonido, una sola vez; mientras suena, la música de la tele calla. Al acabar se
+ * funde y vuelven los vídeos de los lados (sin sonido) y la música. Un repintado no lo reinicia (va por url y sección).
+ */
+let introVideo = { key: null, el: null, done: false };
+const devSilence = () => {
+  try {
+    return localStorage.getItem('concurso.silencio') === '1';
+  } catch {
+    return false;
+  }
+};
+function syncIntroVideo(view) {
+  const section = view.screen === SCREEN.INTRO && !view.paused && !view.peekScoreboard ? view.section : null;
+  const url = section ? (trackStore.tracks.get(introVideoSlot(folderKey(section.name)))?.[0]?.url ?? null) : null;
+  const key = url && `${section.name}|${url}`;
+  if (key !== introVideo.key) {
+    const old = introVideo.el;
+    if (old) {
+      old.classList.add('out');
+      old.pause();
+      setTimeout(() => old.remove(), 700);
+    }
+    introVideo = { key, el: null, done: false };
+    if (url) {
+      const v = h('video', { class: 'intro-video', src: url, playsinline: true });
+      const finish = () => {
+        if (introVideo.el !== v || introVideo.done) return;
+        introVideo.done = true;
+        v.classList.add('out');
+        setTimeout(() => v.remove(), 900);
+        render(); // vuelven los vídeos de los lados y la música
+      };
+      v.addEventListener('ended', finish);
+      v.addEventListener('error', finish);
+      introVideo.el = v;
+      document.body.append(v);
+      v.play().catch(() => {
+        // sin un toque antes, el navegador no deja sonar: al menos que se vea
+        v.muted = true;
+        v.play().catch(finish);
+      });
+    }
+  }
+  if (introVideo.el && !introVideo.done) {
+    const st = view.settings;
+    introVideo.el.volume = st.muted || devSilence() ? 0 : Math.max(0, Math.min(1, (st.volume ?? 80) / 100));
+  }
+  return !!introVideo.el && !introVideo.done;
+}
+
 function render() {
   if (!room) return;
   const view = room.view();
@@ -458,18 +508,23 @@ function render() {
   $('#join-chip').hidden = view.screen === SCREEN.SETUP;
   // Durante el espectáculo la tele no enseña controles (ver CSS .show-mode); en preparación, sí.
   document.body.classList.toggle('show-mode', view.screen !== SCREEN.SETUP);
+  // En la conexión (la ven los invitados) las herramientas del presentador se esconden: salen al mover el ratón
+  document.body.classList.toggle('join-step', view.screen === SCREEN.SETUP && view.setupStep !== 'prep');
   // Squid Games ocupa toda la tele (sus juegos y su presentación)
   const squidIntro = view.screen === SCREEN.INTRO && view.section?.type === 'squid';
   document.body.classList.toggle('squid-on', (!!view.squid || squidIntro) && !view.paused && !view.peekScoreboard);
   // Discoteca (el twerking): focos que barren la tele; y el vídeo de la sección, si la carpeta trae uno
   const inSection = [SCREEN.INTRO, SCREEN.PLAY].includes(view.screen) && !view.paused && !view.peekScoreboard;
   document.body.classList.toggle('disco-on', inSection && envFor(view) === DISCO_ENV);
-  syncSectionVideo(inSection ? view.section : null);
+  const introPlaying = syncIntroVideo(view);
+  syncSectionVideo(inSection && !introPlaying ? view.section : null);
   syncDecor(inSection ? envFor(view) : null);
+  // Piel de la temática (acento, rótulos, velo, confeti): la misma que el fondo
+  applyEnvUi(envFor(view));
   // El navegador no deja sonar nada hasta que se toca la página: aviso hasta la primera tecla o clic.
   $('#sound-chip').hidden = sound.unlocked || !(view.settings.musicOn || view.settings.sfxOn);
   // (🔇 del mando: el volumen a 0, sin tocar lo demás: al quitarlo, todo vuelve como estaba)
-  sound.configure({ musicOn: view.settings.musicOn, sfxOn: view.settings.sfxOn, volume: view.settings.muted ? 0 : view.settings.volume });
+  sound.configure({ musicOn: view.settings.musicOn && !introPlaying, sfxOn: view.settings.sfxOn, volume: view.settings.muted ? 0 : view.settings.volume });
   if (backdrop.ok) backdrop.setMode(view.settings.quality);
   else document.body.classList.add('fx-lite');
   if (!backdrop.ok) document.body.style.backgroundImage = envGradient(envFor(view));
@@ -542,11 +597,13 @@ function renderNetwork() {
 function renderScreen(view) {
   const t = performance.now();
   const setup = view.screen === SCREEN.SETUP;
+  // Votación de castigos abierta: los votos se cuentan en su sitio (updatePunishVote), sin repintar la pantalla
+  const punishLive = view.screen === SCREEN.COVER && !view.versus && !view.paused && !view.peekScoreboard && view.punish?.step === 'vote' && !view.punish.closed;
   const visible = {
     ...view,
-    // En el marcador y el final no se ve quién está conectado: que una desconexión no repita sus animaciones. Quién
-    // está fuera de la app o bloqueado solo sale en las tarjetas (renderPlayers), no en la pantalla.
-    players: view.players.map(({ rtt, connected, lock, away, cheated, ...p }) => (view.screen === SCREEN.FINAL || view.screen === SCREEN.SCOREBOARD || view.peekScoreboard ? p : { ...p, connected })),
+    // Quién está conectado solo se ve en la preparación y la conexión: fuera, que un móvil que entra o sale no rehaga
+    // la pantalla (y sus animaciones). Quién está fuera de la app o bloqueado solo sale en las tarjetas (renderPlayers).
+    players: view.players.map(({ rtt, connected, lock, away, cheated, ...p }) => (setup && !view.peekScoreboard && !view.paused ? { ...p, connected } : p)),
     settings: null,
     // los avisos, los mandos y los bots tienen su sitio aparte (fuera de la preparación no se ven en la pantalla)
     cheatAlerts: null,
@@ -556,9 +613,11 @@ function renderScreen(view) {
     lastImport: setup ? view.lastImport : null,
     // Lo que «falta» de un reloj cambia en cada vista: la pantalla ya lo calcula con su hora, no hay que repintar por ello
     words: view.words && { ...view.words, endsInMs: null },
+    // Libre en marcha: la clasificación lleva el tiempo de quien sigue (cambia en cada vista); lo demás ya está arriba
+    free: view.free && (view.free.phase === 'running' ? { ...view.free, ranking: null } : view.free),
     shake: view.shake && { ...view.shake, opensInMs: null, endsInMs: null },
     squid: view.squid && { ...view.squid, now: null, g: view.squid.g && { ...view.squid.g, turnEndsInMs: null } },
-    punish: view.punish && { ...view.punish, spin: view.punish.spin && { ...view.punish.spin, ago: null } },
+    punish: view.punish && { ...view.punish, ...(punishLive ? { tally: null, voters: null } : {}), spin: view.punish.spin && { ...view.punish.spin, ago: null } },
     // La apertura programada no cambia ningún dato: hay que repintar igualmente cuando llega.
     started: [
       view.game && t >= view.game.tOpen,
@@ -567,7 +626,10 @@ function renderScreen(view) {
     ],
   };
   const signature = JSON.stringify(visible);
-  if (signature === lastScreenSignature) return;
+  if (signature === lastScreenSignature) {
+    if (punishLive) updatePunishVote($('#screen'), view);
+    return;
+  }
   lastScreenSignature = signature;
 
   // Antes de pintar, se limpia todo lo de la pantalla anterior (el ganador a pantalla completa del pulsador,
@@ -593,6 +655,11 @@ function renderScreen(view) {
   // (Squid Games no: su pantalla va fija a toda la tele y el desenfoque de entrada la dejaba un momento en negro)
   const squidScreen = view.squid || (view.screen === SCREEN.INTRO && view.section?.type === 'squid');
   if (key !== lastScreenKey && lastScreenKey != null && !squidScreen) enterScreen(screen);
+  // Misma pantalla con un dato nuevo (un voto, un portavoz que ordena, alguien que entra): se pinta sin las
+  // animaciones de entrada (título letra a letra, anim-in) ni sus sonidos. Si no, con 14 se repetían decenas de veces.
+  // (Las pantallas de juego se actualizan en su sitio y lo nuevo de dentro sí entra animado: no se tocan)
+  const same = key === lastScreenKey && view.screen !== SCREEN.PLAY;
+  screen.classList.toggle('static', same);
   lastScreenKey = key;
   screen.dataset.screen = view.peekScoreboard ? 'scoreboard' : view.screen;
   if (view.peekScoreboard) return fill(screen, scoreboardScreen(view));
@@ -625,7 +692,12 @@ function renderScreen(view) {
           onOpenFaces: () => openPanel(() => openFacesDialog({ store: faceStore, players: () => room.view().players, toast })),
           onOpenMusic: () =>
             openPanel(() =>
-              openMusicDialog({ store: trackStore, sections: () => room.view().sections.map(({ name, label }) => ({ name, label })), toast }),
+              openMusicDialog({
+                store: trackStore,
+                // con el tipo y los juegos: «Canción de cada juego» enseña todos (parte P4)
+                sections: () => room.show.sections.map((s) => ({ name: s.name, label: SECTION_TYPES[s.type]?.label ?? s.type, type: s.type, items: s.items })),
+                toast,
+              }),
             ),
         }),
       );
@@ -670,13 +742,17 @@ function renderScreen(view) {
     case SCREEN.SCOREBOARD:
       return fill(screen, scoreboardScreen(view, { title: `Marcador tras «${view.section?.name ?? ''}»` }));
     case SCREEN.FINAL:
-      return fill(screen, view.punish?.step === 'roulette' ? rouletteScreen(view) : finalScreen(view));
+      return fill(screen, view.punish?.step === 'roulette' ? rouletteScreen(view) : finalScreen(view, { quiet: same }));
   }
 }
 
 function renderPlayers(view) {
   const panel = $('#players-panel');
   panel.hidden = !(view.screen === SCREEN.PLAY && (view.game || view.answer) && !view.peekScoreboard && !view.paused);
+  // Revelados con lista propia (Votación, Estimación, Contador, Reflejos): la lista ya enseña a la gente; las tarjetas,
+  // en una tira de una fila (si no, con 14 no cabían y la tele se alargaba).
+  const listReveal = view.answer?.phase === APHASE.REVEALED && ['votacion', 'estimacion', 'contador', 'reflejos'].includes(view.answer.kind);
+  panel.classList.toggle('strip', !panel.hidden && !!listReveal);
   if (panel.hidden) return;
 
   // Puesto de cada uno en la ronda actual (mientras el turno está abierto o se ve el resultado).
@@ -692,7 +768,7 @@ function renderPlayers(view) {
   const grid = $('#player-grid');
   // Con muchos jugadores, tarjetas más pequeñas para que quepan los 20 sin tapar la pregunta.
   const n = view.players.length;
-  grid.dataset.density = n > 14 ? 'tiny' : n > 8 ? 'compact' : 'normal';
+  grid.dataset.density = n >= 12 ? 'tiny' : n > 8 ? 'compact' : 'normal'; // 12–20: dos filas de 7 (dos equipos de 7)
   const seen = new Set();
   for (const p of view.players) {
     seen.add(p.id);
@@ -916,44 +992,9 @@ document.addEventListener('keydown', (e) => {
   switch (e.code) {
     case 'Space':
       e.preventDefault(); // que no "pulse" el botón con foco
-      if (room.games.palabras.inPlay) {
-        const p = room.games.palabras.round.phase;
-        if (p === WPHASE.READY) run('wordsStart');
-        else if (p === WPHASE.DONE) run('nextItem');
-      } else if (room.games.agitar.inPlay) {
-        const p = room.games.agitar.round.phase;
-        if (p === SPHASE.READY) run('shakeStart');
-        else if (p === SPHASE.DONE) run('nextItem');
-      } else if (room.games.squid.inPlay) {
-        // Squid Games: empezar el juego; acabado (o en la hucha), al siguiente. En marcha, nada (que no se corte sin querer).
-        const sq = room.games.squid;
-        if (sq.skipTo() != null) run('next'); // ya no queda gente para más juegos: a la hucha
-        else if (sq.round?.phase === 'ready') run('squidStart');
-        else if (!sq.round) run('next');
-      } else if (room.games.panuelo.inPlay) {
-        // El pañuelo: sortear el duelo → ¡ya! → (el ganador lo dice el mando) → siguiente; acabados, al marcador
-        const d = room.games.panuelo.duels;
-        if (d.finished) run('nextItem');
-        else if (d.current?.step === 'called') run('hankyGo');
-        else if (!d.busy) run('hankyDraw');
-      } else if (room.inFreePlay) {
-        // Libre: lo lleva el mando (cronómetro, notas…); Espacio solo pasa a la siguiente cuando ya dio los puntos
-        if (room.freeRound.phase === 'awarded') run('nextItem');
-      } else if (room.games.apuesta.inPlay) {
-        const p = room.games.apuesta.round.phase;
-        run(p === BPHASE.BETTING ? 'betClose' : p === BPHASE.QUESTION ? 'betReveal' : 'nextItem');
-      } else if (room.inMillionairePlay) {
-        const m = room.millionaire;
-        if (m.phase === MPHASE.REVEALED) run('nextItem');
-        else if (m.phase === MPHASE.MARKED) run('mReveal');
-        else if (m.shown < m.options.length) run('mShow');
-        else run('mMark');
-      } else if (answerPhase) {
-        const next = { ready: 'openAnswers', open: 'closeAnswers', closed: 'reveal', revealed: 'nextItem' }[answerPhase];
-        run(next);
-      } else if (phase === PHASE.IDLE) actions.open();
-      else if (phase === PHASE.RESULT || phase === PHASE.CLOSED) actions.nextItem();
-      else if (phase == null && (screen !== SCREEN.FINAL || room.hasPunish)) run('next'); // en el final: la ruleta
+      // El paso que toca (la misma orden que «Siguiente →» del mando, room.js `step`). Sin aviso si no toca nada:
+      // algo en marcha se para desde el mando.
+      room.run('step');
       break;
     case 'ArrowRight':
       run('next');
@@ -999,12 +1040,44 @@ addEventListener('mousemove', () => {
 
 // ---------- Acciones ----------
 
+/**
+ * Pregunta con una ventana propia en vez de confirm() (que congela la página y la conexión con los móviles). Como las
+ * demás ventanas, se gestiona con el 'submit' del formulario (Chrome no dispara 'close' con la ventana oculta).
+ */
+function askConfirm(text, onYes, yesLabel = 'Sí') {
+  const form = h(
+    'form',
+    { method: 'dialog', class: 'settings-form confirm-form' },
+    h('p', { class: 'confirm-text' }, text),
+    h('div', { class: 'dialog-actions' }, h('button', { class: 'btn', value: 'no' }, 'Cancelar'), h('button', { class: 'btn primary', value: 'yes' }, yesLabel)),
+  );
+  const dialog = h('dialog', { class: 'settings-dialog confirm-dialog' }, form);
+  const dismiss = () => {
+    if (!dialog.isConnected) return;
+    dialog.close();
+    dialog.remove();
+  };
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const yes = e.submitter?.value === 'yes';
+    dismiss();
+    if (yes) onYes();
+  });
+  dialog.addEventListener('cancel', (e) => {
+    e.preventDefault(); // Escape = no
+    dismiss();
+  });
+  document.body.append(dialog);
+  dialog.showModal();
+  form.querySelector('[value=no]').focus(); // Enter sin mirar no borra nada
+}
+
 function confirmResetScores() {
-  if (confirm('¿Poner todos los marcadores a 0?')) run('resetScores');
+  askConfirm('¿Poner todos los marcadores a 0?', () => run('resetScores'), 'Poner a 0');
 }
 
 function confirmPause() {
-  if (confirm('¿Parar el concurso por hoy? Queda guardado tal cual en este portátil para seguir otro día (también desde el mando). Los móviles verán «En pausa».')) run('pause');
+  askConfirm('¿Parar el concurso por hoy? Queda guardado tal cual en este portátil para seguir otro día (también desde el mando). Los móviles verán «En pausa».', () => run('pause'), 'Parar por hoy');
 }
 
 /** Descarga una copia de la partida (para seguirla en otro ordenador o por si se borra este navegador). */
@@ -1027,17 +1100,20 @@ function openSavedCopy() {
     const saved = roomFromFile(await file.text());
     if (!saved) return toast('Ese archivo no es una copia de un concurso.');
     const what = `«${saved.show?.title ?? 'Concurso'}» (sala ${saved.code}, ${saved.players.length} jugadores)`;
-    if (room && room.runner.screen !== SCREEN.SETUP && !confirm(`¿Abrir ${what}? El concurso de ahora se cerrará.`)) return;
-    room?.destroy();
-    room = null;
-    adoptSavedRoom(saved);
-    startRoom(saved);
+    const open = () => {
+      room?.destroy();
+      room = null;
+      adoptSavedRoom(saved);
+      startRoom(saved);
+    };
+    if (room && room.runner.screen !== SCREEN.SETUP) askConfirm(`¿Abrir ${what}? El concurso de ahora se cerrará.`, open, 'Abrir');
+    else open();
   });
   input.click();
 }
 
 function confirmNewRoom() {
-  if (confirm('¿Cerrar esta sala y crear otra? Los jugadores tendrán que volver a entrar y el mando, emparejarse de nuevo.')) newRoom();
+  askConfirm('¿Cerrar esta sala y crear otra? Los jugadores tendrán que volver a entrar y el mando, emparejarse de nuevo.', newRoom, 'Cerrar y crear otra');
 }
 
 function toggleFullscreen() {

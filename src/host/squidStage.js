@@ -12,6 +12,7 @@ import { runRing, timerRing } from './wordsStage.js';
 const GAME_NAMES = { luzroja: 'Luz roja', panal: 'El panal', puente: 'El puente', cuerda: 'Tira y afloja', canicas: 'Canicas', presentador: 'el presentador' };
 const ORDINAL = ['uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho'];
 const COUNT_SHAPE = { 3: 'square', 2: 'triangle', 1: 'circle' };
+const CALL_AFTER_GO_MS = 2500; // cuerda: la consigna se va tras la cuenta atrás
 
 // Puente (px del mundo 3D): separación entre tramos, ancho de cada cristal, hueco entre los dos y altura de los ojos
 const D = 300;
@@ -250,9 +251,13 @@ export function createSquidStage() {
       h(
         'div',
         { class: 'sq-card anim-in' },
-        h('p', { class: 'sq-game-no' }, `Juego ${v.step}`),
-        h('div', { class: 'sq-art' }, GAME_ART[v.game]?.()),
-        h('h1', { class: 'sq-title' }, v.label),
+        // el dibujo a un lado del título (no encima: con 14 fichas no cabía el aviso de abajo); el título, en una línea
+        h(
+          'div',
+          { class: 'sq-intro-head' },
+          h('div', { class: 'sq-art' }, GAME_ART[v.game]?.()),
+          h('div', { class: 'sq-intro-words', style: { '--chars': String(v.label.length) } }, h('p', { class: 'sq-game-no' }, `Juego ${v.step}`), h('h1', { class: 'sq-title' }, v.label)),
+        ),
         g?.restarted ? h('p', { class: 'sq-restarted' }, g.restarted === 'manual' ? 'Prueba reiniciada: vuelve a empezar' : 'La tele se ha recargado: esta prueba vuelve a empezar') : null,
         h('p', { class: 'sq-rule' }, lone ? 'Solo queda un jugador: ¡Squid Games ha terminado! Vamos a la hucha.' : short ? 'No queda gente suficiente para este juego: se salta.' : v.rule),
         picks,
@@ -873,7 +878,12 @@ export function createSquidStage() {
         h('div', { class: 'sq-pullers' }, g.sides[s].map((id) => puller(byId.get(id)))),
       );
     rig.append(team('A'), h('div', { class: 'sq-rope' }, h('span', { class: 'sq-knot' })), team('B'));
+    // Tamaño de las figuras según la gente del bando más grande: como mucho dos filas por encima de la cuerda
+    // (4: una fila; 5–8: filas de 4, p. ej. 4 + 3 con 7 contra 7; más de 8: filas de 5)
+    const most = Math.max(g.sides.A.length, g.sides.B.length);
+    rig.dataset.n = most > 8 ? 'crowd' : most >= 5 ? 'many' : most === 4 ? 'some' : 'few';
     const scene = h('div', { class: 'sq-scene sq-tug' }, h('div', { class: 'sq-towers' }, h('div', { class: 'sq-tower l' }), h('div', { class: 'sq-pit' }, h('span', { class: 'sq-mid' })), h('div', { class: 'sq-tower r' })), rig);
+    scene.dataset.n = rig.dataset.n;
     let rope = g.rope;
     const paint = (vv) => {
       rope = vv.g.rope;
@@ -915,7 +925,10 @@ export function createSquidStage() {
       sound.play('go');
       drum();
     });
-    scene.append(h('div', { class: 'sq-hud sq-tug-hud' }, clock(g.endsAt, g.endsAt - g.tOpen)), h('p', { class: 'sq-tug-call' }, '¡Tocad el móvil lo más rápido que podáis! Arrastrad al otro bando hasta la línea'), countdown(g.tOpen));
+    const call = h('p', { class: 'sq-tug-call' }, '¡Tocad el móvil lo más rápido que podáis! Arrastrad al otro bando hasta la línea');
+    // la consigna, durante la cuenta atrás y un poco después; luego se va (que se vea la pelea)
+    later(Math.max(0, g.tOpen - performance.now()) + CALL_AFTER_GO_MS, () => call.classList.add('gone'));
+    scene.append(h('div', { class: 'sq-hud sq-tug-hud' }, clock(g.endsAt, g.endsAt - g.tOpen)), call, countdown(g.tOpen));
     return scene;
   }
 

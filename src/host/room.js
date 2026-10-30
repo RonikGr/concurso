@@ -33,7 +33,10 @@ import { BetGame } from './games/bet.js';
 import { SquidGame } from './games/squid.js';
 import { PunishmentVote } from '../core/punishments.js';
 import { saveRoom } from './persistence.js';
-import { matchFace } from '../core/faces.js';
+import { assignFaces, setFaceOverride } from '../core/faces.js';
+import { WPHASE } from '../core/words.js';
+import { SPHASE } from '../core/shake.js';
+import { BPHASE } from '../core/bet.js';
 import { TURN_TYPES, answererFor, normalizeOrder, seatFor } from '../core/turns.js';
 import { MPHASE, MillionaireRound } from '../core/millionaire.js';
 import { pointsForLevel, questionLevel } from '../core/millionaireMusic.js';
@@ -72,10 +75,12 @@ export class HostRoom extends EventTarget {
   // Antitrampas: quién está ahora fuera de la app (desde cuándo) y los avisos de la tele y el mando
   #away = new Map(); // playerId → instante en que salió
   #buzzerOpenedAt = null;
+  // (estos cuatro pasos se guardan con la sala: al recargar la tele sigue en el mismo sitio)
   #rulesFor = null; // sección (millonario) cuya presentación va ya por «Cómo se juega»
   #versusStep = false; // portada: antes, la presentación de los equipos («Rojos contra Azules»)
   #punishStep = false; // portada: tras los equipos, la votación de castigos
   #rouletteStep = false; // final: tras el podio, la ruleta del castigo
+  #penaltySeq = 0; // nº de la última penalización (la tele enseña cada nueva una vez)
   cheatAlerts = []; // [{id, playerId, name, ms, voided, forgiven, at}] los últimos
   #alertSeq = 0;
   #windowTimer = null;
@@ -121,6 +126,13 @@ export class HostRoom extends EventTarget {
     this.paused = saved?.paused ?? null;
     // Castigos para quien pierda: se votan tras presentar los equipos; en el final, la ruleta
     this.punish = new PunishmentVote(this.show.punishments ?? [], saved?.punish);
+    const steps = saved?.steps ?? {};
+    this.#rulesFor = Number.isInteger(steps.rulesFor) ? steps.rulesFor : null;
+    this.#versusStep = !!steps.versus;
+    this.#punishStep = !!steps.punish;
+    this.#rouletteStep = !!steps.roulette;
+    // Caras puestas a mano desde el mando (mandan sobre el nombre): playerId → faceId | null (sin cara)
+    this.faceOverrides = new Map(Object.entries(saved?.faceOverrides ?? {}));
     this.answerRound = null;
     this.freeRound = null; // sección Libre: la prueba actual
     this.duelPick = []; // Duelo de reflejos: los dos que juegan (se mantiene entre rondas)
@@ -421,6 +433,7 @@ export class HostRoom extends EventTarget {
       phase: g.phase,
       tOpen: g.tOpen,
       judged: g.judged,
+      canUndo: g.canUndo, // se puede deshacer el último acierto o fallo (orden unjudge)
       rebound: [...g.lockouts.values()].includes(LOCK.WRONG), // alguien ya falló: el turno es para los demás
       winner: g.winnerId ? this.roster.get(g.winnerId) : null,
       ranking: ranking.map((r) => ({ ...r, player: this.roster.get(r.playerId) })).filter((r) => r.player),
@@ -636,6 +649,7 @@ export class HostRoom extends EventTarget {
       game: v.game && {
         phase: v.game.phase,
         judged: v.game.judged,
+        canUndo: v.game.canUndo,
         winner: pub(v.game.winner),
         ranking: v.game.ranking.map((r) => ({ place: r.place, deltaMs: r.deltaMs, reactionMs: r.reactionMs, nearTie: r.nearTie, player: pub(r.player) })),
       },
@@ -655,6 +669,9 @@ export class HostRoom extends EventTarget {
       // Salidas de la app: los últimos avisos (el mando enseña los nuevos) y el recuento por concursante
       awayFeed: this.awayLog.recent(10),
       awaySummary: this.awayLog.summary(),
+      // Caras cargadas en el portátil y a quién están puestas (para «Poner cara» y «Faltan: …»)
+      faceList: this.faces.map((f) => ({ id: f.id, names: f.names, playerId: this.roster.list().find((p) => p.face === f.id)?.id ?? null })),
+      lastPenalty: v.lastPenalty, // para «↶ Deshacer» (orden undoPenalty)
       teams: v.teams,
       teamsLocked: v.teamsLocked,
       standings: v.standings.map((s) => ({ team: s.team, score: s.score, members: s.members.map((m) => m.id) })),
@@ -712,8 +729,11 @@ export class HostRoom extends EventTarget {
         this.#punishStep = false;
         return true;
       }
-      if (r.screen === SCREEN.FINAL && this.hasPunish && this.punish.closed) {
+      if (r.screen === SCREEN.FINAL && this.hasPunish) {
         if (!this.#rouletteStep) {
+          // si la votación no llegó a cerrarse (la tele se recargó o se saltó con «Secciones»), se cierra ahora con
+          // los votos que haya (sin votos, tres al azar)
+          if (!this.punish.closed) this.punish.close();
           this.#rouletteStep = true;
           return true;
         }
@@ -759,6 +779,66 @@ export class HostRoom extends EventTarget {
         this.#versusStep = false;
       }
       return r.prev();
+    },
+    // El paso que toca ahora (Espacio de la tele y «Siguiente →» del mando): lo mismo en cada tipo de sección. Si no
+    // toca nada (algo en marcha que se para desde el mando), responde por qué.
+    step: () => {
+      const a = this.#actions;
+      if (this.paused) return a.resume();
+      // con el marcador por encima (M), se quita y se sigue donde iba (no salta la pregunta en juego)
+      if (this.runner.peekScoreboard) return a.scoreboard();
+      const g = this.games;
+      if (g.palabras.inPlay) {
+        const p = g.palabras.round.phase;
+        return p === WPHASE.READY ? a.wordsStart({}) : p === WPHASE.DONE ? a.nextItem() : 'El turno está en marcha.';
+      }
+      if (g.agitar.inPlay) {
+        const p = g.agitar.round.phase;
+        return p === SPHASE.READY ? a.shakeStart({}) : p === SPHASE.DONE ? a.nextItem() : 'La carrera está en marcha.';
+      }
+      if (g.squid.inPlay) {
+        // empezar el juego; acabado (o en la hucha), al siguiente. En marcha, nada (que no se corte sin querer)
+        const sq = g.squid;
+        if (sq.skipTo() != null) return a.next(); // ya no queda gente para más juegos: a la hucha
+        if (sq.round?.phase === 'ready') return a.squidStart({});
+        if (!sq.round) return a.next();
+        return 'El juego está en marcha: se para desde el mando.';
+      }
+      if (g.panuelo.inPlay) {
+        // sortear el duelo → ¡ya! → (el ganador lo dice el mando) → siguiente; acabados, al marcador
+        const d = g.panuelo.duels;
+        if (d.finished) return a.nextItem();
+        if (d.current?.step === 'called') return a.hankyGo({});
+        if (!d.busy) return a.hankyDraw({});
+        return 'Duelo en marcha: di quién gana desde el mando.';
+      }
+      if (this.inFreePlay) {
+        // Libre: lo lleva el mando (cronómetro, notas…); solo se pasa a la siguiente cuando ya dio los puntos
+        return this.freeRound.phase === FPHASE.AWARDED ? a.nextItem() : 'Esta prueba se lleva desde el mando.';
+      }
+      if (g.apuesta.inPlay) {
+        const p = g.apuesta.round.phase;
+        return p === BPHASE.BETTING ? a.betClose({}) : p === BPHASE.QUESTION ? a.betReveal({}) : a.nextItem();
+      }
+      if (this.inMillionairePlay) {
+        const m = this.millionaire;
+        if (m.phase === MPHASE.REVEALED) return a.nextItem();
+        if (m.phase === MPHASE.MARKED) return a.mReveal({});
+        if (m.shown < m.options.length) return a.mShow({});
+        return a.mMark({});
+      }
+      if (this.inAnswerPlay) {
+        const next = { ready: 'openAnswers', open: 'closeAnswers', closed: 'reveal', revealed: 'nextItem' }[this.answerRound.phase];
+        return a[next]({});
+      }
+      if (this.inBuzzerPlay) {
+        const p = this.game.phase;
+        if (p === PHASE.IDLE) return a.open();
+        if (p === PHASE.RESULT || p === PHASE.CLOSED) return a.nextItem();
+        return 'Turno abierto: espera a que pulse alguien.';
+      }
+      if (this.runner.screen === SCREEN.FINAL && !this.hasPunish) return 'Fin del concurso.';
+      return a.next(); // en el final: la ruleta
     },
     nextItem: () => this.runner.nextItem(),
     gotoSection: ({ index }) => {
@@ -806,6 +886,24 @@ export class HostRoom extends EventTarget {
         this.#buzzerRecord().penalties.push({ id: res.loserId, points: this.pointsForWrong });
       }
       if (res.reopened) this.#scheduleOpenRepaint();
+      return true;
+    },
+    // Deshacer el último acierto o fallo de la pregunta (solo uno): vuelve a «¿Acierto o fallo?» con el mismo ganador y
+    // quita lo que se dio (los puntos del acierto o los «Puntos por fallo»); tras un fallo, se tira el rebote.
+    unjudge: () => {
+      if (!this.inBuzzerPlay) return false;
+      const res = this.game.unjudge();
+      if (!res) return 'No hay nada que deshacer en esta pregunta.';
+      this.#clearTimers(); // la ventana del rebote, si la había
+      const rec = this.#buzzerRecord();
+      if (res.kind === 'correct' && rec.correct) {
+        this.roster.adjustScore(rec.correct.id, -rec.correct.points);
+        rec.correct = null;
+      }
+      if (res.kind === 'wrong') {
+        const i = rec.penalties.findLastIndex((x) => x.id === res.playerId);
+        if (i >= 0) this.roster.adjustScore(res.playerId, -rec.penalties.splice(i, 1)[0].points);
+      }
       return true;
     },
     restart: () => {
@@ -1050,7 +1148,27 @@ export class HostRoom extends EventTarget {
       if (!team && !player) return 'Elige a quién.';
       if (team) this.roster.adjustTeamBonus(team.id, -pts);
       else this.roster.adjustScore(player.id, -pts);
-      this.lastPenalty = { id: (this.lastPenalty?.id ?? 0) + 1, name: (team ?? player).name, color: (team ?? player).color, points: pts };
+      this.lastPenalty = { id: ++this.#penaltySeq, teamId: team?.id ?? null, playerId: player?.id ?? null, name: (team ?? player).name, color: (team ?? player).color, points: pts };
+      return true;
+    },
+    // ↶ Deshacer la última penalización: devuelve sus puntos y la tele deja de enseñarla (una sola vez)
+    undoPenalty: () => {
+      const p = this.lastPenalty;
+      if (!p) return 'No hay ninguna penalización que deshacer.';
+      if (p.teamId) this.roster.adjustTeamBonus(p.teamId, p.points);
+      else if (p.playerId) this.roster.adjustScore(p.playerId, p.points);
+      this.lastPenalty = null;
+      return true;
+    },
+    // 🖼 Poner (o quitar, con faceId null) la cara de un jugador a mano: manda sobre la de su nombre, también con el
+    // concurso empezado, al reconectar y al recargar la tele
+    setFace: ({ playerId, faceId = null }) => {
+      if (!this.roster.get(playerId)) return 'Ese jugador no está.';
+      const id = faceId === '' ? null : faceId;
+      if (id != null && !this.faces.some((f) => f.id === id)) return 'Esa cara no está cargada en el portátil.';
+      this.faceOverrides = setFaceOverride(this.faceOverrides, playerId, id);
+      this.#assignFaces();
+      this.#broadcastFaces();
       return true;
     },
     resetScores: () => {
@@ -1058,6 +1176,14 @@ export class HostRoom extends EventTarget {
       this.roster.resetScores();
       this.jokers.reset();
       this.itemResults = {};
+      // castigos: se vuelven a votar; sin penalización en la tele; la portada vuelve a empezar por los equipos
+      this.punish = new PunishmentVote(this.show.punishments ?? []);
+      this.lastPenalty = null;
+      this.#rulesFor = null;
+      this.#rouletteStep = false;
+      const atCover = this.runner.screen === SCREEN.COVER;
+      this.#versusStep = atCover && this.hasVersus;
+      this.#punishStep = atCover && !this.#versusStep && this.hasPunish;
       // (Squid guarda sus eliminados y repartos aparte; Palabras, las tarjetas ya salidas)
       this.games.squid.reset();
       this.games.palabras.resetDecks();
@@ -1123,6 +1249,8 @@ export class HostRoom extends EventTarget {
     this.jokers = new JokerBank(show.settings.jokers, {});
     this.itemResults = {};
     this.punish = new PunishmentVote(show.punishments ?? []);
+    this.#rulesFor = null;
+    this.#rouletteStep = false;
     this.games.palabras.resetDecks();
     this.games.squid.reset();
     this.lastImport = { ...report, title: show.title, sections: show.sections.length, teams: show.teams.length };
@@ -1378,7 +1506,10 @@ export class HostRoom extends EventTarget {
 
   // ------------------------------------------------------------------------------------------ millonario
 
-  /** Crea la pregunta del millonario (o la recupera revelada); el asiento sale del orden de los portavoces. */
+  /**
+   * Crea la pregunta del millonario (o la recupera: revelada, o a medias si la tele se recargó o se volvió a ella);
+   * el asiento sale del orden de los portavoces.
+   */
   #syncMillionaire() {
     this.#mTimers.forEach(clearTimeout);
     this.#mTimers = [];
@@ -1393,7 +1524,9 @@ export class HostRoom extends EventTarget {
     question.points = [pointsForLevel(section.points, question.level)];
     const stored = this.itemResults[key]?.millionaire;
     if (stored) {
-      this.millionaire = MillionaireRound.fromJSON(question, stored);
+      // a medias: el Público o la Llamada que estuvieran en marcha quedan terminados (sus relojes ya no valen)
+      this.millionaire = MillionaireRound.fromJSON(question, stored, { settle: true });
+      this.#mStartedAt = now();
       return;
     }
     const connected = (id) => !!this.roster.get(id)?.connected;
@@ -1876,7 +2009,9 @@ export class HostRoom extends EventTarget {
   }
 
   #assignFaces() {
-    for (const p of this.roster.list()) p.face = matchFace(p.name, this.faces);
+    const players = this.roster.list();
+    const faces = assignFaces(players, this.faces, this.faceOverrides);
+    for (const p of players) p.face = faces.get(p.id) ?? null;
   }
 
   /** Imágenes de las caras que se usan ahora: id → imagen. */
@@ -1913,7 +2048,20 @@ export class HostRoom extends EventTarget {
     for (const [id, pts] of Object.entries(p.points)) this.roster.adjustScore(id, pts);
   }
 
+  /**
+   * Millonario a medias (respuestas a la vista, comodines usados…): se guarda con lo jugado de esa pregunta, así al
+   * recargar la tele (o volver a ella) sigue igual y R devuelve los comodines. Recién empezada (nada hecho), no.
+   */
+  #stashMillionaire() {
+    const m = this.millionaire;
+    const key = this.#playKey;
+    if (!m || !key || key !== this.runner.playKey) return;
+    if (m.phase === MPHASE.READY && !m.used.length && !m.cheated) return;
+    this.itemResults[key] = { millionaire: m.toJSON() };
+  }
+
   #persist() {
+    this.#stashMillionaire();
     // Lo guardado ya incluye los puntos en espera: si la tele se recarga a mitad del suspense, no se pierden.
     const pending = this.#pendingPoints?.points ?? {};
     saveRoom({
@@ -1937,6 +2085,8 @@ export class HostRoom extends EventTarget {
       playingNow: [...this.playingNow],
       awayLog: this.awayLog.toJSON(),
       paused: this.paused,
+      steps: { rulesFor: this.#rulesFor, versus: this.#versusStep, punish: this.#punishStep, roulette: this.#rouletteStep },
+      faceOverrides: Object.fromEntries(this.faceOverrides),
     });
   }
 

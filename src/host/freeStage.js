@@ -55,7 +55,7 @@ export function createFreeStage() {
         root,
         header,
         h('h2', { class: 'free-title' }, f.title),
-        kinetic('p', 'free-winner display', `🏆 ${andList(f.winners.map((w) => w.name))}`),
+        kinetic('p', 'free-winner', `🏆 ${andList(f.winners.map((w) => w.name))}`),
         h('p', { class: 'result-verdict' }, f.tool === TOOL.SCORE ? `La mejor nota: ${f.awarded[f.winners[0]?.id] ?? ''}` : `+${f.points} ${f.winners.length > 1 ? 'cada uno' : ''}`.trim()),
         f.tool === TOOL.NONE ? null : results(f),
       );
@@ -181,7 +181,7 @@ export function createFreeStage() {
   /** Prueba con canción (marcar el golpe bailando): suena… y, si la fila tiene golpe, se calla antes y ¡golpe! */
   function renderSong(f, header) {
     const scoring = f.tool === TOOL.SCORE;
-    const status = h('p', { class: 'song-status display' });
+    const status = h('p', { class: 'song-status' });
     fill(
       root,
       header,

@@ -95,6 +95,27 @@ describe('millonario', () => {
     const back = MillionaireRound.fromJSON(Q, JSON.parse(JSON.stringify(r)));
     expect([back.phase, back.marked, back.shown]).toEqual([MPHASE.MARKED, 2, 4]);
   });
+
+  it('a medias (la tele se recarga): sigue con el 50:50 y los comodines gastados; Público y Llamada, terminados', () => {
+    const r = round();
+    r.show(true);
+    r.fifty(() => 0);
+    r.startAudience(['bea', 'cris'], 1000);
+    r.vote('bea', 3, 2000);
+    const saved = JSON.parse(JSON.stringify(r.toJSON()));
+    const back = MillionaireRound.fromJSON(Q, saved, { settle: true });
+    expect([back.phase, back.removed, back.used, back.audience.state]).toEqual([MPHASE.PLAYING, r.removed, ['fifty', 'audience'], 'done']);
+    expect(back.audiencePercentages()[3]).toBe(100);
+    back.removed.push(9);
+    expect(saved.removed).toEqual(r.removed); // copia, no la misma lista
+    // llamada esperando o en marcha → terminada
+    const c = round();
+    c.show(true);
+    c.startCall('cris');
+    c.runCall(5000);
+    const backCall = MillionaireRound.fromJSON(Q, JSON.parse(JSON.stringify(c.toJSON())), { settle: true });
+    expect([backCall.call.state, backCall.onCall('cris'), backCall.jokerBlocker('fifty')]).toEqual(['done', false, null]);
+  });
 });
 
 describe('asiento del millonario', () => {

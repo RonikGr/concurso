@@ -142,6 +142,9 @@ class SoundEngine extends EventTarget {
    * todos sus momentos: sigue sin cortarse), si no el general; null = música generada.
    */
   #slotKey() {
+    // Luz roja y el puente (Squid Games): silencio, ni la canción de toda la sección (la muñeca y los cristales son la
+    // señal del juego); al acabar vuelve donde iba
+    if (this.#scene === 'hush') return null;
     const own = this.#section ? `${this.#section}|${this.#scene}` : null;
     if (own && this.#tracks.get(own)?.length) return own;
     const whole = this.#section ? sectionWideSlot(this.#section) : null;
@@ -701,7 +704,8 @@ class SoundEngine extends EventTarget {
   /** Por dónde va (s) la canción de la prueba con esta key, o null si no suena. */
   songPosition(key) {
     const p = this.#songPlay;
-    if (p?.key === key) return p.from + (this.ctx.currentTime - p.t0);
+    // (antes de que empiece, p. ej. en la cuenta atrás, va por donde empezará: nunca negativa)
+    if (p?.key === key) return p.from + Math.max(0, this.ctx.currentTime - p.t0);
     return this.#songPos.get(key) ?? null;
   }
 
@@ -723,7 +727,10 @@ class SoundEngine extends EventTarget {
     const s = this.#song;
     const rec = s && this.#songs.get(s.track);
     if (!rec) {
-      // Sin canción (o no está en el portátil): la música de siempre
+      // Sin canción (o no está en el portátil): la música de siempre. Si sonaba una (p. ej. se mira el marcador o se
+      // pausa), se apunta dónde iba: al volver a esa prueba sigue ahí, no desde el principio
+      const cur = this.#songPlay;
+      if (cur) this.#songPos.set(cur.key, this.songPosition(cur.key));
       this.#stopSong();
       if (this.#songHeld) {
         this.#songHeld = false;
@@ -749,7 +756,7 @@ class SoundEngine extends EventTarget {
       return;
     }
     if (this.#songPlay) return; // ya suena
-    const from = this.#songPos.get(s.key) ?? s.from;
+    const from = Math.max(0, this.#songPos.get(s.key) ?? s.from ?? 0);
     const end = Math.min(buf.duration, s.until ?? buf.duration);
     if (from >= end - 0.05) return; // ya acabó
     const c = this.ctx;

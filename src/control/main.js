@@ -88,6 +88,7 @@ function handleMessage(msg) {
       document.body.classList.remove('offline');
       // alguien ha pulsado: el mando vibra (así el presentador puede mirar a la gente y no al móvil)
       if (msg.view.game?.phase === 'result' && view?.game?.phase !== 'result') navigator.vibrate?.(80);
+      trackFreeStart(view, msg.view);
       view = msg.view;
       notifyAway(view.awayFeed ?? []);
       document.body.style.setProperty('--env-bg', envGradient(view.section?.env ?? HOME_ENV));
@@ -156,7 +157,7 @@ const STEP_ACTIONS = new Set([
   'next', 'prev', 'nextItem', 'endSection', 'scoreboard', 'open', 'correct', 'wrong', 'openAnswers', 'closeAnswers', 'reveal',
   'mShow', 'mMark', 'mReveal', 'freeStart', 'freeStop', 'freeAward', 'freeDone', 'freeNext', 'wordsStart', 'wordsStop',
   'shakeStart', 'shakeStop', 'betClose', 'betReveal', 'squidStart', 'squidStop', 'hankyDraw', 'hankyChoose', 'hankyGo', 'hankyWin',
-  'punishClose', 'punishSpin',
+  'punishClose', 'punishSpin', 'step', 'unjudge',
 ]);
 const STEP_GAP_MS = 800;
 let lastStepAt = 0;
@@ -211,6 +212,7 @@ function render() {
   // los relojes de la pantalla anterior (los vuelve a poner el panel que los use)
   clearInterval(liveClockTimer);
   clearInterval(trialClockTimer);
+  clearTimeout(freeClockTimer);
 
   fill(
     app,
@@ -291,6 +293,93 @@ function renderBanner(text) {
 }
 
 const btn = (label, onclick, cls = '') => h('button', { class: `btn ${cls}`, onclick }, label);
+
+/**
+ * Botón de dos toques (en vez de la ventana de confirmar del navegador, que congela la página y la conexión): el primer toque lo cambia a
+ * «¿Seguro? Toca otra vez» durante 3 s; el segundo hace la orden. Lo armado vive fuera del pintado (`key`): si el
+ * mando se repinta entre los dos toques, el botón nuevo sigue armado. `warn` = aviso más largo abajo al armar.
+ */
+const TWO_TAP_MS = 3000;
+let armed = null; // {key, until}
+let armedTimer = 0;
+function twoTap(label, action, { key = label, ask = '¿Seguro? Toca otra vez', warn = null, cls = '' } = {}) {
+  const isArmed = () => armed?.key === key && performance.now() < armed.until;
+  const el = h(
+    'button',
+    {
+      class: `btn ${cls} ${isArmed() ? 'armed' : ''}`,
+      dataset: { twoTap: key, label, ask },
+      onclick: () => {
+        if (isArmed()) {
+          disarm();
+          action();
+          return;
+        }
+        arm(key);
+        if (warn) toast(warn);
+      },
+    },
+    isArmed() ? ask : label,
+  );
+  return el;
+}
+
+function twoTapButtons(key) {
+  return [...document.querySelectorAll('[data-two-tap]')].filter((b) => b.dataset.twoTap === key);
+}
+
+const markArmed = (key, on) => document.querySelectorAll('[data-arm]').forEach((b) => b.dataset.arm === key && b.classList.toggle('armed', on));
+const isArmedKey = (key) => armed?.key === key && performance.now() < armed.until;
+
+function arm(key) {
+  disarm();
+  armed = { key, until: performance.now() + TWO_TAP_MS };
+  for (const b of twoTapButtons(key)) {
+    b.textContent = b.dataset.ask;
+    b.classList.add('armed');
+  }
+  markArmed(key, true);
+  armedTimer = setTimeout(disarm, TWO_TAP_MS);
+}
+
+function disarm() {
+  clearTimeout(armedTimer);
+  if (!armed) return;
+  for (const b of twoTapButtons(armed.key)) {
+    b.textContent = b.dataset.label;
+    b.classList.remove('armed');
+  }
+  markArmed(armed.key, false);
+  armed = null;
+}
+
+/**
+ * ¿Hay algo en juego que «Saltar» o «Atrás» tirarían? (respuestas abiertas o sin revelar, pulsador abierto o con
+ * ganador sin juzgar, Libre en marcha, un juego de Squid sin jugar o en marcha, Palabras o Agitar en marcha, apuesta
+ * sin revelar, millonario a medias, duelo del pañuelo llamado).
+ */
+function somethingInPlay() {
+  if (!view || view.screen !== 'play') return false;
+  const { answer: a, free: f, squid: q, words: w, shake: s, bet: b, millionaire: m, hanky: k, game: g } = view;
+  if (q) return q.game !== 'hucha' && q.phase !== 'done' && q.alive.length > 1;
+  if (k) return !!k.current && k.current.step !== 'done';
+  if (w) return w.phase !== 'ready' && w.phase !== 'done';
+  if (s) return s.phase !== 'ready' && s.phase !== 'done';
+  if (b) return b.phase !== 'revealed';
+  if (m) return m.phase === 'playing' || m.phase === 'marked';
+  if (f) return f.phase === 'running';
+  if (a) return a.phase === 'open' || a.phase === 'closed';
+  if (view.section?.type === 'pulsador' && g) return g.phase === 'open' || (g.phase === 'result' && !g.judged);
+  return false;
+}
+
+const SKIP_WARN = 'Toca otra vez para saltar: se pierden las respuestas';
+
+/** Botón que deja lo que hay en juego: con algo en juego, dos toques; si no, uno. */
+function skipBtn(label, action, key, cls = '') {
+  return somethingInPlay() ? twoTap(label, action, { key, ask: 'Toca otra vez', warn: SKIP_WARN, cls }) : btn(label, action, cls);
+}
+
 const avatar = (p) =>
   h('span', { class: 'c-avatar emoji', style: { background: getColor(p.color).bg, color: getColor(p.color).fg } }, avatarOf(p));
 const teamOf = (id) => view.teams.find((t) => t.id === id);
@@ -299,9 +388,11 @@ function navRow() {
   return h(
     'div',
     { class: 'c-nav' },
-    btn('← Atrás', () => cmd('prev')),
+    skipBtn('← Atrás', () => cmd('prev'), 'nav-prev'),
     view.screen !== 'setup' ? btn(view.peekScoreboard ? 'Quitar marcador' : 'Marcador', () => cmd('scoreboard')) : null,
-    view.screen !== 'final' ? btn('Siguiente →', () => cmd('next')) : null,
+    // «Saltar» = pasar de verdad (next); «Siguiente» = el Espacio de la tele (abre, cierra, revela, avanza: orden step)
+    view.screen === 'play' ? skipBtn('Saltar →', () => cmd('next'), 'nav-next') : null,
+    view.screen !== 'final' ? btn('Siguiente →', () => cmd('step'), 'c-step') : null,
   );
 }
 
@@ -356,7 +447,8 @@ function penaltyCard() {
           [1, 3, 5, 10].map((n) =>
             btn(`−${n}`, () => {
               cmd('penalty', { [t.key]: t.id, points: n });
-              toast(`−${n} para ${t.name}`);
+              // unos segundos para arreglar el toque equivocado (orden undoPenalty: devuelve la última)
+              toast(`−${n} para ${t.name}`, { label: '↶ Deshacer', run: () => cmd('undoPenalty') });
             }, 'danger small'),
           ),
         ),
@@ -407,7 +499,7 @@ function gameTabBody() {
       return setupPanel();
     case 'cover':
       if (view.punish?.step === 'vote') return punishVotePanel();
-      if (view.versus) return [h('section', { class: 'c-card center' }, h('p', { class: 'c-kicker' }, 'En la tele: los equipos'), h('h2', {}, view.teams.map((t) => t.name).join(' vs '))), bigNext('Portada →'), navRow()];
+      if (view.versus) return [h('section', { class: 'c-card center' }, h('p', { class: 'c-kicker' }, 'En la tele: los equipos'), h('h2', {}, view.teams.map((t) => t.name).join(' vs '))), bigNext(view.hasPunish ? 'Votar castigos →' : 'Portada →'), navRow()];
       return [h('section', { class: 'c-card center' }, h('p', { class: 'c-kicker' }, 'En la tele: portada'), h('h2', {}, view.title)), bigNext(`Presentar «${view.sections.find((s) => s.on)?.name ?? 'la primera sección'}» →`), navRow()];
     case 'intro':
       if (view.section?.type === 'test' && view.playable && !view.introRules) return [sectionCard(), bigNext('Explicar cómo se juega →'), navRow()];
@@ -467,7 +559,7 @@ function wordsPanel() {
       head,
       h('section', { class: 'c-card center' }, h('h2', {}, `${w.score} ${w.score === 1 ? 'palabra' : 'palabras'}`), w.score ? h('p', {}, `+${w.score * w.points} ${w.team ? `para ${w.team.name}` : ''}`) : null, results),
       h('button', { class: 'btn primary big', onclick: () => cmd('nextItem') }, 'Siguiente turno →'),
-      h('div', { class: 'c-row' }, btn('Repetir el turno', () => confirm('¿Repetir este turno? Se quitan sus puntos.') && cmd('restart'))),
+      h('div', { class: 'c-row' }, twoTap('Repetir el turno', () => cmd('restart'), { key: 'words-restart', ask: '¿Quitar sus puntos? Toca otra vez' })),
       navRow(),
     ];
   return [
@@ -497,7 +589,7 @@ function shakePanel() {
     s.players.map((p) => h('li', {}, h('span', {}, `${p.place ? `${p.place}º ` : ''}${p.name}`), h('strong', {}, String(p.total)), s.points?.[p.id] ? h('small', {}, ` +${s.points[p.id]}`) : null)),
   );
   if (s.phase === 'ready') return [head, h('button', { class: 'btn primary big', onclick: () => cmd('shakeStart') }, '¡Empezar! (3, 2, 1…)'), navRow()];
-  if (s.phase === 'done') return [head, h('section', { class: 'c-card' }, list), h('button', { class: 'btn primary big', onclick: () => cmd('nextItem') }, 'Siguiente →'), h('div', { class: 'c-row' }, btn('Repetir la ronda', () => confirm('¿Repetir esta ronda? Se quitan sus puntos.') && cmd('restart'))), navRow()];
+  if (s.phase === 'done') return [head, h('section', { class: 'c-card' }, list), h('button', { class: 'btn primary big', onclick: () => cmd('nextItem') }, 'Siguiente →'), h('div', { class: 'c-row' }, twoTap('Repetir la ronda', () => cmd('restart'), { key: 'shake-restart', ask: '¿Quitar sus puntos? Toca otra vez' })), navRow()];
   return [head, h('section', { class: 'c-card' }, h('div', { class: 'c-row' }, liveClock(Math.max(0, s.endsInMs ?? 0))), list), btn('Parar ya', () => cmd('shakeStop'))];
 }
 
@@ -618,6 +710,8 @@ function betPanel() {
   return [head, owners, h('button', { class: 'btn primary big', onclick: () => cmd('nextItem') }, 'Siguiente →'), navRow()];
 }
 
+let squidFixOpen = false;
+
 /** Squid Games: empezar cada juego, ver lo secreto (el camino del puente, las canicas escondidas) y corregir a mano. */
 function squidPanel() {
   const q = view.squid;
@@ -631,21 +725,35 @@ function squidPanel() {
     h('p', { class: 'muted' }, q.rule),
     h('p', {}, `🐷 ${q.pot} pts en la hucha · ${q.alive.length} vivos · ${q.perHead} por eliminado`),
   );
+  // Quien llegó tarde (conectado, sin número): solo a mano, y no con un juego en marcha (orden squidJoin)
+  const late = (q.joinable ?? []).map((id) => view.players.find((p) => p.id === id)).filter(Boolean);
+  const joinCard = late.length
+    ? h(
+        'section',
+        { class: 'c-card' },
+        h('p', { class: 'c-kicker' }, 'Han llegado tarde'),
+        late.map((p) => h('div', { class: 'c-row' }, h('span', {}, p.name), btn('➕ Meter en Squid', () => cmd('squidJoin', { id: p.id }), 'small'))),
+      )
+    : null;
+  // Corregir a mano: casi nunca hace falta, así que va plegado (lo abierto se recuerda fuera del pintado)
   const fixes = (allowed) =>
     allowed
-      ? h(
-          'section',
-          { class: 'c-card' },
-          h('p', { class: 'c-kicker' }, 'Corregir a mano'),
-          q.alive.map((p) => h('div', { class: 'c-row' }, h('span', {}, n(p)), btn('💀 Eliminar', () => confirm(`¿Eliminar a ${p.name}?`) && cmd('squidEliminate', { id: p.id }), 'bad small'))),
-          q.fallen.map((p) => h('div', { class: 'c-row' }, h('span', { class: 'muted' }, `💀 ${n(p)}`), btn('↩ Revivir', () => cmd('squidRevive', { id: p.id }), 'small'))),
-        )
+      ? [
+          joinCard,
+          h(
+            'details',
+            { class: 'c-card c-fixes', open: squidFixOpen, ontoggle: (e) => (squidFixOpen = e.target.open) },
+            h('summary', { class: 'c-kicker' }, `✏️ Corregir a mano (${q.alive.length} vivos · ${q.fallen.length} fuera)`),
+            q.alive.map((p) => h('div', { class: 'c-row' }, h('span', {}, n(p)), twoTap('💀 Eliminar', () => cmd('squidEliminate', { id: p.id }), { key: `squid-out-${p.id}`, ask: '¿Eliminar? Toca otra vez', cls: 'bad small' }))),
+            q.fallen.map((p) => h('div', { class: 'c-row' }, h('span', { class: 'muted' }, `💀 ${n(p)}`), btn('↩ Revivir', () => cmd('squidRevive', { id: p.id }), 'small'))),
+          ),
+        ]
       : null;
   if (q.game === 'hucha') {
     return [head, h('section', { class: 'c-card center' }, h('h2', {}, q.alive.length ? `+${q.share} para cada superviviente` : 'No sobrevive nadie'), h('p', {}, q.alive.map(n).join(' · '))), bigNext('Al marcador →'), fixes(true), navRow()];
   }
   // Si ya solo queda uno (o nadie), lo que falta se salta: directo a la hucha
-  if (q.alive.length <= 1 && q.phase !== 'running') return [head, h('section', { class: 'c-card center' }, h('p', {}, q.alive.length ? 'Solo queda uno: los juegos que faltan se saltan.' : 'No queda nadie: los juegos que faltan se saltan.')), h('button', { class: 'btn primary big', onclick: () => cmd('next') }, 'La hucha →'), q.phase === 'done' ? h('div', { class: 'c-row' }, btn('Repetir este juego', () => confirm('¿Repetir el juego? Vuelven los que cayeron en él.') && cmd('restart'))) : null, fixes(true), navRow()];
+  if (q.alive.length <= 1 && q.phase !== 'running') return [head, h('section', { class: 'c-card center' }, h('p', {}, q.alive.length ? 'Solo queda uno: los juegos que faltan se saltan.' : 'No queda nadie: los juegos que faltan se saltan.')), h('button', { class: 'btn primary big', onclick: () => cmd('next') }, 'La hucha →'), q.phase === 'done' ? h('div', { class: 'c-row' }, twoTap('Repetir este juego', () => cmd('restart'), { key: 'squid-restart', ask: '¿Vuelven los caídos? Toca otra vez' })) : null, fixes(true), navRow()];
   if (!g || q.phase === 'ready') {
     const extra = q.game === 'panal' && g ? h('p', { class: 'muted' }, `${g.picked.length} de ${g.players.length} han elegido lata`) : null;
     return [head, extra, h('button', { class: 'btn primary big', onclick: () => cmd('squidStart') }, '▶ ¡Empezar! (3, 2, 1…)'), fixes(true), navRow()];
@@ -656,7 +764,7 @@ function squidPanel() {
       head,
       h('section', { class: 'c-card' }, h('p', { class: 'c-kicker' }, g.skipped ? 'Se ha saltado (poca gente)' : `Fuera en este juego: ${gone.length}`), h('p', {}, gone.map(n).join(' · ') || '¡Nadie!')),
       bigNext(q.step < q.steps - 1 ? 'Siguiente juego →' : 'La hucha →'),
-      h('div', { class: 'c-row' }, btn('Repetir este juego', () => confirm('¿Repetir el juego? Vuelven los que cayeron en él.') && cmd('restart'))),
+      h('div', { class: 'c-row' }, twoTap('Repetir este juego', () => cmd('restart'), { key: 'squid-restart', ask: '¿Vuelven los caídos? Toca otra vez' })),
       fixes(true),
       navRow(),
     ];
@@ -682,7 +790,7 @@ function squidPanel() {
       ),
     );
   }
-  return [head, h('section', { class: 'c-card' }, h('p', { class: 'c-kicker' }, 'En marcha'), ...live), btn('Terminar ya este juego', () => confirm('¿Terminar ya? Quien no lo haya superado queda fuera.') && cmd('squidStop')), navRow()];
+  return [head, h('section', { class: 'c-card' }, h('p', { class: 'c-kicker' }, 'En marcha'), ...live), twoTap('Terminar ya este juego', () => cmd('squidStop'), { key: 'squid-stop', warn: 'Al terminar, quien no lo haya superado queda fuera' }), navRow()];
 }
 
 /** Castigos: la votación (tras presentar los equipos). */
@@ -702,7 +810,7 @@ function punishVotePanel() {
       ),
     ),
     h('button', { class: 'btn primary big', onclick: () => cmd('next') }, p.closed ? 'Portada →' : 'Cerrar votación (pasan 3) →'),
-    p.closed ? h('div', { class: 'c-row' }, btn('Volver a votar', () => confirm('¿Borrar los votos y votar otra vez?') && cmd('punishReopen'))) : null,
+    p.closed ? h('div', { class: 'c-row' }, twoTap('Volver a votar', () => cmd('punishReopen'), { key: 'punish-reopen', ask: '¿Borrar los votos? Toca otra vez' })) : null,
     navRow(),
   ];
 }
@@ -794,6 +902,7 @@ function setupPanel() {
         ? btn(view.teamsLocked ? '🔒 Equipos cerrados (abrir)' : '🔓 Equipos abiertos (cerrar)', () => cmd('lockTeams', { locked: !view.teamsLocked }))
         : null,
     ),
+    facesCard(true),
     h('button', { class: 'btn primary big', disabled: !view.canStart, onclick: () => cmd('next') }, view.teams.length ? 'Presentar los equipos →' : 'Empezar concurso →'),
     view.canStart ? h('p', { class: 'muted small center' }, view.teams.length ? 'Al empezar, los equipos se cierran.' : '') : null,
   ];
@@ -831,6 +940,8 @@ function sectionCard() {
   );
 }
 
+const LOCK_LABEL = { early: 'pulsó antes', wrong: 'falló', cheat: 'salió de la app' };
+
 function buzzerPanel() {
   const item = view.item;
   const game = view.game;
@@ -850,6 +961,14 @@ function buzzerPanel() {
         : null,
   );
 
+  // Deshacer el último Acierto o Fallo (orden unjudge): vuelve a «¿Acierto o fallo?» con el mismo ganador
+  const undo = game?.canUndo ? btn('↶ Deshacer acierto/fallo', () => cmd('unjudge')) : null;
+  // Ya se han dado puntos en esta pregunta: reiniciarla los quita → dos toques
+  const given = !!(game?.judged || game?.canUndo);
+  const restart = given
+    ? twoTap('Reiniciar pregunta', () => cmd('restart'), { key: 'buzzer-restart', ask: '¿Quitar los puntos? Toca otra vez' })
+    : btn('Reiniciar pregunta', () => cmd('restart'));
+
   let turn;
   switch (game?.phase) {
     case 'idle':
@@ -859,7 +978,7 @@ function buzzerPanel() {
       ];
       break;
     case 'open':
-      turn = [h('p', { class: 'c-live' }, '¡Turno abierto! Esperando pulsaciones…'), btn('Reiniciar pregunta', () => cmd('restart'))];
+      turn = [h('p', { class: 'c-live' }, '¡Turno abierto! Esperando pulsaciones…'), undo];
       break;
     case 'result':
       turn = [
@@ -874,7 +993,7 @@ function buzzerPanel() {
             ),
         item?.answer && !view.shown.answer ? btn('Mostrar respuesta en la tele', () => cmd('showAnswer')) : null,
         h('button', { class: `btn big ${game.judged ? 'primary' : ''}`, onclick: () => cmd('nextItem') }, 'Siguiente pregunta →'),
-        btn('Reiniciar pregunta', () => cmd('restart')),
+        undo,
       ];
       break;
     case 'closed':
@@ -882,15 +1001,28 @@ function buzzerPanel() {
         h('p', { class: 'c-live' }, 'Nadie más puede responder.'),
         item?.answer && !view.shown.answer ? btn('Mostrar respuesta en la tele', () => cmd('showAnswer')) : null,
         h('button', { class: 'btn primary big', onclick: () => cmd('nextItem') }, 'Siguiente pregunta →'),
-        btn('Reiniciar pregunta', () => cmd('restart')),
+        undo,
       ];
       break;
   }
 
+  // Bloqueados (pulsaron antes de tiempo, fallaron o salieron de la app): «🔓» los suelta (orden unlock)
+  const locked = view.players.filter((p) => p.lock);
+  const lockedCard = locked.length
+    ? h(
+        'section',
+        { class: 'c-card c-locked' },
+        h('p', { class: 'c-kicker' }, 'Bloqueados'),
+        h('div', { class: 'c-chips' }, locked.map((p) => h('button', { class: 'c-chip', onclick: () => cmd('unlock', { playerId: p.id }) }, `${p.name} · ${LOCK_LABEL[p.lock] ?? 'bloqueado'} 🔓`))),
+      )
+    : null;
+
   return [
     question,
     h('section', { class: 'c-turn' }, turn),
-    h('div', { class: 'c-row secondary' }, btn('Saltar pregunta', () => cmd('nextItem')), btn('Terminar sección', () => cmd('endSection'))),
+    lockedCard,
+    // lejos del botón principal: reiniciar y saltar
+    h('div', { class: 'c-row secondary' }, restart, skipBtn('Saltar pregunta', () => cmd('nextItem'), 'buzzer-skip'), skipBtn('Terminar sección', () => cmd('endSection'), 'buzzer-end')),
     navRow(),
   ];
 }
@@ -981,7 +1113,7 @@ function millionairePanel() {
         m.audience.state === 'voting'
           ? [
               h('p', {}, `Votando: ${m.audience.voted} de ${m.audience.voters}`),
-              h('div', { class: 'c-row' }, btn('Terminar ya', () => cmd('mAudienceEnd')), btn('Anular (han hablado)', () => confirm('¿Anular el comodín del público? No se devuelve.') && cmd('mAudienceCancel'), 'danger')),
+              h('div', { class: 'c-row' }, btn('Terminar ya', () => cmd('mAudienceEnd')), twoTap('Anular (han hablado)', () => cmd('mAudienceCancel'), { key: 'audience-cancel', warn: 'El comodín del público no se devuelve', cls: 'danger' })),
             ]
           : h('p', {}, m.audience.percentages.map((p, i) => `${L[i]}: ${p} %`).join(' · ')),
       ),
@@ -1113,15 +1245,55 @@ function freePanel() {
 
   return [
     card,
+    f.tool !== 'trial' ? freeClock(f) : null,
     ...body,
     h(
       'div',
       { class: 'c-row secondary' },
-      btn('Reiniciar prueba', () => (f.phase !== 'awarded' || confirm('¿Reiniciar? Se quitan los puntos de esta prueba.')) && cmd('restart')),
+      f.phase === 'awarded' ? twoTap('Reiniciar prueba', () => cmd('restart'), { key: 'free-restart', ask: '¿Quitar sus puntos? Toca otra vez' }) : skipBtn('Reiniciar prueba', () => cmd('restart'), 'free-restart'),
       btn('Terminar sección', () => cmd('endSection')),
     ),
     navRow(),
   ];
+}
+
+/**
+ * Reloj de Libre en el mando (lo que lleva la prueba). Las horas de la vista son del reloj del portátil y el mando no
+ * lo tiene sincronizado: la salida se estima en local al ver empezar la prueba (llegada + la cuenta atrás de la tele).
+ * Si el mando entra con la prueba ya en marcha, con cronómetro se saca de lo que aguantan los que siguen; si no, sin reloj.
+ */
+let freeClockBase = { key: null, startAt: null };
+let freeClockTimer = 0;
+function trackFreeStart(prev, next) {
+  const f = next.free;
+  if (!f || f.phase !== 'running' || f.tool === 'trial') return;
+  const key = `${f.roundId}:${f.tStart}`;
+  if (freeClockBase.key === key) return;
+  const p = prev?.free;
+  const sawStart = p && p.roundId === f.roundId && (p.phase !== 'running' || p.tStart !== f.tStart);
+  let startAt = null;
+  if (sawStart) startAt = performance.now() + Math.max(3, next.settings?.countdownSec ?? 3) * 1000;
+  else if (f.tool === 'stopwatch') {
+    const standing = f.ranking.filter((r) => !f.participants.find((x) => x.id === r.id)?.out && r.value != null);
+    if (standing.length) startAt = performance.now() - Math.max(...standing.map((r) => r.value));
+  }
+  freeClockBase = { key, startAt };
+}
+
+function freeClock(f) {
+  clearTimeout(freeClockTimer);
+  if (f.phase === 'stopped' || f.phase === 'awarded') {
+    return f.tStart != null && f.tStop != null && f.tStop > f.tStart ? h('p', { class: 'c-status' }, `⏱ Duró ${formatClockText(f.tStop - f.tStart)}`) : null;
+  }
+  if (freeClockBase.key !== `${f.roundId}:${f.tStart}` || freeClockBase.startAt == null) return null;
+  const el = h('p', { class: 'c-free-clock' });
+  const tick = () => {
+    const ms = performance.now() - freeClockBase.startAt;
+    el.textContent = ms < 0 ? `Empieza en ${Math.ceil(-ms / 1000)}…` : `⏱ ${formatClockText(ms)}`;
+    freeClockTimer = setTimeout(tick, 250); // setTimeout (no rAF: con la pantalla oculta se para)
+  };
+  tick();
+  return el;
 }
 
 /** Contrarreloj: quién sale, su reloj, sus intentos (cuántas piezas tiene bien) y los tiempos de los demás. */
@@ -1159,7 +1331,7 @@ function trialCard(f) {
                 attempts.length ? btn('↶ Quitar el último intento', () => cmd('freeUndoAttempt'), 'small') : null,
               )
             : null,
-          h('div', { class: 'c-grid2' }, btn('Se rinde', () => confirm(`¿${cur?.name} se rinde?`) && cmd('freeDone', { gaveUp: true }), 'bad'), btn('✓ ¡Lo tiene!', () => cmd('freeDone'), 'ok')),
+          h('div', { class: 'c-grid2' }, twoTap('Se rinde', () => cmd('freeDone', { gaveUp: true }), { key: 'trial-giveup', ask: `¿${cur?.name ?? ''} se rinde? Toca otra vez`, cls: 'bad' }), btn('✓ ¡Lo tiene!', () => cmd('freeDone'), 'ok')),
         ]
       : h('button', { class: 'btn primary big', onclick: () => cmd('freeNext') }, `▶ Empieza ${cur?.name ?? ''}`),
     done.length
@@ -1299,7 +1471,10 @@ function answerPanel() {
       break;
     }
     case 'open':
-      actions = [h('p', { class: 'c-live' }, timing ? '¡En juego!' : '¡Respondiendo!'), btn('Cerrar ya', () => cmd('closeAnswers'))];
+      actions = [
+        h('p', { class: 'c-status' }, timing ? '¡En juego!' : '¡Respondiendo!'),
+        h('button', { class: 'btn primary big', onclick: () => cmd('closeAnswers') }, `Cerrar ya (${a.answeredIds.length} de ${a.eligibleIds.length})`),
+      ];
       break;
     case 'closed':
       actions = [h('button', { class: 'btn primary big', onclick: () => cmd('reveal') }, 'Revelar')];
@@ -1316,8 +1491,8 @@ function answerPanel() {
     h(
       'div',
       { class: 'c-row secondary' },
-      btn('Reiniciar pregunta', () => (a.phase !== 'revealed' || confirm('¿Reiniciar? Se quitan los puntos de esta pregunta.')) && cmd('restart')),
-      btn('Terminar sección', () => cmd('endSection')),
+      a.phase === 'revealed' ? twoTap('Reiniciar pregunta', () => cmd('restart'), { key: 'answer-restart', ask: '¿Quitar sus puntos? Toca otra vez' }) : skipBtn('Reiniciar pregunta', () => cmd('restart'), 'answer-restart'),
+      skipBtn('Terminar sección', () => cmd('endSection'), 'answer-end'),
     ),
     navRow(),
   ];
@@ -1467,7 +1642,70 @@ function spokespeopleCard() {
 }
 
 function playersTab() {
-  return [spokespeopleCard(), awaySummaryCard(), playersTabBody()];
+  return [facesCard(false), spokespeopleCard(), awaySummaryCard(), playersTabBody()];
+}
+
+/**
+ * Caras cargadas en el portátil: quién falta por entrar (caras sin jugador), quién va sin foto y «🖼 Poner cara»
+ * (orden setFace). A quién se le está poniendo vive fuera del pintado.
+ */
+let faceDraft = null; // playerId al que se le está eligiendo cara
+const faceName = (f) => f.names?.[0] ?? f.id;
+
+function facesCard(withPickers) {
+  const list = view.faceList ?? [];
+  if (!list.length) return null;
+  const missing = list.filter((f) => !f.playerId);
+  const noFace = view.players.filter((p) => !p.face);
+  return h(
+    'section',
+    { class: 'c-card c-faces' },
+    h('p', { class: 'c-kicker' }, `🖼 Caras · ${list.length - missing.length} de ${list.length} puestas`),
+    h('p', {}, h('strong', {}, 'Faltan: '), missing.length ? missing.map(faceName).join(', ') : 'nadie ✓'),
+    h('p', {}, h('strong', {}, 'Sin foto: '), noFace.length ? noFace.map((p) => p.name).join(', ') : 'nadie ✓'),
+    withPickers && noFace.length
+      ? noFace.map((p) => [h('div', { class: 'c-row c-face-row' }, h('span', {}, p.name), facePickButton(p)), faceDraft === p.id ? facePicker(p) : null])
+      : null,
+    !withPickers && noFace.length ? h('p', { class: 'muted small' }, '«🖼 Poner cara» en su fila, abajo.') : null,
+  );
+}
+
+function facePickButton(p) {
+  return btn(faceDraft === p.id ? 'Cancelar' : '🖼 Poner cara', () => {
+    faceDraft = faceDraft === p.id ? null : p.id;
+    lastSignature = null;
+    render();
+  }, 'small');
+}
+
+/** Las caras libres primero; las puestas, apagadas (ponérsela a otro se la quita al que la tenía). */
+function facePicker(p) {
+  const list = [...(view.faceList ?? [])].sort((a, b) => !!a.playerId - !!b.playerId);
+  const owner = (id) => view.players.find((x) => x.id === id)?.name;
+  return h(
+    'div',
+    { class: 'c-face-picker' },
+    h('p', { class: 'c-hint' }, `¿Cuál es la cara de ${p.name}?`),
+    h(
+      'div',
+      { class: 'c-chips' },
+      list.map((f) =>
+        h(
+          'button',
+          {
+            class: `c-chip ${f.playerId ? 'done' : ''}`,
+            onclick: () => {
+              cmd('setFace', { playerId: p.id, faceId: f.id });
+              faceDraft = null;
+              lastSignature = null;
+              render();
+            },
+          },
+          f.playerId ? `${faceName(f)} (de ${owner(f.playerId) ?? '¿?'})` : faceName(f),
+        ),
+      ),
+    ),
+  );
 }
 
 /** Recuento de salidas de la app por concursante (quien más con pregunta, arriba). */
@@ -1499,7 +1737,7 @@ function awaySummaryCard() {
             ),
           ),
           h('p', { class: 'muted small' }, 'Cuenta cada vez que alguien minimiza, cambia de app o de pestaña, en cualquier momento. «Con pregunta»: tenía una pregunta en juego.'),
-          btn('Borrar recuento', () => confirm('¿Borrar el recuento de salidas?') && cmd('awayReset')),
+          twoTap('Borrar recuento', () => cmd('awayReset'), { key: 'away-reset' }),
         ]
       : h('p', { class: 'muted small' }, 'Nadie ha salido de la app todavía. Si alguien lo hace, te aviso aquí arriba al momento.'),
   );
@@ -1542,7 +1780,7 @@ function playersTabBody() {
               'div',
               { class: `c-player ${p.connected ? '' : 'offline'}` },
               avatar(p),
-              h('span', { class: 'c-pname' }, p.name, p.lock ? h('small', {}, ' · bloqueado') : null, p.away ? h('small', {}, ' · 👀 fuera') : null),
+              h('span', { class: 'c-pname' }, p.name, p.lock ? h('small', {}, ` · ${LOCK_LABEL[p.lock] ?? 'bloqueado'}`) : null, p.away ? h('small', {}, ' · 👀 fuera') : null),
               h('strong', { class: 'c-score' }, String(p.score)),
               btn('−', () => cmd('adjustScore', { playerId: p.id, delta: -1 }), 'round'),
               btn('+', () => cmd('adjustScore', { playerId: p.id, delta: 1 }), 'round'),
@@ -1554,13 +1792,23 @@ function playersTabBody() {
                     view.teams.map((t) => h('option', { value: t.id, selected: t.id === p.teamId }, t.name)),
                   )
                 : null,
-              btn('✕', () => confirm(`¿Quitar a ${p.name} de la sala? Perderá sus puntos.`) && cmd('removePlayer', { playerId: p.id }), 'round ghost'),
+              twoTap('✕', () => cmd('removePlayer', { playerId: p.id }), { key: `remove-${p.id}`, ask: '¿Quitar?', warn: `Toca otra vez para quitar a ${p.name} de la sala: pierde sus puntos`, cls: 'round ghost' }),
+              // debajo, a lo ancho: soltar al bloqueado y poner cara a quien va sin foto
+              p.lock || (!p.face && view.faceList?.length)
+                ? h(
+                    'div',
+                    { class: 'c-p-extra' },
+                    p.lock ? btn('🔓 Soltar', () => cmd('unlock', { playerId: p.id }), 'small') : null,
+                    !p.face && view.faceList?.length ? facePickButton(p) : null,
+                  )
+                : null,
+              faceDraft === p.id ? facePicker(p) : null,
             ),
           ),
         ),
       ),
     view.players.length ? null : h('p', { class: 'muted center' }, 'Todavía no hay jugadores.'),
-    btn('Poner todos los marcadores a 0', () => confirm('¿Poner todos los marcadores a 0 (también los de equipo)?') && cmd('resetScores'), 'danger'),
+    twoTap('Poner todos los marcadores a 0', () => cmd('resetScores'), { key: 'reset-scores', ask: '¿Todos a 0 (también equipos)? Toca otra vez', cls: 'danger' }),
   ];
 }
 
@@ -1582,8 +1830,17 @@ function sectionsTab() {
             h(
               'button',
               {
+                dataset: { arm: `goto-${s.index}` },
+                class: isArmedKey(`goto-${s.index}`) ? 'armed' : '',
                 onclick: () => {
-                  if (view.screen === 'play' && !confirm(`¿Saltar a «${s.name}»? Se deja la pregunta actual.`)) return;
+                  // jugando, dos toques (se deja la pregunta actual)
+                  const key = `goto-${s.index}`;
+                  if (view.screen === 'play' && !isArmedKey(key)) {
+                    arm(key);
+                    toast(`Toca otra vez para saltar a «${s.name}»: se deja la pregunta actual`);
+                    return;
+                  }
+                  disarm();
                   cmd('gotoSection', { index: s.index });
                   tab = 'game';
                 },
@@ -1598,12 +1855,15 @@ function sectionsTab() {
     soundCard(),
     view.paused
       ? null
-      : btn('⏸ Parar el concurso por hoy', () => {
-          if (!confirm('¿Parar por hoy? Queda guardado en el portátil tal cual: otro día, al abrir la tele, «Seguir el concurso».')) return;
-          cmd('pause');
-          tab = 'game';
-        }),
-    view.screen !== 'setup' ? btn('Volver a preparación', () => confirm('¿Volver a la pantalla de preparación?') && cmd('toSetup')) : null,
+      : twoTap(
+          '⏸ Parar el concurso por hoy',
+          () => {
+            cmd('pause');
+            tab = 'game';
+          },
+          { key: 'pause', ask: '¿Parar por hoy? Toca otra vez', warn: 'Queda guardado en el portátil tal cual: otro día, al abrir la tele, «Seguir el concurso».' },
+        ),
+    view.screen !== 'setup' ? twoTap('Volver a preparación', () => cmd('toSetup'), { key: 'to-setup' }) : null,
   ];
 }
 
@@ -1646,16 +1906,25 @@ function soundCard() {
 
 let toastTimer = null;
 /** Aviso abajo; fuera del pintado (si no, el siguiente repintado lo borraba antes de poder leerlo). */
-function toast(text) {
+function toast(text, action = null) {
   let el = document.getElementById('c-toast');
   if (!el) {
     el = h('div', { id: 'c-toast', class: 'c-toast', hidden: true });
     document.body.append(el);
   }
-  el.textContent = text;
+  // con acción (p. ej. «↶ Deshacer»), un botón al lado que cierra el aviso; dura un poco más
+  fill(
+    el,
+    h('span', {}, text),
+    action
+      ? h('button', { class: 'btn small', onclick: () => { el.hidden = true; action.run(); } }, action.label)
+      : null,
+  );
+  el.classList.toggle('with-action', !!action);
+  el.style.top = `${Math.round((app.querySelector('.c-top')?.getBoundingClientRect().bottom ?? 72) + 8)}px`;
   el.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (el.hidden = true), 3500);
+  toastTimer = setTimeout(() => (el.hidden = true), action ? 6000 : 3500);
 }
 
 function deviceName() {

@@ -29,7 +29,8 @@ describe('canciones de las pruebas', () => {
     expect(songFor(free('setup'))).toBeNull();
     expect(songToPrepare(free('setup'))).toBe('bachata1');
     expect(songFor(free('running'))).toEqual({ key: '9:0#1', track: 'bachata1', from: 30, playing: true, startAt: 100, silence: [49.5, 52.5], until: 56.5, fadeIn: 0 });
-    expect(songFor(free('stopped')).playing).toBe(false);
+    expect(songFor(free('stopped'))).toBeNull(); // parada: vuelve la música de la sección
+    expect(songFor(free('awarded'))).toBeNull();
   });
 
   it('libre con la canción de la carpeta del juego: suena desde el «¡ya!» si la fila no nombra otra', () => {
@@ -38,9 +39,23 @@ describe('canciones de las pruebas', () => {
     expect(songToPrepare(free('setup'), { itemTrack })).toBe(itemTrack);
     expect(songFor(free('setup'), { itemTrack })).toBeNull();
     expect(songFor(free('running'), { itemTrack })).toEqual({ key: '17:1#1', track: itemTrack, from: 0, playing: true, startAt: 200, silence: null, until: null, fadeIn: 0 });
-    expect(songFor(free('stopped'), { itemTrack }).playing).toBe(false);
+    expect(songFor(free('stopped'), { itemTrack })).toBeNull();
+    expect(songFor(free('awarded'), { itemTrack })).toBeNull();
     expect(songFor(free('running'))).toBeNull(); // sin carpeta: la música de siempre
     expect(songFor(free('running', 'bachata 1'), { itemTrack }).track).toBe('bachata1'); // manda la columna «Canción»
     expect(songToPrepare({ screen: 'play', game: { phase: 'idle' }, item: {} }, { itemTrack })).toBeNull(); // solo en Libre
+    // con el marcador encima o en pausa no suena (la tele guarda dónde iba)
+    expect(songFor({ ...free('running'), peekScoreboard: true }, { itemTrack })).toBeNull();
+    expect(songFor({ ...free('running'), paused: { at: 1 } }, { itemTrack })).toBeNull();
+  });
+
+  it('Squid Games: la canción de la carpeta del juego suena mientras corre', () => {
+    const squid = (phase) => ({ screen: 'play', squid: { game: 'cuerda', phase, g: { roundId: 'x#3:2', phase, tOpen: 900 } } });
+    const itemTrack = 'juego-squidgames-cuerda';
+    expect(songToPrepare(squid('ready'), { itemTrack })).toBe(itemTrack);
+    expect(songFor(squid('ready'), { itemTrack })).toBeNull();
+    expect(songFor(squid('running'), { itemTrack })).toEqual({ key: 'x#3:2', track: itemTrack, from: 0, playing: true, startAt: 900 });
+    expect(songFor(squid('done'), { itemTrack })).toBeNull(); // al acabar, la de la sección
+    expect(songFor(squid('running'))).toBeNull(); // sin canción del juego: la música de siempre
   });
 });

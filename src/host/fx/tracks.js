@@ -85,10 +85,15 @@ async function tx(mode, fn) {
 }
 
 export const isAudio = (f) => f.type?.startsWith('audio/') || /\.(mp3|m4a|ogg|wav|aac)$/i.test(f.name);
-const isVideo = (f) => f.type?.startsWith('video/') || /\.(mp4|webm|mov|m4v)$/i.test(f.name);
+const isVideo = (f) => f.type?.startsWith('video/') || /\.(mp4|webm|mov|m4v|mkv)$/i.test(f.name);
+// Un .mkv puede llegar sin tipo (según el sistema): con el suyo, el blob guardado se reproduce igual en Chrome
+const withVideoType = (f) => (/\.mkv$/i.test(f.name) && f.type !== 'video/x-matroska' ? new File([f], f.name, { type: 'video/x-matroska', lastModified: f.lastModified }) : f);
 
 /** Hueco del vídeo de una sección (carpeta Vídeos/): «video:» + folderKey del nombre de la sección. */
 export const videoSlot = (key) => `video:${key}`;
+
+/** Hueco del vídeo de presentación de una sección (`Vídeos/<Sección>/Presentación/`): grande y con su sonido. */
+export const introVideoSlot = (key) => `${videoSlot(key)}|intro`;
 
 export class TrackStore extends EventTarget {
   /** slot → [{id, name, url}] */
@@ -121,7 +126,7 @@ export class TrackStore extends EventTarget {
     const old = single ? (this.tracks.get(slot) ?? []).map((t) => t.id) : [];
     await tx('readwrite', (s) => {
       old.forEach((id) => s.delete(id));
-      for (const f of single ? audio.slice(0, 1) : audio) s.put({ id: crypto.randomUUID(), slot, name: f.name.replace(/\.[^.]+$/, ''), blob: f, source, added: Date.now() });
+      for (const f of single ? audio.slice(0, 1) : audio) s.put({ id: crypto.randomUUID(), slot, name: f.name.replace(/\.[^.]+$/, ''), blob: withVideoType(f), source, added: Date.now() });
     });
     if (reload) await this.load();
     return single ? 1 : audio.length;

@@ -140,7 +140,7 @@ export function createMillionaireStage() {
       h('div', { class: 'mill-question' }, h('span', { class: 'mill-opt-in' }, m.text)),
       options,
       m.cheated && !revealed ? h('p', { class: 'mill-note' }, '🚨 Ha salido de la app: aunque acierte, no puntúa') : null,
-      revealed ? h('p', { class: `mill-note ${m.result.correct ? 'ok' : 'ko'}` }, m.result.correct ? (m.cheated ? '¡Correcta! (sin puntos: salió de la app)' : `¡Correcta! +${m.points}`) : '¡Oh! No era esa') : null,
+      revealed ? h('p', { class: `mill-note verdict ${m.result.correct ? 'ok' : 'ko'}` }, m.result.correct ? (m.cheated ? '¡Correcta! (sin puntos: salió de la app)' : `¡Correcta! +${m.points}`) : '¡Oh! No era esa') : null,
     );
   }
 

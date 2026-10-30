@@ -35,3 +35,13 @@ describe('castigos', () => {
     expect([back.closed, back.finalists, back.spin]).toEqual([false, null, null]);
   });
 });
+
+describe('castigos sin votar', () => {
+  it('cerrar sin votos (la tele se recargó o se saltó la votación) elige 3 distintos al azar', () => {
+    const v = new PunishmentVote(OPTIONS);
+    expect(v.close()).toBe(true);
+    expect(new Set(v.finalists).size).toBe(3);
+    expect(v.close()).toBe(false); // ya cerrada
+    expect(v.finalists).toContain(v.spinWheel(1));
+  });
+});

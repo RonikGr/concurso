@@ -96,6 +96,23 @@ export class SquidState {
     return true;
   }
 
+  /**
+   * Entra tarde (ya empezada la sección): un número libre al azar y vivo, sin tocar la hucha. Quien ya juega o ya cayó,
+   * no (para devolver a un caído está `revive`). Si ya tenía número, se le respeta.
+   */
+  join(id, rng = Math.random) {
+    if (!this.started || this.alive.includes(id) || this.out.some((x) => x.id === id)) return false;
+    if (this.numbers[id] == null) {
+      const taken = new Set(Object.values(this.numbers));
+      // el 456 siempre lo lleva alguien (si aún nadie: para este)
+      const free = taken.has(456) ? Array.from({ length: 455 }, (_, i) => i + 1).filter((n) => !taken.has(n)) : [456];
+      if (!free.length) return false;
+      this.numbers[id] = free[Math.floor(rng() * free.length)];
+    }
+    this.alive.push(id);
+    return true;
+  }
+
   /** Quedan fuera: salen de los vivos y cada uno mete `perHead` en la hucha. */
   eliminate(ids, game, perHead) {
     const gone = ids.filter((id) => this.alive.includes(id));

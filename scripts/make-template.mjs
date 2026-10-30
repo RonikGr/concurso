@@ -14,7 +14,9 @@ const OUT = resolve(import.meta.dirname, '../public/plantilla-concurso.xlsx');
 const HELP = '↳ '; // marca de la fila de ayuda (src/core/show.js la salta)
 const FIRST = 3; // primera fila de datos (1 = títulos, 2 = ayuda)
 const ROWS = 200; // filas con desplegables y formato
-const SECTION_LIST = `Concurso!$B$${FIRST}:$B$100`;
+const SECTION_LIST = `Concurso!$B${FIRST}:$B$100`;
+// Los entornos no caben en una lista escrita (Excel corta a 255 letras): van en la pestaña oculta «Listas»
+const ENV_LIST = `Listas!$A$1:$A${ENVIRONMENTS.length}`;
 
 const yesNo = ['Sí', 'No'];
 
@@ -74,7 +76,7 @@ const SHEETS = [
       },
       { title: 'El presentador juega', width: 12, list: yesNo, help: 'Vacío = lo normal del tipo.' },
       { title: 'Por turnos', width: 11, list: yesNo, help: 'Sí = uno de cada equipo por pregunta (Verdad, Estimación, Contador).' },
-      { title: 'Entorno', width: 20, list: ENVIRONMENTS.map((e) => e.name), help: 'Opcional: decorado de la tele.' },
+      { title: 'Entorno', width: 20, list: ENV_LIST, help: 'Opcional: decorado de la tele.' },
     ],
     rows: [
       // Todos los juegos; los de «No» quedan en reserva (se marcan en la preparación de la tele si apetecen).
@@ -86,19 +88,19 @@ const SHEETS = [
       [5, 'Sí', '¿Quién es más probable…?', 'Votación', null, 'Votad sin piedad.', 1, null],
       [6, 'Sí', 'Guerra de globos', 'Libre', null, 'Tres de cada equipo, con un globo atado al tobillo: ¡explotad los del equipo contrario!', 3, null],
       [7, 'No', 'Calcula', 'Estimación', null, 'El que más se acerque. En algunas, sin pasarse.', '3,2,1', null],
-      [8, 'Sí', 'Agita el móvil', 'Agita el móvil', null, '¡Agita hasta que te duela el brazo!', '3,2,1', 'Sí'],
-      [9, 'Sí', '¿Qué canción es?', 'Pulsador', null, 'Suena una canción: el primero que pulse, responde.', 2, 'No'],
+      [8, 'Sí', 'Agita el móvil', 'Agita el móvil', null, '¡Agita hasta que te duela el brazo!', '3,2,1', 'Sí', null, 'Coctelería'],
+      [9, 'Sí', '¿Qué canción es?', 'Pulsador', null, 'Suena una canción: el primero que pulse, responde.', 2, 'No', null, 'Karaoke'],
       [10, 'Sí', 'Reloj interno', 'Parar el contador', null, 'Para el reloj lo más cerca posible del objetivo.', '3,2,1', null],
       [11, 'Sí', 'Twerking de pimpón', 'Libre', null, 'Caja con pelotas a la cadera, por la espalda: ¡sácalas todas a golpe de twerking antes que tu rival!', 3, null, null, 'Discoteca'],
-      [12, 'Sí', 'Reflejos', 'Duelo de reflejos', null, 'Cuando se ponga en verde… ¡pulsa!', '3,2,1', null],
-      [13, 'Sí', 'Marca el golpe', 'Libre', null, 'Suena la canción: bailad y marcad el golpe a la vez. El presentador da a cada uno una nota del 1 al 10.', 2, null],
-      [14, 'Sí', 'Dos verdades y una mentira', 'Dos verdades y una mentira', null, '¿Cuál es la mentira?', 1, null],
+      [12, 'Sí', 'Reflejos', 'Duelo de reflejos', null, 'Cuando se ponga en verde… ¡pulsa!', '3,2,1', null, null, 'Duelo al sol'],
+      [13, 'Sí', 'Marca el golpe', 'Libre', null, 'Suena la canción: bailad y marcad el golpe a la vez. El presentador da a cada uno una nota del 1 al 10.', 2, null, null, 'Noche latina'],
+      [14, 'Sí', 'Dos verdades y una mentira', 'Dos verdades y una mentira', null, '¿Cuál es la mentira?', 1, null, null, 'Interrogatorio'],
       [15, 'Sí', 'La galleta', 'Libre', null, 'Con las manos atadas a la espalda: el primero que se coma la galleta, gana.', 3, null, null, 'Galletas'],
       [16, 'Sí', 'Botellas en orden', 'Libre', null, 'Adivina el orden de las 5 botellas: en cada intento te decimos cuántas están bien. Gana el más rápido.', 5, null, null, 'Refrescos'],
       [17, 'Sí', 'Watermelon Sugar', 'Libre', null, 'Uno de cada equipo, una sandía cada uno: ¡el primero que se la acabe, gana!', 3, null, null, 'Verano'],
       [18, 'Sí', 'Fit o Fat', 'Libre', null, 'Pruebas físicas.', 3, 'Sí', null, 'Noche de luna'],
       [19, 'Sí', 'Squid Games', 'Squid Games', null, 'Cuatro juegos seguidos: quien falla, fuera. Los que sobreviven se reparten la hucha.', 5, null],
-      [20, 'Sí', 'La gran apuesta', 'La gran apuesta', null, 'Apostad lo que tenéis. Aquí se decide todo.', null, null],
+      [20, 'Sí', 'La gran apuesta', 'La gran apuesta', null, 'Apostad lo que tenéis. Aquí se decide todo.', null, null, null, 'Casino'],
       [21, 'Sí', 'Lobos contra vampiros', 'Lobos contra vampiros', null, 'El colofón: el juego del pañuelo. Uno de cada equipo, al sillón… ¡y a por el pañuelo!', 10, 'Sí', null, 'Luna llena'],
     ],
     // Las que no se juegan, en rojo (de un vistazo)
@@ -579,6 +581,10 @@ for (const def of SHEETS) {
     });
   }
 }
+
+// Pestaña oculta con las listas largas de los desplegables (la lectura no la mira)
+const lists = wb.addWorksheet('Listas', { state: 'hidden' });
+ENVIRONMENTS.forEach((e, i) => (lists.getCell(i + 1, 1).value = e.name));
 
 mkdirSync(dirname(OUT), { recursive: true });
 await wb.xlsx.writeFile(OUT);

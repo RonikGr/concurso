@@ -75,7 +75,13 @@ Ojo con PowerShell 5.1: `Get-Content`/`Set-Content` sin `-Encoding` rompen los a
   - El nombre del archivo de una canción tiene que coincidir con la columna «Canción» (`songKey`: sin tildes ni signos).
   - En Bash, guiones con comillas invertidas → escribir el script en un archivo y ejecutarlo con node.
 - **Sin probar aún en móviles reales** (avisar si se toca): la galleta con `MAX_SPEED` 0,4, la dureza de la luz roja,
-  comodines con dos toques, «✓ Apuesta guardada», las marcas de Palabras, los botones nuevos del mando.
+  comodines con dos toques, «✓ Apuesta guardada», las marcas de Palabras, los botones nuevos del mando; del Gauntlet:
+  los dos toques del mando con el dedo (`twoTap`), el aviso arriba en un iPhone con muesca, el reloj de Libre del mando,
+  los colores nuevos de las opciones en el móvil y el vídeo de presentación con sonido en la tele real.
+- **Gauntlet** (2026-10-30, Rodri fuera): `gauntlet/` (fuera de git salvo `vite.gauntlet.config.js`: lleva nombres de la
+  fiesta y contenido de la hoja, y el repositorio es público; solo en el primer ordenador) tiene el banco de pruebas (`banco.md`:
+  sala con su carpeta y 14 bots con sus nombres y caras, recetas por sección), las críticas, `decisiones.md` (lo que se
+  decidió por él y lo **aplazado**, con propuesta), una nota por parte y `informe.md`. Fiesta: 14 personas, dos equipos de 7.
 
 ## Arquitectura
 
@@ -135,7 +141,8 @@ wordsStart, wordsOk, wordsPass, wordsFoul, wordsUndo, wordsStop, shakeStart, sha
 punishClose, punishReopen, punishSpin, toggleSection, pause, resume,
 squidStart, squidStop, squidRevive, squidEliminate, squidChoose,
 hankyDraw, hankyChoose, hankyGo, hankyFalse, hankyCancel, hankyWin, hankyUndo, penalty, setPlaying, moveSection,
-lockTeams, moveTeam, adjustScore, adjustTeamBonus, resetScores, removePlayer, approveControl, denyControl, updateSettings.
+lockTeams, moveTeam, adjustScore, adjustTeamBonus, resetScores, removePlayer, approveControl, denyControl, updateSettings,
+step, unjudge, undoPenalty, setFace, squidJoin.
 
 - Emparejar mando: la tele (preparación) enseña un QR a `control.html?sala=CÓDIGO#k=CLAVE` (la clave tras `#` no sale del
   navegador); con la clave correcta, el portátil pide confirmación (Enter / Esc). Los mandos aprobados se recuerdan.
@@ -233,7 +240,7 @@ comodines en `shared/jokerIcons.js` (dibujados, no las imágenes del programa). 
 revelar → siguiente.
 
 Teclas de la tele: Espacio (contextual: abrir turno / siguiente pregunta / avanzar; en respuestas: abrir → cerrar →
-revelar → siguiente), ← →, P (mostrar pregunta),
+revelar → siguiente; es la orden `step` de la sala, la misma que «Siguiente →» del mando), ← →, P (mostrar pregunta),
 V (mostrar respuesta), A (acierto), F (fallo), R (reiniciar pregunta), M (marcador), D (depuración).
 Las pulsaciones solo cuentan en una pregunta de pulsador (`HostRoom.inBuzzerPlay`); fuera, `buzzAck closed` sin bloquear.
 Cada pregunta del runner (`runner.playKey`) reinicia el motor (`game.next()`).
@@ -449,8 +456,8 @@ con vibración). Mando: `hankyPanel` (chips por equipo para elegir en secreto, `
   Comodines en el móvil con dos toques (sin `confirm()`, que congela la conexión) y aviso de cuándo se pueden usar.
 - **Detalles:** bichos de cada equipo en la presentación (`teamCreature`: 🐺 🧛 🧟…), bola de espejos en la discoteca,
   «Ana, Luis y Eva», el puesto propio en el móvil sin equipos, «✓ Apuesta guardada».
-- Pendiente (raro, no arreglado): una prueba Libre a medias o los comodines del millonario antes de revelar no se
-  guardan si la tele se recarga; volver a cargar la hoja borra lo jugado pero no los puntos.
+- Pendiente (raro, no arreglado): una prueba Libre a medias no se guarda si la tele se recarga (el millonario a medias
+  sí, desde el Gauntlet); volver a cargar la hoja borra lo jugado pero no los puntos.
 
 ### Fase 14: temáticas, dos presentadores y ajustes de juego
 
@@ -538,7 +545,7 @@ con vibración). Mando: `hankyPanel` (chips por equipo para elegir en secreto, `
 - **Tema:** tokens en `base.css` (noche violeta, calabaza `--accent`, verde poción `--ok`), superficies de cristal
   translúcido (`backdrop-filter`) para que se vea el fondo. Letras: Outfit (variable) y Creepster (`.display`, solo en
   títulos grandes: a tamaño pequeño no se lee). Paquetes `@fontsource`, sin pedir nada a Google.
-- **Entornos** (`src/shared/environments.js`): 11 decorados (Noche de luna = preparación, portada y final; Plató
+- **Entornos** (`src/shared/environments.js`): 11 decorados de Halloween más las temáticas (fase 14 y Gauntlet) (Noche de luna = preparación, portada y final; Plató
   millonario = secciones de Test, con fichas alargadas «A: B: C: D:» como en «¿Quién quiere ser millonario?»; el resto se
   reparten por sección en orden, o se eligen con la columna opcional «Entorno» de la pestaña Concurso → `section.env`).
   `sectionEnv(section, index)` decide; la tele los pinta con WebGL y los móviles con `envGradient()` (el estado del
@@ -698,5 +705,47 @@ con vibración). Mando: `hankyPanel` (chips por equipo para elegir en secreto, `
 12. Squid Games: Luz roja, El panal, El puente, Tira y afloja y Canicas, con eliminados y hucha. ✔
 13. Lobos contra vampiros (el pañuelo) como colofón; twerking con discoteca y vídeo; panal más exigente. ✔
 14. Temáticas (Watermelon Sugar, galletas, refrescos), dos presentadores, penalizar, silenciar, música por sección. ✔
+15. Gauntlet (revisión con críticos y constructores, 2026-10-30): ver «Gauntlet» arriba. ✔
+
+### Gauntlet (2026-10-30): lo que cambió
+
+- **Sala** (`room.js`): orden `step` = Espacio de la tele y «Siguiente →» del mando (tabla en `gauntlet/parte-P6.md`;
+  con el marcador M encima, lo quita); `unjudge` (deshace el último acierto/fallo del pulsador, `game.canUndo`;
+  `game.unjudge()`), `undoPenalty` (`lastPenalty`, no se guarda al recargar), `setFace {playerId, faceId|null}`
+  (`faceOverrides`, persistido; `controlView().faceList`; null = sin cara, no hay vuelta a «automática»). Se guardan
+  `steps {rulesFor, versus, punish, roulette}` (castigos y ruleta sobreviven a recargar; en el final, `next` cierra una
+  votación sin cerrar) y el millonario a medias (`itemResults[key].millionaire`, `fromJSON(..., {settle})`).
+  «Partida nueva» reinicia también castigos y `lastPenalty`.
+- **Squid:** el reparto de la hucha pendiente se apunta en cualquier cambio de pregunta (`#flushAward`), no se pierde
+  saltando al marcador. Entrar tarde: automático hasta el primer «¡Empezar!» (`#admitLate`); luego `squidJoin {id}`
+  (`controlView().squid.joinable`; número libre, sin tocar la hucha). Cuerda con `data-n` few/some/many/crowd (7 contra 7
+  en dos filas). Presentación de cada juego con el dibujo al lado del título.
+- **Temáticas:** piel por entorno (`ui` en environments.js → `applyEnvUi(envId)` en `render()`: `--accent`, `--kicker`,
+  `--display`, `--title-shadow`, `--env-veil`, `body.dataset.env`; el confeti sin tema sigue a la temática); Creepster
+  solo en Halloween y en rótulos cortos; decorado emoji solo en franjas laterales. Seis entornos nuevos con silueta
+  propia (sil 15–20) elegidos por la columna «Entorno» de su hoja: `cocteleria` (Agita), `karaoke` (¿Qué canción es?),
+  `oeste` (Reflejos, con sol y sin verde), `latina` (Bachata), `noir` (Dos verdades), `casino` (Apuesta). La plantilla
+  lleva la lista de entornos en una pestaña oculta «Listas» (Excel corta un desplegable escrito a 255 letras).
+  Opciones sin colores de equipo (`shared/options.js`: A violeta, B ámbar, C verde azulado, D frambuesa; Mentira violeta).
+- **Tele:** cabe en 100vh con 14 (densidad `tiny` desde 12, lista `.many` en dos columnas desde 7 filas, tira de caras
+  en los revelados); `.static` en #screen cuando `screenKey` no cambia (sin animaciones al repintar); votación de
+  castigos con `updatePunishVote` en su sitio; final con empates en el mismo escalón (`podiumPlaces`); marcador con una
+  columna por equipo; `askConfirm` (`<dialog>`) en vez de `confirm()`.
+- **Vídeo de presentación:** `Vídeos/<Sección>/Presentación/x.mkv|mp4` → hueco `video:<clave>|intro` (`introVideoSlot`);
+  en la intro de esa sección sale grande y con sonido una vez (la música calla; `syncIntroVideo` en host/main.js),
+  después los laterales de siempre. Se acepta `.mkv` (guardado como `video/x-matroska`).
+- **Música:** `Música/<Sección>/<Juego>/` también en Squid (`song:juego-squidgames-<juego>`, suena en `running`); en
+  `hush` (Luz roja y puente en marcha) calla también la suelta de la sección. La canción de una prueba sigue donde iba
+  tras el marcador o la pausa (`#songPos`); Libre parada o puntuada → vuelve la de la sección. Ventana de Música por
+  sección: «Canción de la sección» + «Canción de cada juego» con ▶ Escuchar; lo demás en «Avanzado».
+  `check-folder` da un resumen «Por sección».
+- **Mando:** «← Atrás · Marcador · Saltar → · Siguiente →» (`step`); saltar con algo en juego pide dos toques
+  (`twoTap`, lo armado fuera del pintado; sin ningún `confirm()` en mando ni móvil); deshacer acierto/fallo y
+  penalización (aviso con «↶ Deshacer» 6 s); soltar bloqueados (`unlock`); tarjeta de caras con «🖼 Poner cara»; Squid
+  con «Corregir a mano» plegado y «➕ Meter en Squid»; reloj estimado de Libre; «Cerrar ya (N de M)».
+- **Abiertos (menores):** `unjudge` tras un fallo no devuelve los bloqueos `early` del rebote; `squidJoin` en un juego
+  `done` no entra en `rec.before` (R lo deja fuera); la cuerda pisa el número de una figura de delante; una canción en
+  `Música/Squid Games/Luz roja|Puente/` suena encima de la muñeca (`songFor` no mira `hush`); `botsAct` en la cuenta
+  atrás del pulsador bloquea a los bots; la lista «Poner cara» enseña también las puestas.
 
 Hoja de ruta posterior: mandos físicos (Gamepad API), imagen pixelada, rosco, dibuja y adivina.

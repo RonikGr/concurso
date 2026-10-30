@@ -231,7 +231,7 @@ function rankingList(a, valueText, diffText, animate) {
   if (!entries.length) return h('p', { class: 'reveal-line' }, 'Nadie ha pulsado');
   const list = h(
     'ol',
-    { class: `estimates ${entries.length > 8 ? 'many' : ''}`, style: { '--rows': Math.ceil(entries.length / 2) } },
+    { class: `estimates ${entries.length > 6 ? 'many' : ''}`, style: { '--rows': Math.ceil(entries.length / 2) } },
     entries.map((e) =>
       h(
         'li',
@@ -379,13 +379,13 @@ function revealVote(a, res, animate) {
   const winnerIds = new Set(res.winners.map((w) => w.id));
   // Las barras salen de menos a más votos y, al final, el nombre del más votado.
   const winnerLine = res.winners.length
-    ? h('p', { class: 'vote-winner display' }, res.winners.map((w, i) => [i ? ' · ' : null, h('span', { class: 'vw-avatar emoji' }, avatarOf(w)), ' ', w.name]))
+    ? h('p', { class: `vote-winner ${res.winners.length > 2 ? 'several' : ''}` }, res.winners.map((w, i) => [i ? ' · ' : null, h('span', { class: 'vw-avatar emoji' }, avatarOf(w)), ' ', w.name]))
     : h('p', { class: 'reveal-line' }, 'Nadie ha votado');
   // Con mucha gente: solo los votados, y en dos columnas (con 20 la lista no cabía en la tele)
   const shown = rows.length > 8 ? rows.filter((r) => r.votes > 0) : rows;
   const bars = h(
     'ol',
-    { class: `vote-bars ${shown.length > 8 ? 'many' : ''}`, style: { '--rows': Math.ceil(shown.length / 2) } },
+    { class: `vote-bars ${shown.length > 6 ? 'many' : ''}`, style: { '--rows': Math.ceil(shown.length / 2) } },
     shown.map((r) =>
       h(
         'li',
@@ -411,7 +411,7 @@ function revealEstimate(a, res, animate) {
   const fmt = (n) => `${n.toLocaleString('es-ES')}${a.unit ? ` ${a.unit}` : ''}`;
   const list = h(
     'ol',
-    { class: `estimates ${res.entries.length > 8 ? 'many' : ''}`, style: { '--rows': Math.ceil(res.entries.length / 2) } },
+    { class: `estimates ${res.entries.length > 6 ? 'many' : ''}`, style: { '--rows': Math.ceil(res.entries.length / 2) } },
     res.entries.map((e) =>
       h(
         'li',

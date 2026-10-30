@@ -1,7 +1,23 @@
 // Ventana «Música»: tus canciones para cada momento, para todo el concurso o solo para una sección. Cada hueco dice
 // dónde suena; se rellena arrastrando el .mp3 encima o con «Examinar…».
 import { h } from '../shared/dom.js';
-import { EFFECT_SLOTS, MILLIONAIRE_SLOTS, MUSIC_SLOTS, SECTION_SLOTS, sectionSlot, slotInfo } from './fx/tracks.js';
+import { EFFECT_SLOTS, MILLIONAIRE_SLOTS, MUSIC_SLOTS, SECTION_SLOTS, introVideoSlot, sectionSlot, slotInfo } from './fx/tracks.js';
+import { SQUID_GAME_FOLDERS, folderKey, itemSongKey, sectionWideSlot, songKey } from '../core/folder.js';
+import { SECTION_TYPES } from '../core/show.js';
+import { SQUID_GAMES, SQUID_ORDER } from '../core/squid.js';
+
+/**
+ * Nombre de cada parte de una sección según su tipo (el de su carpeta en Música/<Sección>/, ver `aliases` en
+ * MUSIC_SLOTS): en las pruebas físicas no hay «pregunta». `skip` = partes que ese tipo no usa.
+ */
+const PHYSICAL = { explore: 'Preparando', tension: 'En marcha', suspense: 'Parada', reveal: 'Ganador' };
+const MOMENT_NAMES = {
+  libre: PHYSICAL,
+  palabras: PHYSICAL,
+  agitar: { ...PHYSICAL, skip: ['suspense'] },
+  panuelo: { explore: 'Preparando', tension: 'Carrera', suspense: 'Esperando', reveal: 'Ganador' },
+  squid: { explore: 'Jugando', tension: 'En marcha', reveal: 'Revelado', skip: ['suspense'] },
+};
 import { browseButton, dropZone, openPanel } from './panelDialog.js';
 import { CUE_FIELDS, cueFieldsOf, cueValue } from '../core/millionaireMusic.js';
 import { sound } from './fx/audio.js';
@@ -52,7 +68,25 @@ export function openMusicDialog({ store, sections, toast }) {
   const tracks = () => store.summary();
   const add = (slot) => (files) => store.add(slot, files).then((n) => n || toast('Elige archivos de audio (.mp3).'));
 
-  const slotRow = (slot, label, help, fallback) => {
+  // ▶ para escuchar la canción de un hueco (la primera), aparte de la música de la tele
+  let listening = null;
+  const listen = (slot) => {
+    const again = listening?.slot === slot;
+    listening?.audio.pause();
+    listening = null;
+    const url = store.tracks.get(slot)?.[0]?.url;
+    if (again || !url) return panel.refresh();
+    const audio = new Audio(url);
+    audio.volume = 0.8;
+    audio.addEventListener('ended', () => listening?.audio === audio && ((listening = null), panel.refresh()), { once: true });
+    audio.play().catch(() => toast('No se pudo reproducir.'));
+    listening = { slot, audio };
+    panel.refresh();
+  };
+  const listenButton = (slot) =>
+    h('button', { class: 'btn small', type: 'button', title: 'Escuchar', onclick: () => listen(slot) }, listening?.slot === slot ? '■ Parar' : '▶ Escuchar');
+
+  const slotRow = (slot, label, help, fallback, { play = false } = {}) => {
     const list = tracks()[slot] ?? [];
     return dropZone(
       h(
@@ -74,9 +108,104 @@ export function openMusicDialog({ store, sections, toast }) {
               )
             : h('span', { class: 'muted small' }, fallback),
         ),
-        h('div', { class: 'ms-actions' }, browseButton('Examinar…', { accept: AUDIO, onFiles: add(slot) })),
+        h('div', { class: 'ms-actions' }, play && list.length ? listenButton(slot) : null, browseButton(list.length && slot.startsWith('song:') ? 'Cambiar…' : 'Examinar…', { accept: AUDIO, onFiles: add(slot) })),
       ),
       add(slot),
+    );
+  };
+
+  /**
+   * Lo que suena de verdad en un momento de una sección sin canción propia (como audio.js #slotKey): la de toda la
+   * sección, si no la general de ese momento, si no sigue la que sonaba (o la generada).
+   */
+  const fallbackOf = (sec, scene) => {
+    const all = tracks();
+    if (all[sectionWideSlot(sec.name)]?.length) return 'Suena la canción de la sección';
+    if (all[scene]?.length) return `Suena la general de «${slotInfo(scene).label}»`;
+    return 'Sigue la que sonaba (o la música generada)';
+  };
+
+  /** Juegos de una sección con su hueco de canción: {slot, label, help, hush} */
+  const gamesOf = (sec, type) => {
+    if (type === 'squid') {
+      return [...SQUID_ORDER, 'canicas'].map((g) => ({
+        slot: `song:${itemSongKey(sec.name, g)}`,
+        label: SQUID_GAMES[g].label,
+        help: `Música/${sec.name}/${SQUID_GAME_FOLDERS[g][0]}/ · suena mientras corre (desde el ¡ya!)`,
+        hush: g === 'luzroja' || g === 'puente',
+      }));
+    }
+    const out = [];
+    const items = (sec.items ?? []).map((it) => (typeof it === 'string' ? { title: it } : it));
+    for (const it of items) {
+      if (it.song) out.push({ slot: `song:${songKey(it.song)}`, label: it.title || it.song, help: `Canciones/${it.song} (columna «Canción» de la hoja)` });
+      else if (type === 'libre' && it.title) out.push({ slot: `song:${itemSongKey(sec.name, it.title)}`, label: it.title, help: `Música/${sec.name}/${it.title}/ · suena desde el ¡ya! hasta que se para` });
+    }
+    // sin la lista de juegos: los que ya tienen canción de su carpeta
+    if (!items.length) {
+      const prefix = `song:${itemSongKey(sec.name, '')}`;
+      for (const slot of Object.keys(tracks()).filter((k) => k.startsWith(prefix))) out.push({ slot, label: slot.slice(prefix.length), help: 'Canción de un juego de esta sección' });
+    }
+    return out;
+  };
+
+  /** Una sección: arriba su canción y la de cada juego; los momentos y efectos, plegados en «Avanzado». */
+  const sectionGroup = (sec) => {
+    const all = tracks();
+    const type = sec.type ?? Object.keys(SECTION_TYPES).find((k) => SECTION_TYPES[k].label === sec.label) ?? null;
+    const games = gamesOf(sec, type);
+    const wide = sectionWideSlot(sec.name);
+    const hasWide = !!all[wide]?.length;
+    const withSong = games.filter((g) => all[g.slot]?.length).length;
+    const intro = store.tracks.has(introVideoSlot(folderKey(sec.name)));
+    const names = MOMENT_NAMES[type] ?? {};
+    const moments = SECTION_SLOTS.filter((id) => !(names.skip ?? []).includes(id));
+    const effects = EFFECT_SLOTS.filter((s) => type === 'test' || !['sfx:fifty', 'sfx:audience', 'sfx:call'].includes(s.id));
+    const nMoments = [...moments, ...effects.map((s) => s.id)].reduce((n, id) => n + (all[sectionSlot(sec.name, id)]?.length ?? 0), 0);
+    const summary = [`Sección ${hasWide ? '✓' : '—'}`, games.length ? `juegos ${withSong}/${games.length}` : null, intro ? 'vídeo de presentación ✓' : null, nMoments ? `avanzado: ${nMoments}` : null].filter(Boolean).join(' · ');
+    return h(
+      'details',
+      { class: 'music-group', 'data-key': sec.name },
+      h('summary', {}, h('h3', {}, sec.name), h('span', { class: 'muted small' }, `${sec.label} · ${summary}`)),
+      h(
+        'ul',
+        { class: 'music-slots' },
+        slotRow(wide, 'Canción de la sección', `Música/${sec.name}/ (suelta) · suena en toda la sección sin cortarse: presentación, juego y marcador`, 'Vacío: en cada momento, la general (o sigue la que sonaba)', { play: true }),
+      ),
+      games.length ? h('h4', { class: 'music-sub' }, 'Canción de cada juego') : null,
+      games.length
+        ? h(
+            'ul',
+            { class: 'music-slots' },
+            games.map((g) => slotRow(g.slot, g.label, g.help, g.hush ? 'Silencio (la muñeca y los cristales mandan)' : hasWide ? 'Sigue la canción de la sección' : 'Suena la música de siempre', { play: true })),
+          )
+        : null,
+      h(
+        'details',
+        { class: 'music-group', 'data-key': `${sec.name}|avanzado` },
+        h('summary', {}, h('h4', { class: 'music-sub' }, 'Avanzado: una parte de la sección')),
+        h(
+          'p',
+          { class: 'muted small' },
+          `Solo si quieres otra canción en una parte (Música/${sec.name}/<parte>/): manda sobre la de la sección. `,
+          'Con varias en «Jugando», «Pregunta abierta» o «Suspense», la 1ª suena en la 1ª pregunta, la 2ª en la 2ª… (escalera).',
+        ),
+        h(
+          'ul',
+          { class: 'music-slots' },
+          moments.map((id) => {
+            const info = slotInfo(id);
+            const name = names[id] ?? info.label;
+            return slotRow(sectionSlot(sec.name, id), name, `Música/${sec.name}/${name}/ · ${info.help.replace('cada sección', 'esta sección')}`, fallbackOf(sec, id));
+          }),
+        ),
+        h('h4', { class: 'music-sub' }, `Efectos de «${sec.name}»`),
+        h(
+          'ul',
+          { class: 'music-slots' },
+          effects.map((s) => slotRow(sectionSlot(sec.name, s.id), `${s.label} · ${sec.name}`, s.help, all[s.id]?.length ? `El general de «${s.label}»` : 'Efecto generado')),
+        ),
+      ),
     );
   };
 
@@ -194,16 +323,16 @@ export function openMusicDialog({ store, sections, toast }) {
       cueSettings.removeEventListener('change', panel.refresh);
       clearInterval(countTimer);
       sound.previewCue(null);
+      listening?.audio.pause();
+      listening = null;
     },
     render: () => {
-      const all = tracks();
-      const countIn = (prefix) => Object.entries(all).filter(([k]) => k.startsWith(prefix)).reduce((n, [, l]) => n + l.length, 0);
       return [
         h(
           'p',
           { class: 'muted' },
-          'Arrastra tus canciones (.mp3) encima de cada hueco o pulsa «Examinar…». Si pones varias en un hueco, se van alternando. ',
-          'Un hueco vacío usa la música generada. Las canciones se guardan solo en este portátil.',
+          'Lo normal: una canción por sección (suena en toda ella) y, si quieres, una por juego (suena desde el «¡ya!» hasta que se para). ',
+          'Arrastra tus canciones (.mp3) encima de cada hueco o pulsa «Examinar…». Las canciones se guardan solo en este portátil.',
         ),
         h(
           'details',
@@ -258,34 +387,8 @@ export function openMusicDialog({ store, sections, toast }) {
             EFFECT_SLOTS.map((s) => slotRow(s.id, s.label, s.help, 'Efecto generado')),
           ),
         ),
-        sections().length ? h('h3', { class: 'music-sub' }, 'Solo para una sección') : null,
-        sections().map((sec) => {
-          const n = countIn(`${sec.name}|`);
-          return h(
-            'details',
-            { class: 'music-group', 'data-key': sec.name },
-            h('summary', {}, h('h3', {}, sec.name), h('span', { class: 'muted small' }, `${sec.label}${n ? ` · ${n} ${n === 1 ? 'canción' : 'canciones'}` : ''}`)),
-            h(
-              'p',
-              { class: 'muted small' },
-              'Escalera: en «Jugando», «Pregunta abierta» y «Suspense», si pones varias canciones, la 1ª suena en la 1ª pregunta, la 2ª en la 2ª… (por orden de nombre: «1 - …», «2 - …») y la última sigue para el resto.',
-            ),
-            h(
-              'ul',
-              { class: 'music-slots' },
-              SECTION_SLOTS.map((id) => {
-                const info = slotInfo(id);
-                return slotRow(sectionSlot(sec.name, id), `${info.label} · ${sec.name}`, info.help.replace('cada sección', 'esta sección'), `La general de «${info.label}»`);
-              }),
-            ),
-            h('h4', { class: 'music-sub' }, `Efectos de «${sec.name}»`),
-            h(
-              'ul',
-              { class: 'music-slots' },
-              EFFECT_SLOTS.map((s) => slotRow(sectionSlot(sec.name, s.id), `${s.label} · ${sec.name}`, s.help, `El general de «${s.label}»`)),
-            ),
-          );
-        }),
+        sections().length ? h('h3', { class: 'music-sub' }, 'Cada sección: su canción y la de cada juego') : null,
+        sections().map(sectionGroup),
       ];
     },
   });

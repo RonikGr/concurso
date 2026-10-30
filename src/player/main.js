@@ -751,8 +751,25 @@ $('#edit-profile').addEventListener('click', () => {
   dialog.showModal();
 });
 
-$('#switch-room').addEventListener('click', () => {
-  if (!confirm('¿Salir de esta sala? Podrás entrar en otra con su código.')) return;
+// Dos toques (la ventana de confirmar del navegador congela la página y la conexión): el primero pregunta 3 s.
+let switchArmedUntil = 0;
+let switchTimer = 0;
+$('#switch-room').addEventListener('click', (e) => {
+  const button = e.currentTarget;
+  if (performance.now() > switchArmedUntil) {
+    switchArmedUntil = performance.now() + 3000;
+    button.dataset.label ??= button.textContent;
+    button.textContent = '¿Salir de esta sala? Toca otra vez';
+    clearTimeout(switchTimer);
+    switchTimer = setTimeout(() => {
+      switchArmedUntil = 0;
+      button.textContent = button.dataset.label;
+    }, 3000);
+    return;
+  }
+  clearTimeout(switchTimer);
+  switchArmedUntil = 0;
+  button.textContent = button.dataset.label;
   dialog.close();
   $('#code').value = '';
   leave();

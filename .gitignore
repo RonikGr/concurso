@@ -7,3 +7,8 @@ Thumbs.db
 
 # Carpeta del concurso del presentador (fotos y canciones): nunca al repositorio, que es público
 /Concurso del año - archivos/
+
+# Gauntlet: capturas, apuntes y críticas llevan nombres de la fiesta y contenido de la hoja (secreto); el
+# repositorio es público. Solo se sube la configuración del servidor de pruebas.
+gauntlet/*
+!gauntlet/vite.gauntlet.config.js

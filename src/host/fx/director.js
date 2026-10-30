@@ -157,8 +157,15 @@ export function createDirector({ backdrop }) {
         getCues(),
       ),
     );
-    // Canciones de las pruebas (carpeta «Canciones», o la de la carpeta del juego: «Música/Fit o Fat/Flexiones»)
-    const itemKey = view.free && view.section && view.item?.title ? itemSongKey(view.section.name, view.item.title) : null;
+    // Canciones de las pruebas (carpeta «Canciones», o la de la carpeta del juego: «Música/Fit o Fat/Flexiones»,
+    // «Música/Squid Games/Tira y afloja»)
+    const itemKey = !view.section
+      ? null
+      : view.free && view.item?.title
+        ? itemSongKey(view.section.name, view.item.title)
+        : view.squid?.game && view.squid.game !== 'hucha'
+          ? itemSongKey(view.section.name, view.squid.game)
+          : null;
     const songOpts = { itemTrack: itemKey && sound.hasSong(itemKey) ? itemKey : null };
     sound.prepareSong(songToPrepare(view, songOpts));
     sound.setSong(songFor(view, songOpts));

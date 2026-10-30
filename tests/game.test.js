@@ -216,3 +216,89 @@ describe('cuenta atrás', () => {
     expect(g.tOpen).toBe(5300);
   });
 });
+
+describe('deshacer el último juicio', () => {
+  /** Abre, pulsa a (y b) y cierra la ventana: ganador a. */
+  function winnerA() {
+    openAt1000();
+    press('a', 1500);
+    press('b', 1520);
+    g.closeWindow(1650);
+    expect(g.winnerId).toBe('a');
+  }
+
+  it('sin juicio no hay nada que deshacer', () => {
+    winnerA();
+    expect(g.canUndo).toBe(false);
+    expect(g.unjudge()).toBeNull();
+  });
+
+  it('acierto → vuelve a result con el mismo ganador sin juzgar (una sola vez)', () => {
+    winnerA();
+    g.correct();
+    expect(g.canUndo).toBe(true);
+    expect(g.unjudge()).toEqual({ kind: 'correct', playerId: 'a' });
+    expect(g.phase).toBe(PHASE.RESULT);
+    expect(g.judged).toBeNull();
+    expect(g.winnerId).toBe('a');
+    expect(g.canUndo).toBe(false);
+    expect(g.unjudge()).toBeNull();
+    // se puede juzgar otra vez (ahora, fallo)
+    expect(g.wrong(2000, ['a', 'b'])).toEqual({ loserId: 'a', reopened: true });
+  });
+
+  it('fallo con rebote → desbloquea, tira el rebote y sus pulsaciones y vuelve a result con él', () => {
+    winnerA();
+    const epoch = g.epoch;
+    g.wrong(2000, ['a', 'b', 'c']);
+    expect(g.phase).toBe(PHASE.OPEN);
+    const reboundEpoch = g.epoch;
+    press('c', 2400); // pulsa en el rebote
+    expect(g.unjudge()).toEqual({ kind: 'wrong', playerId: 'a' });
+    expect(g.phase).toBe(PHASE.RESULT);
+    expect(g.judged).toBeNull();
+    expect(g.winnerId).toBe('a');
+    expect(g.tOpen).toBe(1300);
+    expect(g.lockouts.has('a')).toBe(false);
+    expect(g.ranking().map((r) => r.playerId)).toEqual(['a', 'b']);
+    expect(g.epoch).toBeGreaterThan(reboundEpoch);
+    expect(epoch).toBeLessThan(reboundEpoch);
+    // una pulsación tardía del rebote ya no cuenta
+    expect(press('c', 2500, 2500, reboundEpoch).result).toBe(BUZZ.STALE);
+    expect(playerView(g, 'a', 3000).status).toBe('first');
+  });
+
+  it('fallo sin nadie más (cerrada) → vuelve a result', () => {
+    winnerA();
+    expect(g.wrong(2000, ['a'])).toEqual({ loserId: 'a', reopened: false });
+    expect(g.phase).toBe(PHASE.CLOSED);
+    g.unjudge();
+    expect(g.phase).toBe(PHASE.RESULT);
+    expect(g.judged).toBeNull();
+    expect(g.lockouts.size).toBe(0);
+  });
+
+  it('solo el último: tras fallo y acierto del rebote, deshace el acierto; R y la pregunta nueva lo olvidan', () => {
+    winnerA();
+    g.wrong(2000, ['a', 'b']);
+    press('b', 2400);
+    g.closeWindow(2600);
+    g.correct();
+    expect(g.unjudge()).toEqual({ kind: 'correct', playerId: 'b' });
+    expect(g.lockouts.get('a')).toBe(LOCK.WRONG); // el fallo de a sigue
+    expect(g.unjudge()).toBeNull();
+    g.correct();
+    g.restart();
+    expect(g.canUndo).toBe(false);
+    winnerAgain();
+    g.correct();
+    g.next();
+    expect(g.canUndo).toBe(false);
+
+    function winnerAgain() {
+      g.open(5000);
+      press('a', 5500);
+      g.closeWindow(5700);
+    }
+  });
+});

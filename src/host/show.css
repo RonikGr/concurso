@@ -53,6 +53,42 @@ body.host {
   }
 }
 
+/* Vídeo de la presentación (Vídeos/<Sección>/Presentación/): grande, encima de la intro y con su sonido; al acabar
+   se funde (main.js syncIntroVideo) */
+.intro-video {
+  position: fixed;
+  inset: 4vh 4vw;
+  z-index: 40;
+  width: 92vw;
+  height: 92vh;
+  object-fit: contain;
+  background: #000;
+  border-radius: var(--r-panel, 1.5rem);
+  box-shadow: 0 0 0 0.3rem var(--accent-glow), 0 2rem 6rem rgb(0 0 0 / 0.7);
+  pointer-events: none;
+  animation: intro-video-in 700ms var(--ease-out) both;
+  transition: opacity 800ms ease, scale 800ms ease;
+}
+
+.intro-video.out {
+  opacity: 0;
+  scale: 0.92;
+}
+
+@keyframes intro-video-in {
+  from {
+    opacity: 0;
+    scale: 0.9;
+  }
+}
+
+/* La misma pantalla repintada por un dato nuevo (main.js renderScreen): sin animaciones de entrada otra vez */
+#screen.static .kinetic .kl,
+#screen.static .anim-in,
+#screen.static .anim-in > :not(.intro-title, .cover-title, .final-title) {
+  animation: none !important;
+}
+
 /* Secciones temáticas (Verano, Galletas, Refrescos): lo suyo sube flotando por detrás de todo */
 .env-decor {
   position: fixed;
@@ -219,10 +255,11 @@ body.disco-on::before {
 .topbar h1 {
   font-weight: 800;
   letter-spacing: 0.03em;
-  text-shadow: 0 0 1.2em rgb(255 138 31 / 0.35);
+  text-shadow: 0 0 1.2em color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
-.show-mode .toolbar {
+.show-mode .toolbar,
+.join-step .toolbar {
   background: rgb(7 5 13 / 0.82);
   backdrop-filter: blur(14px);
 }
@@ -232,7 +269,7 @@ body.disco-on::before {
   padding: 0.45em 1em;
   border: 1px solid var(--accent);
   border-radius: 999px;
-  background: rgb(255 138 31 / 0.14);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
   color: var(--accent-2);
   font-weight: 700;
   animation: breathe 2.4s ease-in-out infinite;
@@ -244,14 +281,14 @@ body.disco-on::before {
 
 @keyframes breathe {
   50% {
-    box-shadow: 0 0 1.6em rgb(255 138 31 / 0.45);
+    box-shadow: 0 0 1.6em color-mix(in srgb, var(--accent) 45%, transparent);
   }
 }
 
 /* ------------------------------------------------------------------ Títulos */
 .display {
   font-family: var(--display);
-  font-weight: 400;
+  font-weight: var(--display-weight);
   letter-spacing: 0.04em;
   line-height: 1.05;
 }
@@ -264,10 +301,7 @@ body.disco-on::before {
 .vote-winner,
 .free-winner {
   color: var(--accent);
-  text-shadow:
-    0 0 0.3em rgb(255 138 31 / 0.55),
-    0 0 1.2em rgb(255 80 0 / 0.35),
-    0 0.05em 0 #6b2200;
+  text-shadow: var(--title-shadow);
 }
 
 .cover-title {
@@ -336,10 +370,17 @@ body.disco-on::before {
   }
 }
 
-.cover-kicker,
-.intro-kicker,
 .stage-q {
   color: var(--accent-2);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.cover-kicker,
+.intro-kicker {
+  color: var(--kicker); /* la temática lo cambia (Verano: oscuro sobre el cielo claro) */
   text-transform: uppercase;
   letter-spacing: 0.14em;
   font-size: 1.4rem;
@@ -350,14 +391,30 @@ body.disco-on::before {
   font-size: 1.8rem;
 }
 
+/* Velo detrás del bloque de la intro en los entornos claros (--env-veil de la temática; por defecto, nada) */
+.intro {
+  position: relative;
+  isolation: isolate;
+}
+
+.intro::before {
+  content: '';
+  position: absolute;
+  inset: -2rem -6rem;
+  z-index: -1;
+  background: var(--env-veil);
+  border-radius: var(--r-panel);
+  pointer-events: none;
+}
+
 .intro-type {
-  border: 1px solid rgb(255 138 31 / 0.5);
-  background: rgb(255 138 31 / 0.12);
+  border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--accent-2);
 }
 
 .intro-points {
-  text-shadow: 0 0 1em rgb(125 255 107 / 0.45);
+  text-shadow: 0 0 1em color-mix(in srgb, var(--ok) 45%, transparent);
 }
 
 /* Entrada escalonada de portada, intro y marcador */
@@ -419,7 +476,7 @@ body.disco-on::before {
 }
 
 .player-card.answered {
-  background: linear-gradient(90deg, rgb(125 255 107 / 0.22), transparent 60%), var(--surface);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ok) 22%, transparent), transparent 60%), var(--surface);
 }
 
 .player-card.answered::before {
@@ -440,7 +497,7 @@ body.disco-on::before {
     transform: scale(1.06);
     box-shadow:
       inset 0 0 0 1px var(--ok),
-      0 0 2.4rem rgb(125 255 107 / 0.45);
+      0 0 2.4rem color-mix(in srgb, var(--ok) 45%, transparent);
   }
 }
 
@@ -451,7 +508,7 @@ body.disco-on::before {
   color: var(--ok);
   font-size: 1.8rem;
   font-weight: 900;
-  text-shadow: 0 0 0.8em rgb(125 255 107 / 0.7);
+  text-shadow: 0 0 0.8em color-mix(in srgb, var(--ok) 70%, transparent);
   pointer-events: none;
   animation: gain-up 1500ms var(--ease-out) forwards;
 }
@@ -472,7 +529,7 @@ body.disco-on::before {
 }
 
 .pc-place {
-  box-shadow: 0 0 1.2rem rgb(255 138 31 / 0.6);
+  box-shadow: 0 0 1.2rem color-mix(in srgb, var(--accent) 60%, transparent);
 }
 
 /* Muchos jugadores: tarjetas compactas (9–14) y diminutas (15–20) para que quepan sin tapar la pregunta. */
@@ -505,8 +562,38 @@ body.disco-on::before {
 }
 
 .player-grid[data-density='tiny'] {
-  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 0.45rem;
+}
+
+/* Revelados con lista propia: las tarjetas en una tira de una fila (solo cara y puntos) */
+.players-panel.strip .player-grid {
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  grid-auto-flow: column;
+  gap: 0.3rem;
+}
+
+.players-panel.strip .player-card {
+  grid-template-areas: 'avatar score';
+  grid-template-columns: auto auto;
+  justify-content: center;
+  padding: 0.25rem 0.4rem;
+  column-gap: 0.35rem;
+}
+
+.players-panel.strip .pc-name,
+.players-panel.strip .pc-meta {
+  display: none;
+}
+
+.players-panel.strip .avatar {
+  width: 1.8rem;
+  height: 1.8rem;
+  font-size: 1.1rem;
+}
+
+.players-panel.strip .score {
+  font-size: 1.3rem;
 }
 
 .player-grid[data-density='tiny'] .player-card {
@@ -566,16 +653,16 @@ body.disco-on::before {
 }
 
 .stage[data-phase='open'] {
-  background: radial-gradient(ellipse at 50% 120%, rgb(125 255 107 / 0.35), transparent 70%), var(--surface);
+  background: radial-gradient(ellipse at 50% 120%, color-mix(in srgb, var(--ok) 35%, transparent), transparent 70%), var(--surface);
   border-color: var(--ok);
   box-shadow:
-    0 0 4rem rgb(125 255 107 / 0.35),
-    inset 0 0 3rem rgb(125 255 107 / 0.15);
+    0 0 4rem color-mix(in srgb, var(--ok) 35%, transparent),
+    inset 0 0 3rem color-mix(in srgb, var(--ok) 15%, transparent);
 }
 
 .stage[data-phase='open'] .stage-title {
   color: var(--ok);
-  text-shadow: 0 0 0.4em rgb(125 255 107 / 0.8);
+  text-shadow: 0 0 0.4em color-mix(in srgb, var(--ok) 80%, transparent);
   animation: throb 900ms ease-in-out infinite;
 }
 
@@ -602,7 +689,7 @@ body.disco-on::before {
 .stage-answer,
 .estimate-answer,
 .result-verdict {
-  box-shadow: 0 0 2.4rem rgb(125 255 107 / 0.55);
+  box-shadow: 0 0 2.4rem var(--ok-glow);
   animation: pop-in 600ms var(--ease-spring) both;
 }
 
@@ -678,11 +765,14 @@ body.disco-on::before {
     radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--win) 75%, white) 0%, var(--win) 38%, color-mix(in srgb, var(--win) 45%, #07050d) 100%);
   animation: overlay-in 500ms var(--ease-out);
   isolation: isolate;
+  overflow-x: hidden;
 }
 
 .result-overlay::before {
   content: '';
-  position: absolute;
+  /* fixed: los rayos (más grandes que la tele para girar) no cuentan como contenido desplazable del overlay; con
+     absolute salían barras de desplazamiento */
+  position: fixed;
   inset: -50%;
   z-index: -1;
   background: repeating-conic-gradient(from 0deg at 50% 50%, rgb(255 255 255 / 0.1) 0deg 10deg, transparent 10deg 24deg);
@@ -767,18 +857,18 @@ body.disco-on::before {
 
 @keyframes correct-glow {
   from {
-    box-shadow: 0 0 1.5rem rgb(125 255 107 / 0.4);
+    box-shadow: 0 0 1.5rem color-mix(in srgb, var(--ok) 40%, transparent);
   }
   to {
-    box-shadow: 0 0 4rem rgb(125 255 107 / 0.8);
+    box-shadow: 0 0 4rem color-mix(in srgb, var(--ok) 80%, transparent);
   }
 }
 
 .countdown {
   border-color: var(--accent);
   box-shadow:
-    0 0 2rem rgb(255 138 31 / 0.45),
-    inset 0 0 1.4rem rgb(255 138 31 / 0.3);
+    0 0 2rem color-mix(in srgb, var(--accent) 45%, transparent),
+    inset 0 0 1.4rem color-mix(in srgb, var(--accent) 30%, transparent);
   background: rgb(7 5 13 / 0.5);
 }
 
@@ -789,13 +879,33 @@ body.disco-on::before {
 
 .times-up {
   font-family: var(--display);
-  font-weight: 400;
+  font-weight: var(--display-weight);
   font-size: 3.6rem;
   letter-spacing: 0.04em;
 }
 
+/* Nombres de personas: Outfit 900, no la letra de los rótulos (regla 3); con 3 o más, en una línea y más pequeña */
 .vote-winner {
-  font-size: 5.5rem;
+  font-family: var(--font);
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  font-size: 3.6rem;
+  line-height: 1.1;
+}
+
+.vote-winner.several {
+  font-size: 2.4rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* Cada fila con su fondo: que el decorado (ventanas del castillo) no asome detrás de «N votos» */
+.vote-bars li {
+  padding: 0.15rem 0.7rem;
+  border-radius: var(--r-card);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
 }
 
 .vote-bars li,
@@ -809,12 +919,12 @@ body.disco-on::before {
 
 .vote-bars li.winner .vb-name,
 .vote-bars li.winner .vb-votes {
-  text-shadow: 0 0 0.6em rgb(255 138 31 / 0.6);
+  text-shadow: 0 0 0.6em color-mix(in srgb, var(--accent) 60%, transparent);
 }
 
 .estimates li.first {
   outline: 2px solid var(--accent);
-  background: linear-gradient(90deg, rgb(255 138 31 / 0.28), transparent 70%), var(--surface);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 28%, transparent), transparent 70%), var(--surface);
 }
 
 /* Revelado con suspense: cada fila entra a su hora (--d), del último puesto al primero. */
@@ -858,7 +968,7 @@ body.disco-on::before {
 
 @keyframes winner-glow {
   to {
-    box-shadow: 0 0 3rem rgb(255 138 31 / 0.6);
+    box-shadow: 0 0 3rem color-mix(in srgb, var(--accent) 60%, transparent);
   }
 }
 
@@ -870,7 +980,7 @@ body.disco-on::before {
 /* Cuenta atrás antes de una prueba Libre (en el mismo sitio que luego corre el reloj) */
 .free-clock[data-mode='count'] {
   color: var(--accent);
-  text-shadow: 0 0 0.3em rgb(255 138 31 / 0.8);
+  text-shadow: 0 0 0.3em color-mix(in srgb, var(--accent) 80%, transparent);
   animation: pop-in 400ms var(--ease-spring);
 }
 
@@ -879,7 +989,7 @@ body.disco-on::before {
 }
 
 .target {
-  text-shadow: 0 0 0.5em rgb(255 138 31 / 0.5);
+  text-shadow: 0 0 0.5em color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
 /* Reflejos: luz roja que palpita y verde veneno. */
@@ -891,7 +1001,7 @@ body.disco-on::before {
 
 .answer-stage[data-light='green'] {
   background: radial-gradient(circle at 50% 50%, #b6ff7a 0%, #2fbf3a 50%, #0b4a12 100%);
-  box-shadow: 0 0 7rem rgb(125 255 107 / 0.8);
+  box-shadow: 0 0 7rem color-mix(in srgb, var(--ok) 80%, transparent);
   animation: pop-in 250ms ease-out;
 }
 
@@ -904,7 +1014,7 @@ body.disco-on::before {
 
 .light-text {
   font-family: var(--display);
-  font-weight: 400;
+  font-weight: var(--display-weight);
   letter-spacing: 0.04em;
   text-shadow: 0 0.06em 0.3em rgb(0 0 0 / 0.5);
 }
@@ -933,6 +1043,39 @@ body.disco-on::before {
 .sb-players li:first-child,
 .sb-teams li:first-child .sb-team-name {
   color: var(--accent-2);
+}
+
+/* Con equipos (V10): una columna por equipo, filas grandes */
+.sb-team-cols {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr));
+  gap: 0.6rem 2rem;
+  align-items: start;
+}
+
+.sb-players.by-team {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.45rem;
+  padding-top: 0.5rem;
+  border-top: 0.35rem solid var(--tc);
+}
+
+.sb-players.by-team li {
+  font-size: 1.6rem;
+  padding: 0.35rem 0.9rem;
+}
+
+.sb-players.by-team .mini-avatar {
+  width: 2.4rem;
+  height: 2.4rem;
+}
+
+.scoreboard.with-teams {
+  gap: 0.9rem;
+}
+
+.scoreboard.with-teams .sb-teams li {
+  font-size: 1.7rem;
 }
 
 .sb-players.many {
@@ -1043,7 +1186,7 @@ body.disco-on::before {
 .p1 .podium-name {
   font-size: 2.4rem;
   color: var(--accent-2);
-  text-shadow: 0 0 0.6em rgb(255 138 31 / 0.6);
+  text-shadow: 0 0 0.6em color-mix(in srgb, var(--accent) 60%, transparent);
 }
 
 .p1 .podium-icon {
@@ -1057,7 +1200,7 @@ body.disco-on::before {
 }
 
 .join-code {
-  text-shadow: 0 0 0.5em rgb(255 138 31 / 0.5);
+  text-shadow: 0 0 0.5em color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
 .approve-card {
@@ -1066,8 +1209,18 @@ body.disco-on::before {
 }
 
 /* ------------------------------------------------------------------ Libre */
+/* Nombres y frases: Outfit 900, no la letra de los rótulos (regla 3 de coherencia) */
+.free-winner,
+.roulette-result,
+.song-status {
+  font-family: var(--font);
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  line-height: 1.05;
+}
+
 .free-winner {
-  font-size: 6.5rem;
+  font-size: 5rem;
 }
 
 .free-cards li {
@@ -1080,7 +1233,7 @@ body.disco-on::before {
 }
 
 .free-count {
-  text-shadow: 0 0 0.4em rgb(255 138 31 / 0.5);
+  text-shadow: 0 0 0.4em color-mix(in srgb, var(--accent) 50%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1096,6 +1249,67 @@ body.disco-on::before {
 
 .podium-step.empty {
   visibility: hidden;
+}
+
+/* Final (D1): títulos de los dos podios a la misma altura, el podio abajo con aire sobre la cara del 1.º; con dos
+   equipos, dos escalones centrados; empates en el mismo escalón con varias caras y «Empate» */
+.final {
+  height: 100%;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.final-podiums {
+  align-items: stretch;
+  height: 100%;
+}
+
+.final-col {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  justify-items: center;
+  align-content: start;
+}
+
+.final-col > h2 {
+  margin-bottom: 2.2rem;
+}
+
+.final-col > .podium {
+  align-self: end;
+}
+
+.podium {
+  grid-template-columns: repeat(var(--steps, 3), minmax(10rem, 16rem));
+}
+
+.final-podiums.two .podium {
+  grid-template-columns: repeat(var(--steps, 3), minmax(8rem, 13rem));
+}
+
+.podium-icon.many {
+  display: flex;
+  justify-content: center;
+}
+
+.podium-icon.many > span + span {
+  margin-left: -0.6em; /* caras solapadas */
+}
+
+.podium-icon.many .face {
+  outline: 3px solid rgb(0 0 0 / 0.5);
+}
+
+.podium-block {
+  align-content: center;
+  line-height: 1;
+}
+
+.podium-tie {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.4em;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 /* ------------------------------------------------------------------ Presentación (al abrir la tele) */
@@ -1128,7 +1342,7 @@ body.disco-on::before {
   font-size: clamp(5rem, 11vw, 16rem);
   color: var(--accent);
   text-shadow:
-    0 0 0.25em rgb(255 138 31 / 0.65),
+    0 0 0.25em color-mix(in srgb, var(--accent) 65%, transparent),
     0 0 1em rgb(255 60 0 / 0.45),
     0 0.05em 0 #5a1c00;
   animation: candle 6s 3s infinite;
@@ -1367,7 +1581,7 @@ body.disco-on::before {
   color: var(--accent);
   font-size: 5rem;
   text-shadow:
-    0 0 0.3em rgb(255 138 31 / 0.7),
+    0 0 0.3em color-mix(in srgb, var(--accent) 70%, transparent),
     0 0.1em 0.5em rgb(0 0 0 / 0.8);
   pointer-events: none;
   transform: translate(-50%, -50%);
@@ -1421,7 +1635,7 @@ body.disco-on::before {
   line-height: 1;
   color: var(--accent);
   text-shadow:
-    0 0 0.25em rgb(255 138 31 / 0.7),
+    0 0 0.25em color-mix(in srgb, var(--accent) 70%, transparent),
     0 0 0.8em rgb(255 60 0 / 0.4);
 }
 
@@ -1588,8 +1802,8 @@ body.splash-on {
   max-width: 100%;
   padding: 0.15rem 0.3rem 0.15rem 0.7rem;
   border-radius: 999px;
-  background: rgb(255 138 31 / 0.16);
-  border: 1px solid rgb(255 138 31 / 0.4);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
   font-size: 0.9rem;
   overflow: hidden;
   white-space: nowrap;
@@ -1675,7 +1889,7 @@ body.splash-on {
 }
 .answer-stage[data-light='clear'] {
   background: radial-gradient(circle at 50% 50%, #b6ff7a 0%, #2fbf3a 50%, #0b4a12 100%);
-  box-shadow: 0 0 7rem rgb(125 255 107 / 0.8);
+  box-shadow: 0 0 7rem color-mix(in srgb, var(--ok) 80%, transparent);
 }
 
 /* La araña cuelga de su hilo y se balancea; al «asomarse» sube casi del todo y vuelve a bajar */
@@ -1800,7 +2014,7 @@ body.splash-on {
 
 .drop-over {
   border-color: var(--accent) !important;
-  background: rgb(255 138 31 / 0.12) !important;
+  background: color-mix(in srgb, var(--accent) 12%, transparent) !important;
   outline: 2px dashed var(--accent);
 }
 
@@ -2305,6 +2519,15 @@ body.splash-on {
   color: #ffd23f;
 }
 
+/* El veredicto, grande (V14): es el momento de la pregunta */
+.mill-note.verdict {
+  padding: 0.5rem 2.4rem;
+  font-size: clamp(2.6rem, min(4.5vw, 7.5vh), 4.6rem);
+  font-weight: 900;
+  line-height: 1.1;
+  box-shadow: 0 0 2.4rem color-mix(in srgb, currentColor 35%, transparent);
+}
+
 /* Público y llamada */
 .mill-panel {
   justify-self: center;
@@ -2660,8 +2883,8 @@ body.splash-on {
   font-size: clamp(4rem, 8vw, 8rem);
   color: var(--accent);
   text-shadow:
-    0 0 0.25em rgb(255 138 31 / 0.8),
-    0 0 1em rgb(255 138 31 / 0.4);
+    0 0 0.25em color-mix(in srgb, var(--accent) 80%, transparent),
+    0 0 1em color-mix(in srgb, var(--accent) 40%, transparent);
   animation: vs-slam 700ms cubic-bezier(0.2, 1.6, 0.4, 1) var(--d) both;
 }
 
@@ -2921,7 +3144,7 @@ body.splash-on {
   justify-items: center;
   align-content: center;
   gap: 1.2rem;
-  min-height: calc(100vh - 9rem);
+  min-height: min(calc(100vh - 9rem), 100%); /* (sin pasar del hueco de la pantalla: la tele no crece) */
   text-align: center;
 }
 
@@ -3135,6 +3358,48 @@ body.splash-on {
   color: var(--accent);
 }
 
+/* Más de 8 (V2): dos columnas, filas más altas y letra grande; la cifra junto a la barra */
+.shake-race.many,
+.shake-final.many {
+  width: min(100rem, 96vw);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-auto-flow: column;
+  grid-template-rows: repeat(var(--rows, 7), auto);
+  gap: 0.45rem 1.6rem;
+}
+
+.shake-race.many li,
+.shake-final.many li {
+  font-size: 1.35rem;
+  padding: 0.4rem 0.7rem;
+  min-height: 3rem;
+}
+
+.shake-race.many li {
+  grid-template-columns: 2.4rem 8.5rem minmax(0, 1fr) 3.6rem;
+}
+
+.shake-final.many li {
+  grid-template-columns: 2.6rem 2.4rem minmax(0, 1fr) auto 3rem;
+}
+
+.shake-race.many .sr-num,
+.shake-final.many .sr-num {
+  font-size: 1.5rem;
+}
+
+.shake-race.many .sr-track {
+  height: 1.3rem;
+}
+
+.shake-stage:has(.many) {
+  gap: 0.8rem;
+}
+
+.shake-stage:has(.many) .shake-title {
+  font-size: clamp(2.6rem, 5vw, 4rem);
+}
+
 .sf-pts {
   font-weight: 900;
   color: var(--ok);
@@ -3316,6 +3581,14 @@ body.splash-on {
 .punish .punish-title,
 .roulette .punish-title {
   font-size: clamp(2.4rem, min(5vw, 8vh), 5rem);
+}
+
+/* Frase larga (votación): Outfit 900, más pequeña que un título de terror */
+.punish .punish-title.phrase {
+  font-family: var(--font);
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  font-size: clamp(2rem, min(4vw, 6.5vh), 4rem);
 }
 
 .roulette-loser {
@@ -3518,7 +3791,7 @@ body.splash-on {
   margin: 0;
   font-size: clamp(4rem, min(10vw, 16vh), 9rem);
   color: var(--accent);
-  text-shadow: 0 0 0.4em rgb(255 138 31 / 0.45);
+  text-shadow: 0 0 0.4em color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
 .paused-where {
@@ -3789,8 +4062,9 @@ body.splash-on {
 
 .hk-status[data-mode='go'] {
   font-size: 15vh;
-  color: #ff4d4d;
-  text-shadow: 0 0 0.3em #ff4d4d;
+  /* el verde de «ya» (el rojo es el de Vampiros y el de «quieto») */
+  color: var(--ok);
+  text-shadow: 0 0 0.3em var(--ok-glow);
 }
 
 .hk-status[data-mode='win'] {

@@ -13,7 +13,7 @@ precision highp float;
 uniform vec2 uRes;
 uniform float uTime;
 uniform vec3 uTop, uBot, uFog, uGlow, uPartCol;
-uniform float uFogAmt, uMoon, uSil, uPart, uBats, uFlash, uDim, uHorizon;
+uniform float uFogAmt, uMoon, uSun, uSil, uPart, uBats, uFlash, uDim, uHorizon;
 uniform vec2 uBolt; // relámpago: x y semilla
 
 const float PI = 3.14159265;
@@ -403,6 +403,270 @@ float balloons(vec2 p, out vec3 emit) {
   return m;
 }
 
+// Botella de pie (base en q.y = 0): cuerpo, hombros y cuello. <0 dentro.
+float bottle(vec2 q, float h, float w) {
+  float body = sdBox(q - vec2(0.0, h * 0.33), vec2(w, h * 0.33));
+  float shoulder = length((q - vec2(0.0, h * 0.64)) * vec2(1.0, 1.7)) - w;
+  float neck = sdBox(q - vec2(0.0, h * 0.84), vec2(w * 0.32, h * 0.17));
+  return min(min(body, shoulder), neck);
+}
+
+// Coctelería (Agita el móvil): barra con el borde iluminado, estanterías de botellas a los lados con luz de
+// neón debajo de cada balda, una coctelera que se agita a ratos y una copa de cóctel con licor que brilla.
+float cocktailBar(vec2 p, float aspect, out vec3 emit) {
+  emit = vec3(0.0);
+  float t = uTime;
+  float counter = -0.3;
+  float m = step(p.y, counter);
+  emit += uGlow * (smoothstep(0.006, 0.0, abs(p.y - counter)) * 0.9 + 0.14 * exp(-(p.y - counter) * 30.0) * step(counter, p.y));
+  float side = step(aspect * 0.24, abs(p.x));
+  for (int s = 0; s < 2; s++) {
+    float fs = float(s);
+    float y0 = fs < 0.5 ? -0.04 : 0.19;
+    m = max(m, step(abs(p.y - y0), 0.006) * side);
+    emit += uGlow * 0.22 * exp(-(p.y - y0) * 22.0) * step(y0, p.y) * step(p.y, y0 + 0.17) * side;
+    float w = 0.07;
+    float cx = floor((p.x + 10.0) / w);
+    vec2 q = vec2(mod(p.x + 10.0, w) - w * 0.5, p.y - y0 - 0.006);
+    float h = 0.08 + 0.07 * hash(vec2(cx, fs + 3.0));
+    float bw = 0.013 + 0.008 * hash(vec2(cx, fs + 7.0));
+    float b = step(bottle(q, h, bw), 0.0) * side * step(hash(vec2(cx, fs + 11.0)), 0.85);
+    m = max(m, b);
+  }
+  // coctelera sobre la barra: a ratos se agita (gira un poco sobre su base)
+  float a = step(0.62, fract(t * 0.22)) * sin(t * 38.0) * 0.14;
+  vec2 c = p - vec2(-aspect * 0.16, counter);
+  c = mat2(cos(a), -sin(a), sin(a), cos(a)) * c;
+  float hw = mix(0.042, 0.032, clamp(c.y / 0.14, 0.0, 1.0));
+  float sh = max(abs(c.x) - hw, max(-c.y, c.y - 0.14));
+  sh = min(sh, sdBox(c - vec2(0.0, 0.16), vec2(0.022, 0.022)));
+  sh = min(sh, length(c - vec2(0.0, 0.19)) - 0.013);
+  m = max(m, step(sh, 0.0));
+  emit += vec3(0.75, 0.9, 0.95) * 0.35 * step(sh, 0.0) * smoothstep(0.008, 0.0, abs(c.x + hw * 0.45)); // brillo del metal
+  // copa de cóctel con licor
+  vec2 g = p - vec2(aspect * 0.16, counter);
+  float glass = min(sdBox(g - vec2(0.0, 0.05), vec2(0.004, 0.05)), sdBox(g - vec2(0.0, 0.003), vec2(0.03, 0.003)));
+  vec2 k = g - vec2(0.0, 0.1);
+  float cone = max(abs(k.x) - k.y * 0.95, max(-k.y, k.y - 0.075));
+  glass = min(glass, cone);
+  m = max(m, step(glass, 0.0));
+  emit += uGlow * 0.7 * step(cone, -0.004) * step(k.y, 0.058);
+  return m;
+}
+
+// Karaoke (¿Qué canción es?): escenario con un ecualizador de luces que baila en el frente, dos bafles con los
+// conos que laten y un micro de pie con su foco.
+float karaoke(vec2 p, float aspect, out vec3 emit) {
+  emit = vec3(0.0);
+  float t = uTime;
+  float floorY = -0.32;
+  float m = step(p.y, floorY);
+  // ecualizador (barras de LED por segmentos)
+  float bw = 0.045;
+  float bx = floor(p.x / bw);
+  float lx = mod(p.x, bw) - bw * 0.5;
+  float lvl = 0.03 + 0.13 * noise(vec2(bx * 0.7, t * 3.0)) * (0.65 + 0.35 * sin(t * 8.0 + bx));
+  float bar = step(abs(lx), bw * 0.33) * step(-0.48, p.y) * step(p.y, -0.48 + lvl) * step(abs(p.x), aspect * 0.3);
+  float seg = step(0.35, fract((p.y + 0.48) * 70.0));
+  emit += bar * seg * mix(uGlow, uFog, smoothstep(0.0, 0.15, p.y + 0.48)) * 0.9;
+  // bafles en los extremos
+  float pulse = pow(0.5 + 0.5 * sin(t * 7.5), 6.0);
+  for (int i = 0; i < 2; i++) {
+    float sx = (i == 0 ? -1.0 : 1.0) * (aspect * 0.5 - 0.13);
+    vec2 q = p - vec2(sx, floorY);
+    m = max(m, step(sdBox(q - vec2(0.0, 0.18), vec2(0.1, 0.18)), 0.0));
+    float r1 = length(q - vec2(0.0, 0.1));
+    float r2 = length(q - vec2(0.0, 0.27));
+    emit += uFog * 0.55 * (smoothstep(0.006, 0.0, abs(r1 - 0.062 - 0.008 * pulse)) + smoothstep(0.005, 0.0, abs(r2 - 0.034)));
+  }
+  // micro de pie
+  vec2 s = p - vec2(-aspect * 0.27, floorY);
+  float d = sdSeg(s, vec2(0.0, 0.03), vec2(0.0, 0.3)) - 0.005;
+  d = min(d, min(sdSeg(s, vec2(0.0, 0.035), vec2(-0.06, 0.0)), sdSeg(s, vec2(0.0, 0.035), vec2(0.06, 0.0))) - 0.004);
+  d = min(d, sdSeg(s, vec2(0.0, 0.3), vec2(0.06, 0.355)) - 0.004);
+  d = min(d, length((s - vec2(0.072, 0.37)) * vec2(1.0, 0.8)) - 0.021);
+  m = max(m, step(d, 0.0));
+  float spot = smoothstep(0.03 + (0.85 - s.y) * 0.16, 0.0, abs(s.x - 0.05)) * step(s.y, 0.85) * step(0.0, s.y);
+  emit += uGlow * 0.12 * spot;
+  return m;
+}
+
+// Figura de vaquero de espaldas (base en q = 0, altura ~h): sombrero, cuerpo y piernas. <0 dentro.
+float cowboy(vec2 q, float h) {
+  q /= h;
+  float d = sdBox(q - vec2(0.0, 0.62), vec2(0.13, 0.2)); // torso
+  d = min(d, sdSeg(q, vec2(-0.06, 0.42), vec2(-0.09, 0.0)) - 0.05); // piernas
+  d = min(d, sdSeg(q, vec2(0.06, 0.42), vec2(0.09, 0.0)) - 0.05);
+  d = min(d, sdSeg(q, vec2(-0.13, 0.78), vec2(-0.2, 0.45)) - 0.04); // brazos
+  d = min(d, sdSeg(q, vec2(0.13, 0.78), vec2(0.2, 0.45)) - 0.04);
+  d = min(d, length(q - vec2(0.0, 0.9)) - 0.08); // cabeza
+  d = min(d, sdBox(q - vec2(0.0, 0.98), vec2(0.2, 0.015))); // ala del sombrero
+  d = min(d, sdBox(q - vec2(0.0, 1.04), vec2(0.09, 0.06))); // copa
+  return d * h;
+}
+
+// Duelo al sol (Reflejos): desierto con mesetas al fondo, un saguaro, el saloon con las ventanas encendidas y dos
+// vaqueros de espaldas que se miran. Sin verdes ni luces de semáforo (la señal de Reflejos es verde).
+float western(vec2 p, float aspect, out vec3 emit) {
+  emit = vec3(0.0);
+  float mesa = -0.27 + 0.13 * (1.0 - smoothstep(0.0, 0.05, abs(p.x - aspect * 0.12) - 0.13)) + 0.08 * (1.0 - smoothstep(0.0, 0.04, abs(p.x + aspect * 0.18) - 0.06));
+  float m = step(p.y, mesa) * 0.55;
+  m = max(m, step(p.y, hill(p.x, -0.36, 0.015, 5.0)));
+  // saguaro a la izquierda
+  vec2 c = p - vec2(-aspect * 0.34, -0.36);
+  float d = sdSeg(c, vec2(0.0), vec2(0.0, 0.3)) - 0.022;
+  d = min(d, min(sdSeg(c, vec2(0.0, 0.12), vec2(-0.07, 0.12)), sdSeg(c, vec2(-0.07, 0.12), vec2(-0.07, 0.22))) - 0.016);
+  d = min(d, min(sdSeg(c, vec2(0.0, 0.17), vec2(0.06, 0.17)), sdSeg(c, vec2(0.06, 0.17), vec2(0.06, 0.25))) - 0.015);
+  m = max(m, step(d, 0.0));
+  // saloon a la derecha: fachada con remate escalonado, porche y puertas batientes
+  vec2 s = p - vec2(aspect * 0.33, -0.36);
+  float b = sdBox(s - vec2(0.0, 0.11), vec2(0.16, 0.11));
+  b = min(b, sdBox(s - vec2(0.0, 0.25), vec2(0.11, 0.04)));
+  b = min(b, sdBox(s - vec2(0.0, 0.3), vec2(0.05, 0.02)));
+  b = min(b, sdBox(s - vec2(0.0, 0.135), vec2(0.2, 0.008))); // tejadillo del porche
+  m = max(m, step(b, 0.0));
+  vec2 wq = vec2(abs(s.x) - 0.1, s.y - 0.06);
+  float win = step(sdBox(wq, vec2(0.025, 0.03)), 0.0);
+  float door = step(sdBox(s - vec2(0.0, 0.045), vec2(0.03, 0.035)), 0.0) * step(0.004, abs(s.x));
+  emit += uGlow * 0.55 * (win + door * 0.6) * (0.85 + 0.15 * noise(vec2(s.x * 20.0, uTime * 3.0)));
+  // los dos vaqueros, frente a frente
+  float cw = min(cowboy(p - vec2(-0.2, -0.37), 0.1), cowboy(p - vec2(0.2, -0.37), 0.1));
+  m = max(m, step(cw, 0.0));
+  return m;
+}
+
+// Palmera (base en base, escala s, inclinación lean): tronco curvo y hojas que se mecen. <0 dentro.
+float palm(vec2 p, vec2 base, float s, float lean) {
+  vec2 q = (p - base) / s;
+  vec2 b = vec2(lean * 0.3, 0.3);
+  vec2 c = vec2(lean * 0.8, 0.58);
+  float d = min(sdSeg(q, vec2(0.0), b) - 0.032, sdSeg(q, b, c) - 0.025);
+  d = min(d, length(q - c) - 0.04); // cocos
+  for (int i = 0; i < 6; i++) {
+    // hoja en arco: sube un poco, se curva y cae; gruesa al salir y fina en la punta
+    float fi = float(i);
+    float a = PI * (0.06 + fi * 0.176) + 0.04 * sin(uTime * 1.1 + fi * 1.7);
+    float sx = cos(a);
+    float up = sin(a);
+    vec2 p1 = c + vec2(sx * 0.12, 0.05 + up * 0.06);
+    vec2 p2 = c + vec2(sx * 0.23, 0.03 + up * 0.05);
+    vec2 p3 = c + vec2(sx * 0.31, -0.07 + up * 0.06);
+    d = min(d, min(sdSeg(q, c, p1) - 0.03, min(sdSeg(q, p1, p2) - 0.021, sdSeg(q, p2, p3) - 0.01)));
+  }
+  return d * s;
+}
+
+// Noche latina (Bachata): terraza con barandilla, dos palmeras y una guirnalda de bombillas que cuelga de lado a
+// lado y titila.
+float latinNight(vec2 p, float aspect, out vec3 emit) {
+  emit = vec3(0.0);
+  float t = uTime;
+  float m = step(p.y, -0.4);
+  // barandilla de la terraza
+  m = max(m, step(abs(p.y + 0.3), 0.007));
+  float bal = step(abs(mod(p.x + 10.0, 0.06) - 0.03), 0.007) * step(-0.4, p.y) * step(p.y, -0.3);
+  m = max(m, bal);
+  // palmeras
+  float d = min(palm(p, vec2(-aspect * 0.42, -0.4), 0.72, 0.35), palm(p, vec2(aspect * 0.43, -0.4), 0.64, -0.3));
+  m = max(m, step(d, 0.0));
+  // guirnalda: cable en catenaria y bombillas que titilan
+  float wy = 0.44 - 0.12 * cos(p.x * PI / aspect);
+  m = max(m, smoothstep(0.003, 0.0, abs(p.y - wy)) * 0.9);
+  float bw = 0.09;
+  float bx = floor((p.x + 10.0) / bw);
+  float cx = (bx + 0.5) * bw - 10.0;
+  vec2 bulb = p - vec2(cx, 0.44 - 0.12 * cos(cx * PI / aspect) - 0.02);
+  float fl = 0.75 + 0.25 * sin(t * (2.0 + hash(vec2(bx, 1.0)) * 3.0) + bx);
+  vec3 bc = mix(uGlow, vec3(1.0, 0.55, 0.45), step(0.5, hash(vec2(bx, 4.0))));
+  emit += bc * fl * (smoothstep(0.012, 0.004, length(bulb * vec2(1.0, 0.8))) * 1.2 + 0.25 * exp(-length(bulb) * 30.0));
+  return m;
+}
+
+// Interrogatorio (Dos verdades): lámpara que cuelga y se mece con su cono de luz sobre la mesa, dos sillas, un
+// perchero con gabardina y sombrero, y la luz de la calle entrando por una persiana.
+float interrogation(vec2 p, float aspect, out vec3 emit) {
+  emit = vec3(0.0);
+  float t = uTime;
+  // franjas de la persiana en la pared de la derecha
+  float region = step(aspect * 0.14, p.x) * step(p.x, aspect * 0.47) * step(-0.26, p.y) * step(p.y, 0.42);
+  float stripe = step(0.45, fract((p.y + p.x * 0.35) * 13.0));
+  emit += uGlow * 0.07 * stripe * region * (0.9 + 0.1 * sin(t * 0.7));
+  float m = step(p.y, -0.36);
+  // mesa y sillas
+  float d = sdBox(p - vec2(0.0, -0.27), vec2(0.36, 0.012));
+  d = min(d, sdBox(vec2(abs(p.x) - 0.32, p.y + 0.32), vec2(0.01, 0.05)));
+  for (int i = 0; i < 2; i++) {
+    float sx = i == 0 ? -0.47 : 0.47;
+    vec2 q = p - vec2(sx, -0.36);
+    float back = sdBox(vec2(q.x - sign(sx) * 0.05, q.y - 0.12), vec2(0.008, 0.12));
+    d = min(d, min(back, sdBox(q - vec2(0.0, 0.07), vec2(0.06, 0.008))));
+    d = min(d, sdBox(vec2(abs(q.x) - 0.05, q.y - 0.035), vec2(0.006, 0.035)));
+  }
+  // perchero con gabardina y sombrero
+  vec2 r = p - vec2(-aspect * 0.37, -0.36);
+  d = min(d, sdBox(r - vec2(0.0, 0.24), vec2(0.007, 0.24)));
+  d = min(d, sdBox(r - vec2(0.0, 0.005), vec2(0.06, 0.005)));
+  float coatW = mix(0.075, 0.035, clamp((r.y - 0.18) / 0.22, 0.0, 1.0));
+  d = min(d, max(abs(r.x + 0.01) - coatW, max(0.18 - r.y, r.y - 0.42)));
+  d = min(d, sdBox(r - vec2(0.0, 0.48), vec2(0.06, 0.006)));
+  d = min(d, sdBox(r - vec2(0.0, 0.505), vec2(0.032, 0.025)));
+  m = max(m, step(d, 0.0));
+  // lámpara que se mece
+  float a = sin(t * 0.8) * 0.05;
+  vec2 piv = vec2(0.0, 0.52);
+  vec2 l = mat2(cos(a), -sin(a), sin(a), cos(a)) * (p - piv) + piv;
+  float lamp = sdSeg(l, vec2(0.0, 0.52), vec2(0.0, 0.46)) - 0.003;
+  float sw = mix(0.03, 0.085, clamp((0.46 - l.y) / 0.06, 0.0, 1.0));
+  lamp = min(lamp, max(abs(l.x) - sw, max(l.y - 0.46, 0.4 - l.y)));
+  m = max(m, step(lamp, 0.0));
+  float bulb = length(l - vec2(0.0, 0.392));
+  emit += uGlow * (smoothstep(0.02, 0.008, bulb) * 1.1 + 0.18 * exp(-bulb * 14.0));
+  float across = abs(l.x) / (0.085 + (0.4 - l.y) * 0.45);
+  emit += uGlow * 0.07 * smoothstep(1.0, 0.75, across) * step(l.y, 0.4) * step(-0.27, p.y);
+  emit += uGlow * 0.35 * step(abs(p.y + 0.27), 0.012) * smoothstep(0.36, 0.0, abs(p.x)); // la mesa iluminada
+  return m;
+}
+
+// Casino (La gran apuesta): mesa de tapete verde con el canto dorado, una ruleta que gira, pilas de fichas y dos
+// lámparas colgantes con su luz cálida.
+float casino(vec2 p, float aspect, out vec3 emit) {
+  emit = vec3(0.0);
+  float t = uTime;
+  float tableY = -0.3;
+  float m = step(p.y, tableY);
+  emit += m * uFog * 0.3 * smoothstep(-0.55, tableY, p.y);
+  emit += uGlow * 0.8 * smoothstep(0.006, 0.0, abs(p.y - tableY));
+  // ruleta en la mesa (en perspectiva) que gira
+  vec2 q = (p - vec2(aspect * 0.27, -0.4)) * vec2(1.0, 2.8);
+  float r = length(q);
+  float a = atan(q.y, q.x) + t * 0.9;
+  float sector = mod(floor(a / (2.0 * PI) * 18.0), 2.0);
+  float wheel = step(r, 0.13) * step(0.05, r);
+  emit += wheel * mix(vec3(0.75, 0.08, 0.1), vec3(0.04), sector) * 0.9;
+  emit += uGlow * (smoothstep(0.01, 0.0, abs(r - 0.135)) + smoothstep(0.012, 0.0, abs(r - 0.05)) + step(r, 0.02)) * 0.8;
+  // pilas de fichas
+  for (int i = 0; i < 3; i++) {
+    float fi = float(i);
+    vec2 c = p - vec2(-aspect * 0.3 + fi * 0.07, -0.36);
+    float hgt = 0.04 + 0.03 * hash(vec2(fi, 2.0));
+    float chip = sdBox(c - vec2(0.0, hgt * 0.5), vec2(0.026, hgt * 0.5));
+    m = max(m, step(chip, 0.0));
+    emit += step(chip, 0.0) * mix(uGlow, vec3(0.8, 0.1, 0.12), step(0.5, hash(vec2(fi, 5.0)))) * 0.45 * step(0.5, fract(c.y * 120.0));
+  }
+  // lámparas colgantes
+  for (int i = 0; i < 2; i++) {
+    float lx = (i == 0 ? -1.0 : 1.0) * aspect * 0.3;
+    vec2 l = p - vec2(lx, 0.0);
+    float d = sdSeg(l, vec2(0.0, 0.5), vec2(0.0, 0.4)) - 0.003;
+    d = min(d, max(abs(l.x) - mix(0.03, 0.1, clamp((0.4 - l.y) / 0.05, 0.0, 1.0)), max(l.y - 0.4, 0.35 - l.y)));
+    m = max(m, step(d, 0.0));
+    float across = abs(l.x) / (0.1 + (0.35 - l.y) * 0.4);
+    emit += uGlow * 0.06 * smoothstep(1.0, 0.7, across) * step(l.y, 0.35) * step(tableY, l.y);
+    emit += uGlow * 0.6 * smoothstep(0.012, 0.0, abs(l.y - 0.35)) * step(abs(l.x), 0.1);
+  }
+  return m;
+}
+
 // Tormenta: un árbol seco solitario en lo alto de una loma.
 float loneTree(vec2 p, float aspect) {
   float m = max(hills(p), step(length((p - vec2(aspect * 0.22, -0.62)) * vec2(0.6, 1.0)), 0.35));
@@ -499,7 +763,9 @@ void main() {
   vec3 col = mix(uBot, uTop, smoothstep(-0.1, 1.0, uv.y));
   vec2 sg = floor(gl_FragCoord.xy / 2.5);
   float star = step(0.9965, hash(sg)) * (0.55 + 0.45 * sin(t * 2.0 + hash(sg + 7.0) * 30.0)) * smoothstep(0.35, 1.0, uv.y);
-  col += star * 0.7 * (1.0 - uFogAmt * 0.6) * (uSil == 12.0 || uSil == 13.0 ? 0.0 : 1.0); // (gimnasio y relojería son cerrados: sin estrellas)
+  // (sin estrellas de día ni en los sitios cerrados: gimnasio, relojería, coctelería, interrogatorio y casino)
+  float indoor = (uSil == 12.0 || uSil == 13.0 || uSil == 15.0 || uSil == 19.0 || uSil == 20.0) ? 1.0 : 0.0;
+  col += star * 0.7 * (1.0 - uFogAmt * 0.6) * (1.0 - indoor) * (1.0 - clamp(uSun, 0.0, 1.0));
 
   // nubes / niebla alta
   float clouds = fbm(vec2(p.x * 1.2 + t * 0.015, p.y * 2.5 - t * 0.008) + 3.0);
@@ -516,6 +782,15 @@ void main() {
     col += uGlow * 0.32 * exp(-d * 5.5) * uMoon;
     // nubes que cruzan la luna
     col = mix(col, uFog * 0.35, smoothstep(0.55, 0.8, fbm(vec2(p.x * 3.0 - t * 0.04, p.y * 6.0))) * disk * 0.6);
+  }
+
+  // sol (temáticas de día): disco liso, sin cráteres, con halo cálido
+  if (uSun > 0.0) {
+    vec2 sp = p - vec2(aspect * 0.28, 0.2);
+    float d = length(sp);
+    float disk = smoothstep(0.125, 0.118, d);
+    col = mix(col, mix(vec3(1.0, 0.96, 0.8), uGlow, 0.3), disk * uSun);
+    col += (vec3(1.0, 0.62, 0.3) * 0.38 * exp(-d * 4.5) + uGlow * 0.14 * exp(-d * 1.6)) * uSun;
   }
 
   // murciélagos
@@ -556,6 +831,12 @@ void main() {
   if (uSil == 12.0) sil = gym(p, emit);
   if (uSil == 13.0) sil = clocks(p, aspect, emit);
   if (uSil == 14.0) sil = balloons(p, emit);
+  if (uSil == 15.0) sil = cocktailBar(p, aspect, emit);
+  if (uSil == 16.0) sil = karaoke(p, aspect, emit);
+  if (uSil == 17.0) sil = western(p, aspect, emit);
+  if (uSil == 18.0) sil = latinNight(p, aspect, emit);
+  if (uSil == 19.0) sil = interrogation(p, aspect, emit);
+  if (uSil == 20.0) sil = casino(p, aspect, emit);
   col = mix(col, silCol, sil);
 
   // niebla baja que se arrastra (menos sobre las siluetas, para que se sigan viendo)
@@ -598,7 +879,7 @@ export const QUALITY_LEVELS = [
 ];
 const SAMPLE = 90; // fotogramas por medida
 
-const NUMERIC = ['fogAmt', 'moon', 'bats', 'horizon'];
+const NUMERIC = ['fogAmt', 'moon', 'sun', 'bats', 'horizon'];
 const COLORS = ['top', 'bot', 'fog', 'glow', 'part'];
 const TRANSITION_MS = 1600;
 
@@ -648,7 +929,7 @@ export class Backdrop {
     this.env = e.id;
     this.#stillFrames = 0;
     const target = {
-      ...Object.fromEntries(NUMERIC.map((k) => [k, e[k]])),
+      ...Object.fromEntries(NUMERIC.map((k) => [k, e[k] ?? 0])),
       ...Object.fromEntries(COLORS.map((k) => [k, [...e[k]]])),
       sil: e.sil,
       particles: e.particles,
@@ -755,6 +1036,7 @@ export class Backdrop {
       'uPartCol',
       'uFogAmt',
       'uMoon',
+      'uSun',
       'uSil',
       'uPart',
       'uBats',
@@ -818,6 +1100,7 @@ export class Backdrop {
     gl.uniform3fv(u.uPartCol, this.cur.part);
     gl.uniform1f(u.uFogAmt, this.cur.fogAmt);
     gl.uniform1f(u.uMoon, this.cur.moon);
+    gl.uniform1f(u.uSun, this.cur.sun);
     gl.uniform1f(u.uSil, this.cur.sil);
     gl.uniform1f(u.uPart, this.cur.particles);
     gl.uniform1f(u.uBats, this.cur.bats);

@@ -23,7 +23,8 @@ export function createShakeStage() {
   }
 
   function bars(players, max) {
-    const list = h('ol', { class: 'shake-race' });
+    // Con más de 8: dos columnas (7 + 7 con dos equipos de 7), para que se vean todos en la tele
+    const list = h('ol', { class: `shake-race ${players.length > 8 ? 'many' : ''}`, style: { '--rows': Math.ceil(players.length / 2) } });
     rows.clear();
     for (const p of players) {
       const bar = h('span', { class: 'sr-bar' });
@@ -88,7 +89,7 @@ export function createShakeStage() {
         kinetic('h2', 'shake-title display', '¡Tiempo!'),
         h(
           'ol',
-          { class: 'shake-final' },
+          { class: `shake-final ${s.players.length > 8 ? 'many' : ''}`, style: { '--rows': Math.ceil(s.players.length / 2) } },
           s.players.map((p) =>
             h(
               'li',

@@ -38,6 +38,15 @@ export const MOODS = {
   // Globos (guerra de globos): feria alegre, con batería
   globos: { root: 48, scale: [0, 2, 4, 7, 9], tempo: 1.25, wave: 'square', cutoff: 1500, amb: [], drums: true },
   lunallena: { root: 38, scale: [0, 2, 3, 5, 7, 8, 10], tempo: 1.15, wave: 'sawtooth', cutoff: 850, amb: ['owl'], drums: true },
+  // Seis temáticas del Gauntlet: coctelería (lounge mixolidio, burbujas), karaoke (pop en mayor, batería),
+  // oeste (frigio dominante, de duelo, lento y sin ambiente que despiste en Reflejos), noche latina (menor armónica
+  // con batería), interrogatorio (noir: menor con séptima, lento) y casino (swing en mayor con séptima menor)
+  cocteleria: { root: 46, scale: [0, 2, 4, 5, 7, 9, 10], tempo: 1.05, wave: 'triangle', cutoff: 1300, amb: ['bubbles'] },
+  karaoke: { root: 48, scale: [0, 2, 4, 5, 7, 9, 11], tempo: 1.2, wave: 'square', cutoff: 1600, amb: [], drums: true },
+  oeste: { root: 40, scale: [0, 1, 4, 5, 7, 8, 10], tempo: 0.9, wave: 'triangle', cutoff: 1000, amb: [] },
+  latina: { root: 45, scale: [0, 2, 3, 5, 7, 8, 11], tempo: 1.15, wave: 'triangle', cutoff: 1400, amb: [], drums: true },
+  noir: { root: 38, scale: [0, 2, 3, 5, 7, 9, 10], tempo: 0.8, wave: 'sine', cutoff: 900, amb: [] },
+  casino: { root: 43, scale: [0, 2, 4, 5, 7, 9, 10], tempo: 1.1, wave: 'triangle', cutoff: 1400, amb: [], drums: true },
   // Squid Games: su propia música (en vez de la de Halloween) para cada momento
   squid: {
     root: 50,

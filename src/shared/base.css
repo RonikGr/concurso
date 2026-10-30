@@ -15,10 +15,18 @@
   --ok: #7dff6b;
   --warn: #ffc23a;
   --danger: #ff3d5a;
-  --glow: 0 0 2.2em rgb(255 138 31 / 0.35);
   --radius: 1rem;
+  /* Radios (para lo nuevo): chips/píldoras, tarjetas y paneles grandes */
+  --r-chip: 999px;
+  --r-card: var(--radius);
+  --r-panel: calc(var(--radius) * 1.5);
   --font: 'Outfit Variable', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  /* Letra de los rótulos grandes (≤ 4 palabras): Creepster en Halloween; las temáticas ponen Outfit 900
+     (applyEnvUi en shared/environments.js, sobre body) */
   --display: 'Creepster', 'Outfit Variable', system-ui, sans-serif;
+  --display-weight: 400;
+  /* Velo detrás del texto en entornos claros (lo pone la temática; por defecto, nada) */
+  --env-veil: transparent;
   --emoji: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -28,6 +36,23 @@
 *::before,
 *::after {
   box-sizing: border-box;
+}
+
+/* Tokens derivados del acento (piel por temática). Se declaran también en body porque applyEnvUi cambia --accent
+   en body: una variable con var() se resuelve donde se declara y lo de :root no se enteraría. */
+:root,
+body {
+  --accent-glow: color-mix(in srgb, var(--accent) 55%, transparent);
+  --ok-glow: color-mix(in srgb, var(--ok) 55%, transparent);
+  --glow: 0 0 2.2em color-mix(in srgb, var(--accent-glow) 64%, transparent);
+  /* Brillo de los títulos grandes: --title-glow es su color (calabaza en Halloween); --title-shadow, la sombra entera */
+  --title-glow: color-mix(in srgb, var(--accent) 55%, transparent);
+  --title-shadow:
+    0 0 0.3em var(--title-glow),
+    0 0 1.2em color-mix(in srgb, var(--title-glow) 64%, transparent),
+    0 0.05em 0 color-mix(in srgb, var(--accent) 40%, black);
+  /* Rótulo pequeño «Sección n de N · …» */
+  --kicker: var(--accent-2);
 }
 
 /* Que ningún `display` de una clase gane al atributo hidden. */
@@ -107,19 +132,19 @@ button:disabled {
   border-color: transparent;
   color: var(--accent-fg);
   box-shadow:
-    0 0.6em 1.6em -0.6em rgb(255 138 31 / 0.7),
+    0 0.6em 1.6em -0.6em color-mix(in srgb, var(--accent) 70%, transparent),
     inset 0 1px 0 rgb(255 255 255 / 0.35);
 }
 
 .btn.primary:hover:not(:disabled) {
   border-color: transparent;
   box-shadow:
-    0 0.8em 2em -0.6em rgb(255 138 31 / 0.9),
+    0 0.8em 2em -0.6em color-mix(in srgb, var(--accent) 90%, transparent),
     inset 0 1px 0 rgb(255 255 255 / 0.35);
 }
 
 .btn.danger {
-  border-color: rgb(255 61 90 / 0.6);
+  border-color: color-mix(in srgb, var(--danger) 60%, transparent);
   color: var(--danger);
 }
 
@@ -128,10 +153,10 @@ button:disabled {
   box-shadow: none;
 }
 
-/* Títulos con letra de terror (Creepster): solo en tamaños grandes, que a tamaño pequeño no se lee. */
+/* Títulos con la letra de la temática (Creepster en Halloween): solo en rótulos grandes de ≤ 4 palabras. */
 .display {
   font-family: var(--display);
-  font-weight: 400;
+  font-weight: var(--display-weight);
   letter-spacing: 0.04em;
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classifyFolder, folderKey, itemSongKey, sectionWideSlot, songKey, squidSoundFor } from '../src/core/folder.js';
+import { classifyFolder, folderKey, itemSongKey, sectionWideSlot, songKey, squidGameFor, squidSoundFor } from '../src/core/folder.js';
 
 const slots = [
   { id: 'lobby', label: 'Preparación' },
@@ -84,6 +84,33 @@ describe('carpeta del concurso', () => {
     const r = classifyFolder([e('Vídeos/Twerking de pimpón.mp4'), e('Vídeos/La galleta/esqueleto.webm'), e('Vídeos/notas.txt')]);
     expect(r.videos.map((v) => v.key)).toEqual(['twerkingdepimpon', 'lagalleta']);
     expect(r.ignored).toEqual(['Vídeos/notas.txt']);
+  });
+
+  it('vídeo de presentación: en «Vídeos/<Sección>/Presentación/», también .mkv', () => {
+    const e = (path) => ({ path: path.split('/'), lastModified: 1 });
+    const r = classifyFolder([
+      e('Vídeos/Twerking de pimpón.mp4'),
+      e('Vídeos/Twerking de pimpón/Presentación/2026-10-30 00-04-24.mkv'),
+      e('Vídeos/Twerking de pimpón/Presentación/otro.mkv'),
+      e('Vídeos/La galleta/Otra cosa/x.mp4'),
+    ]);
+    expect(r.videos.map((v) => [v.key, v.intro])).toEqual([
+      ['twerkingdepimpon', false],
+      ['twerkingdepimpon', true],
+    ]);
+    expect(r.ignored).toEqual(['Vídeos/Twerking de pimpón/Presentación/otro.mkv', 'Vídeos/La galleta/Otra cosa/x.mp4']);
+  });
+
+  it('Squid Games: cada juego puede tener su carpeta de música (con otros nombres)', () => {
+    const e = (path) => ({ path: path.split('/'), lastModified: 1 });
+    const r = classifyFolder(
+      [e('Música/Squid Games/Tira y afloja/a.mp3'), e('Música/Squid Games/Cuerda/b.mp3'), e('Música/Squid Games/Galleta/c.mp3'), e('Música/Squid Games/Puente de cristal/d.mp3'), e('Música/Squid Games/Nada/e.mp3'), e('Música/Fit o Fat/Cuerda/f.mp3')],
+      { sections: [{ name: 'Squid Games', items: [], type: 'squid' }, { name: 'Fit o Fat', items: ['Plancha'], type: 'libre' }] },
+    );
+    expect(r.music.map((m) => m.slot)).toEqual([`song:${itemSongKey('Squid Games', 'cuerda')}`, `song:${itemSongKey('Squid Games', 'panal')}`, `song:${itemSongKey('Squid Games', 'puente')}`]);
+    expect(itemSongKey('Squid Games', 'cuerda')).toBe('juego-squidgames-cuerda');
+    expect(r.ignored).toEqual(['Música/Squid Games/Cuerda/b.mp3', 'Música/Squid Games/Nada/e.mp3', 'Música/Fit o Fat/Cuerda/f.mp3']);
+    expect([squidGameFor('Luz roja'), squidGameFor('dalgona'), squidGameFor('Canicas'), squidGameFor('Flexiones')]).toEqual(['luzroja', 'panal', 'canicas', null]);
   });
 
   it('sonidos de Squid Games: en su carpeta o sueltos en Música, por el nombre', () => {

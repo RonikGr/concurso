@@ -38,7 +38,11 @@ export function currentSavedRoom() {
   return isRoom(saved) ? saved : null;
 }
 
-/** @param data {code, controlSecret, approvedControls, show, runner, players, teamsLocked, teamBonus, settings} */
+/**
+ * @param data {code, controlSecret, approvedControls, show, runner, players, teamsLocked, teamBonus, settings,
+ *   itemResults (lo jugado por pregunta; el millonario también a medias), steps {rulesFor, versus, punish, roulette}
+ *   (pasos de la portada, «Cómo se juega» y la ruleta), faceOverrides {playerId: faceId|null} (caras puestas a mano)…}
+ */
 export function saveRoom(data) {
   saveJSON(KEY, { ...data, savedAt: Date.now() });
 }

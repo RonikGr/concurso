@@ -191,9 +191,15 @@ export class MillionaireRound {
     return { roundId, seat, phase, shown, choice, marked, removed, used, audience, call, cheated, results };
   }
 
-  static fromJSON(question, data) {
+  /**
+   * Recupera una pregunta guardada (revelada o a medias: la tele se recargó). Con `settle`, el Público o la Llamada
+   * que estuvieran en marcha quedan terminados: sus relojes eran de la página anterior y no hay temporizador que los
+   * acabe. Lo usado (50:50, comodines gastados) se queda como estaba.
+   */
+  static fromJSON(question, data, { settle = false } = {}) {
     const r = new MillionaireRound(question, { roundId: data.roundId, seat: data.seat });
-    Object.assign(r, data);
+    Object.assign(r, structuredClone(data)); // copia: lo guardado no cambia con la ronda
+    if (settle) r.endJokers();
     return r;
   }
 }
