@@ -9,6 +9,8 @@ servidor de enlace público (`0.peerjs.com`). **El presentador es la autoridad**
 - `npm run dev` — servidor Vite con HTTPS autofirmado, accesible desde la LAN (`--host`).
 - `npm test` — tests (Vitest) de la lógica pura en `src/core` y `src/shared`.
 - `npm run build` — genera `dist/`. El despliegue lo hace `.github/workflows/deploy.yml` al hacer push a `main`.
+- `node scripts/check-sheet.mjs "<hoja.xlsx>"` — lee una hoja como la tele (errores, avisos, secciones).
+  `node scripts/check-folder.mjs "<carpeta>"` — reparte la carpeta del concurso como la tele (qué suena dónde, qué sobra).
 - `npm run plantilla` — regenera `public/plantilla-concurso.xlsx` (script `scripts/make-template.mjs`, ExcelJS solo en desarrollo).
   Un test comprueba que la plantilla se lee sin errores ni avisos: si se cambian columnas, cambiar a la vez `src/core/show.js`.
 
@@ -34,6 +36,45 @@ Ojo con PowerShell 5.1: `Get-Content`/`Set-Content` sin `-Encoding` rompen los a
 - Pulsar antes de abrir el turno bloquea al jugador durante esa pregunta (opción activada por defecto).
 - Todos los jugadores estarán en la misma wifi (no se optimiza para datos móviles / TURN).
 - Sin vibración en iPhone (Safari no la soporta): aceptado.
+
+## Forma de trabajar (léelo primero; viene de muchas sesiones)
+
+- **Quién:** Rodri es el presentador y prueba con su gente en una fiesta real; habla en español y pide cambios en listas.
+  Cuando pide «plan primero», se le da el plan y las preguntas y se espera; si no, se hace todo y se prueba.
+- **Commit solo cuando lo pide.** El `git push` desde la terminal de Claude falló en el primer ordenador (403: el
+  Administrador de credenciales tenía otra cuenta, GammaSim2020); él sube con **GitHub Desktop** («Push origin»). En otro
+  ordenador, probar `git push` una vez y, si da 403, pedirle que use GitHub Desktop (no tocar credenciales).
+- **La carpeta del concurso no viaja con git:** `Concurso del año - archivos/` (dentro del repo, en .gitignore) tiene la
+  hoja de trabajo, la música, canciones, caras, vídeos, `Copias/` y su `LÉEME.txt`. Hay que copiarla a mano al otro
+  ordenador. La tele usa la **.xlsx más reciente de la raíz** (la buena: `plantilla-concurso Prueba 1.xlsx`; la plantilla
+  de `public/` es otra cosa). Lo leído se guarda en el IndexedDB de cada navegador: en un ordenador nuevo hay que elegir
+  la carpeta otra vez en la preparación de la tele.
+- **Tocar su Excel:** nunca regenerarlo ni sobrescribirlo. Copia antes en `Copias/` (fuera de la raíz, para que la tele no
+  la coja), edición puntual con ExcelJS buscando filas por su valor (no por número), añadir los valores nuevos a las
+  listas desplegables, y comprobar con `node scripts/check-sheet.mjs "<hoja>"` (0 errores, 0 avisos). Si se cambian
+  columnas o tipos, regenerar la plantilla (`npm run plantilla`) y aplicar lo mismo a su hoja.
+- **Comprobar la carpeta:** `node scripts/check-folder.mjs "Concurso del año - archivos"` enseña qué hoja, música (por
+  momento y por sección), Squid, vídeos y caras reconoce la tele y qué queda sin usar. Si crea carpetas, nada de `?` ni
+  `:` en los nombres (Windows): `folderKey` ignora signos, así que «Qué canción es» vale por «¿Qué canción es?».
+- **Probar en el navegador** (servidor `dev-http`, puerto 5174): `host.html?demo=squid&bots=N`; `window.__room.run(orden,
+  args)` (p. ej. `gotoSection {index}`; `view().sections` no lleva `type`, buscar por nombre); `localStorage
+  concurso.silencio = 1`; ventana 1280×720 para hacer de tele. El servidor sirve la carpeta del concurso:
+  `fetch(encodeURI('/Concurso del año - archivos/…'))` sirve para cargar su Excel en la tele (DataTransfer en
+  `input[type=file][accept=".xlsx"]`) o un vídeo (`trackStore.tracks.set('video:<clave>', …)`). Cada cambio recarga la
+  página (HMR) y la demo empieza de cero; la consola conserva errores de antes de recargar (mirar la hora del módulo).
+- **Errores ya cometidos (no repetir):**
+  - Temporizadores con `requestAnimationFrame`: se paran con la ventana oculta → `setTimeout`.
+  - Todo lo que cambia con el reloj (lo que falta, lo que lleva, `now`) fuera de las firmas de repintado; lo que se está
+    eligiendo (casillas, borradores) fuera del pintado. Si no, se repiten animaciones y sonidos y se pierden toques.
+  - `confirm()` / `prompt()` congelan la página y la conexión: dos toques en la propia página.
+  - `mix-blend-mode` en un elemento dentro de una capa `position:fixed` con `z-index` solo se mezcla dentro de esa capa.
+  - Un `::before` con `z-index:-1` queda detrás del fondo WebGL. En `conic-gradient`, los ángulos con unidad (`0deg`).
+  - Las horas `performance.now()` guardadas no valen tras recargar la tele (su reloj empieza de 0): rebasarlas.
+  - Lo jugado se guarda por `playKey` (número de sección): reordenar secciones con algo jugado lo mezclaría.
+  - El nombre del archivo de una canción tiene que coincidir con la columna «Canción» (`songKey`: sin tildes ni signos).
+  - En Bash, guiones con comillas invertidas → escribir el script en un archivo y ejecutarlo con node.
+- **Sin probar aún en móviles reales** (avisar si se toca): la galleta con `MAX_SPEED` 0,4, la dureza de la luz roja,
+  comodines con dos toques, «✓ Apuesta guardada», las marcas de Palabras, los botones nuevos del mando.
 
 ## Arquitectura
 
