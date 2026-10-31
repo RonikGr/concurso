@@ -146,7 +146,10 @@ step, unjudge, undoPenalty, setFace, squidJoin.
 
 - Emparejar mando: la tele (preparación) enseña un QR a `control.html?sala=CÓDIGO#k=CLAVE` (la clave tras `#` no sale del
   navegador); con la clave correcta, el portátil pide confirmación (Enter / Esc). Los mandos aprobados se recuerdan.
-  Sala nueva = clave nueva.
+  Sala nueva = clave nueva. Con un mando ya conectado, el QR sigue en la preparación (el segundo presentador también
+  lo escanea; antes desaparecía y no había forma de emparejar el segundo). Desde un mando: «📱 Mando para otro
+  presentador» (pestaña Secciones, `pairCard`: el mismo QR, en cualquier momento) y «Otro mando quiere entrar» con
+  Permitir / Rechazar en Juego (`newControlCard`, órdenes approveControl / denyControl).
 
 - Mismo `playerId` desde otra conexión (otra pestaña): la vieja recibe `replaced` y deja de reconectar; si no, se echarían mutuamente.
 - `?perfil=X` en la página del jugador usa otra identidad (clave de localStorage distinta): para probar varios jugadores en un navegador.
@@ -724,7 +727,9 @@ con vibración). Mando: `hankyPanel` (chips por equipo para elegir en secreto, `
   `--display`, `--title-shadow`, `--env-veil`, `body.dataset.env`; el confeti sin tema sigue a la temática); Creepster
   solo en Halloween y en rótulos cortos; decorado emoji solo en franjas laterales. Seis entornos nuevos con silueta
   propia (sil 15–20) elegidos por la columna «Entorno» de su hoja: `cocteleria` (Agita), `karaoke` (¿Qué canción es?),
-  `oeste` (Reflejos, con sol y sin verde), `latina` (Bachata), `noir` (Dos verdades), `casino` (Apuesta). La plantilla
+  `oeste` (Reflejos, con sol y sin verde), `latina` (Bachata), `noir` (Dos verdades), `casino` (Apuesta); después,
+  `beerpong` (sil 21 `beerPong()`: mesa azul con los dos triángulos de vasos rojos, bola que cruza, guirnalda de
+  bombillas; sección Libre «Beerpong», parejas 2 contra 2 con Contador por equipos, 6 vasos). La plantilla
   lleva la lista de entornos en una pestaña oculta «Listas» (Excel corta un desplegable escrito a 255 letras).
   Opciones sin colores de equipo (`shared/options.js`: A violeta, B ámbar, C verde azulado, D frambuesa; Mentira violeta).
 - **Tele:** cabe en 100vh con 14 (densidad `tiny` desde 12, lista `.many` en dos columnas desde 7 filas, tira de caras

@@ -908,3 +908,19 @@ body.c-playing .c-main {
   display: flex;
   align-items: center;
 }
+
+/* QR para emparejar el mando del otro presentador (pestaña Secciones) */
+.c-pair-qr {
+  width: min(16rem, 70vw);
+  aspect-ratio: 1;
+  margin: 0.6rem auto;
+  padding: 0.6rem;
+  border-radius: var(--radius);
+  background: #ffffff;
+}
+
+.c-pair-qr svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}

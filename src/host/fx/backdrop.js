@@ -667,6 +667,76 @@ float casino(vec2 p, float aspect, out vec3 emit) {
   return m;
 }
 
+// Vaso rojo de fiesta (trapecio que se abre hacia arriba), apoyado en base; s = alto
+float partyCup(vec2 p, vec2 base, float s) {
+  vec2 q = p - base;
+  float w = mix(0.3, 0.42, clamp(q.y / s, 0.0, 1.0)) * s;
+  return max(abs(q.x) - w, max(-q.y, q.y - s));
+}
+
+// Beerpong: fiesta en un sótano. Mesa larga con los dos triángulos de seis vasos rojos (3-2-1, vistos de lado), una
+// bola que cruza de un lado a otro, y una guirnalda de bombillas de colores arriba (lejos de los rótulos).
+float beerPong(vec2 p, float aspect, out vec3 emit) {
+  emit = vec3(0.0);
+  float t = uTime;
+  float tableY = -0.3;
+  float hw = aspect * 0.4;
+  // tablero (azul, con borde y línea central blancos) y patas
+  float top = step(abs(p.x), hw) * step(tableY - 0.025, p.y) * step(p.y, tableY);
+  float legs = step(p.y, tableY) * step(abs(abs(p.x) - hw + 0.06), 0.012);
+  float m = max(top, legs);
+  emit += top * vec3(0.08, 0.28, 0.75) * 0.9;
+  emit += top * vec3(0.9) * (smoothstep(0.004, 0.0, abs(p.y - tableY)) + smoothstep(0.003, 0.0, abs(p.x)) * 0.6);
+  // suelo con el reflejo de las bombillas
+  emit += step(p.y, -0.42) * uGlow * 0.05 * (0.6 + 0.4 * noise(vec2(p.x * 6.0, t * 0.8)));
+  // los dos triángulos de vasos: la fila de 3 al fondo (más alta y pequeña), la de 2 y el vaso de delante
+  vec3 red = vec3(0.85, 0.07, 0.09);
+  for (int side = 0; side < 2; side++) {
+    float dir = side == 0 ? 1.0 : -1.0; // hacia el centro
+    float x0 = -dir * (hw - 0.07);
+    for (int row = 0; row < 3; row++) {
+      float fr = float(row);
+      float n = 3.0 - fr;
+      for (int k = 0; k < 3; k++) {
+        float fk = float(k);
+        if (fk >= n) break;
+        float depth = (fk - (n - 1.0) * 0.5); // de fondo a delante dentro de la fila
+        float s = 0.05 + 0.004 * depth;
+        vec2 base = vec2(x0 + dir * fr * 0.04 + depth * 0.012, tableY + 0.004 - depth * 0.008);
+        float d = partyCup(p, base, s);
+        float in_ = step(d, 0.0);
+        m = max(m, in_);
+        float rim = step(base.y + s * 0.82, p.y);
+        emit += in_ * mix(red * (0.75 + 0.25 * smoothstep(-0.01, 0.01, p.x - base.x)), vec3(0.95), rim);
+      }
+    }
+  }
+  // la bola: cruza en arco de un lado al otro, ida y vuelta
+  float period = 2.6;
+  float ph = mod(t, period * 2.0);
+  float f = fract(t / period);
+  float side0 = ph < period ? -1.0 : 1.0;
+  float xa = side0 * (hw - 0.12);
+  float bx = mix(xa, -xa, f);
+  float by = tableY + 0.06 + 0.32 * 4.0 * f * (1.0 - f);
+  float bd = length(p - vec2(bx, by));
+  emit += vec3(1.0, 0.98, 0.9) * (smoothstep(0.013, 0.009, bd) + 0.25 * exp(-bd * 45.0)) * smoothstep(0.0, 0.05, f) * smoothstep(1.0, 0.92, f);
+  // guirnalda de bombillas: cable combado y bombillas que parpadean
+  float sag = 0.46 - 0.05 * (1.0 - pow(p.x / (aspect * 0.5), 2.0));
+  float wire = smoothstep(0.003, 0.0, abs(p.y - sag));
+  m = max(m, wire * 0.8);
+  float bw = 0.11;
+  float bi = floor((p.x + 10.0) / bw);
+  float bxc = (bi + 0.5) * bw - 10.0;
+  float by0 = 0.46 - 0.05 * (1.0 - pow(bxc / (aspect * 0.5), 2.0)) - 0.018;
+  float bulbD = length((p - vec2(bxc, by0)) * vec2(1.0, 0.8));
+  float hue = hash(vec2(bi, 3.0));
+  vec3 bulbCol = hue < 0.25 ? vec3(1.0, 0.25, 0.2) : hue < 0.5 ? vec3(1.0, 0.8, 0.25) : hue < 0.75 ? vec3(0.3, 0.6, 1.0) : vec3(0.4, 1.0, 0.5);
+  float blink = 0.65 + 0.35 * step(0.5, fract(t * 0.7 + hash(vec2(bi, 9.0))));
+  emit += bulbCol * blink * (smoothstep(0.014, 0.008, bulbD) * 1.3 + 0.35 * exp(-bulbD * 22.0));
+  return m;
+}
+
 // Tormenta: un árbol seco solitario en lo alto de una loma.
 float loneTree(vec2 p, float aspect) {
   float m = max(hills(p), step(length((p - vec2(aspect * 0.22, -0.62)) * vec2(0.6, 1.0)), 0.35));
@@ -763,8 +833,8 @@ void main() {
   vec3 col = mix(uBot, uTop, smoothstep(-0.1, 1.0, uv.y));
   vec2 sg = floor(gl_FragCoord.xy / 2.5);
   float star = step(0.9965, hash(sg)) * (0.55 + 0.45 * sin(t * 2.0 + hash(sg + 7.0) * 30.0)) * smoothstep(0.35, 1.0, uv.y);
-  // (sin estrellas de día ni en los sitios cerrados: gimnasio, relojería, coctelería, interrogatorio y casino)
-  float indoor = (uSil == 12.0 || uSil == 13.0 || uSil == 15.0 || uSil == 19.0 || uSil == 20.0) ? 1.0 : 0.0;
+  // (sin estrellas de día ni en los sitios cerrados: gimnasio, relojería, coctelería, interrogatorio, casino y beerpong)
+  float indoor = (uSil == 12.0 || uSil == 13.0 || uSil == 15.0 || uSil == 19.0 || uSil == 20.0 || uSil == 21.0) ? 1.0 : 0.0;
   col += star * 0.7 * (1.0 - uFogAmt * 0.6) * (1.0 - indoor) * (1.0 - clamp(uSun, 0.0, 1.0));
 
   // nubes / niebla alta
@@ -837,6 +907,7 @@ void main() {
   if (uSil == 18.0) sil = latinNight(p, aspect, emit);
   if (uSil == 19.0) sil = interrogation(p, aspect, emit);
   if (uSil == 20.0) sil = casino(p, aspect, emit);
+  if (uSil == 21.0) sil = beerPong(p, aspect, emit);
   col = mix(col, silCol, sil);
 
   // niebla baja que se arrastra (menos sobre las siluetas, para que se sigan viendo)

@@ -42,16 +42,16 @@ export function setupScreen(view, ctx) {
   return view.setupStep === 'prep' ? prepScreen(view, ctx) : joinScreen(view, ctx);
 }
 
-/** El QR del mando (o «Mando conectado»). */
+/** El QR del mando; con uno ya conectado sigue a la vista (el segundo presentador también tiene que escanearlo). */
 function controlBox(view, ctx) {
+  const n = view.controlsConnected;
   return h(
     'aside',
     { class: 'setup-control' },
     h('p', { class: 'join-label' }, 'Mando del presentador'),
-    view.controlsConnected
-      ? h('p', { class: 'control-ok' }, `✓ ${view.controlsConnected === 1 ? 'Mando conectado' : `${view.controlsConnected} mandos conectados`}`)
-      : h('p', { class: 'muted small' }, 'Escanéalo con tu móvil (no lo enseñes a los jugadores).'),
-    view.controlsConnected ? null : ctx.controlQr,
+    n ? h('p', { class: 'control-ok' }, `✓ ${n === 1 ? 'Mando conectado' : `${n} mandos conectados`}`) : null,
+    h('p', { class: 'muted small' }, n ? '¿Otro presentador? Que lo escanee con su móvil.' : 'Escanéalo con tu móvil (no lo enseñes a los jugadores).'),
+    ctx.controlQr,
   );
 }
 

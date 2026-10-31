@@ -36,6 +36,14 @@ describe('piel de cada temática', () => {
     expect(new Set(sils).size).toBe(6);
   });
 
+  it('beerpong: silueta propia, decorado y su música', () => {
+    const e = ENVIRONMENTS.find((x) => x.id === 'beerpong');
+    expect(e.sil).toBe(21);
+    expect(ENVIRONMENTS.filter((x) => x.sil === 21)).toHaveLength(1);
+    expect(e.decor.length).toBeGreaterThan(0);
+    expect(MOODS.beerpong).toBeTruthy();
+  });
+
   it('toda temática con decorado lleva `ui` completa (acento, kicker, letra y confeti)', () => {
     expect(themed.length).toBeGreaterThanOrEqual(13); // 6 de antes + discoteca + 6 nuevas;
     for (const e of themed) {

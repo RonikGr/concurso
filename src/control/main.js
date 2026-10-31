@@ -425,7 +425,60 @@ function awayNowCard() {
 }
 
 function gameTab() {
-  return [penaltyOpen ? penaltyCard() : null, presentersCard(), cheatCard(), awayNowCard(), gameTabBody()];
+  return [newControlCard(), penaltyOpen ? penaltyCard() : null, presentersCard(), cheatCard(), awayNowCard(), gameTabBody()];
+}
+
+/** Otro móvil pide ser mando (el del otro presentador): se acepta desde aquí o con Enter en el portátil. */
+function newControlCard() {
+  const pending = view.pendingControls?.[0];
+  if (!pending) return null;
+  return h(
+    'section',
+    { class: 'c-card c-cheats' },
+    h('p', { class: 'c-kicker' }, '📱 Otro mando quiere entrar'),
+    h('p', {}, `«${pending.deviceName}». Acéptalo solo si es el móvil del otro presentador.`),
+    h(
+      'div',
+      { class: 'c-sound' },
+      btn('✓ Permitir', () => cmd('approveControl', { controlId: pending.id }), 'primary'),
+      btn('Rechazar', () => cmd('denyControl', { controlId: pending.id })),
+    ),
+  );
+}
+
+/** QR para emparejar el mando de otro presentador desde este (sin volver a la preparación de la tele). */
+let pairQrOpen = false;
+let pairQrSvg = null; // el dibujo se hace una vez: el repintado no lo rehace
+function pairCard() {
+  const key = store.keys[view.code];
+  if (!key) return null;
+  const url = new URL('./control.html', location.href);
+  url.search = `?sala=${view.code}`;
+  url.hash = `k=${key}`;
+  const qr = h('div', { class: 'c-pair-qr', role: 'img', 'aria-label': 'QR para otro mando' });
+  if (pairQrOpen) {
+    if (pairQrSvg) qr.innerHTML = pairQrSvg;
+    else
+      import('qrcode')
+        .then(({ default: QRCode }) => QRCode.toString(url.href, { type: 'svg', margin: 1, errorCorrectionLevel: 'M' }))
+        .then((svg) => {
+          pairQrSvg = svg;
+          document.querySelectorAll('.c-pair-qr').forEach((el) => (el.innerHTML = svg));
+        })
+        .catch(() => qr.append('No se pudo generar el QR'));
+  }
+  return h(
+    'section',
+    { class: 'c-card' },
+    h('div', { class: 'c-row' }, h('p', { class: 'c-kicker' }, '📱 Mando para otro presentador'), btn(pairQrOpen ? 'Ocultar' : 'Enseñar QR', () => {
+      pairQrOpen = !pairQrOpen;
+      lastSignature = null;
+      render();
+    }, 'small')),
+    pairQrOpen
+      ? [qr, h('p', { class: 'muted small' }, 'Que lo escanee el otro presentador (no los jugadores). Luego acéptalo aquí o con Enter en el portátil.')]
+      : null,
+  );
 }
 
 /** ⚖️ Quitar puntos por trampas, en cualquier momento (se abre con el botón de arriba). */
@@ -1853,6 +1906,7 @@ function sectionsTab() {
       ),
     ),
     soundCard(),
+    pairCard(),
     view.paused
       ? null
       : twoTap(

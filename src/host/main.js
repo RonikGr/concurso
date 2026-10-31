@@ -911,7 +911,7 @@ function renderApproval(view) {
       'div',
       { class: 'approve-card', role: 'alertdialog', 'aria-label': 'Nuevo mando' },
       h('h2', {}, '¿Permitir este mando?'),
-      h('p', {}, `«${pending.deviceName}» quiere ser el mando del presentador. Solo acéptalo si es tu móvil.`),
+      h('p', {}, `«${pending.deviceName}» quiere ser un mando del presentador. Solo acéptalo si es tu móvil o el del otro presentador.`),
       h(
         'div',
         { class: 'stage-actions' },

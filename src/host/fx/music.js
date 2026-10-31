@@ -47,6 +47,8 @@ export const MOODS = {
   latina: { root: 45, scale: [0, 2, 3, 5, 7, 8, 11], tempo: 1.15, wave: 'triangle', cutoff: 1400, amb: [], drums: true },
   noir: { root: 38, scale: [0, 2, 3, 5, 7, 9, 10], tempo: 0.8, wave: 'sine', cutoff: 900, amb: [] },
   casino: { root: 43, scale: [0, 2, 4, 5, 7, 9, 10], tempo: 1.1, wave: 'triangle', cutoff: 1400, amb: [], drums: true },
+  // Beerpong: fiesta, pop en mayor rápido con batería
+  beerpong: { root: 47, scale: [0, 2, 4, 7, 9], tempo: 1.3, wave: 'square', cutoff: 1700, amb: [], drums: true },
   // Squid Games: su propia música (en vez de la de Halloween) para cada momento
   squid: {
     root: 50,

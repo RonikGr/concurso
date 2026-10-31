@@ -4,7 +4,8 @@
 // Parámetros del shader:
 //   sil  — silueta: 0 nada, 1 tumbas, 2 árboles, 3 castillo, 4 telaraña, 5 calabazas, 6 colinas, 7 cripta,
 //          8 laboratorio (matraces), 9 caldero, 10 árbol solitario, 11 plató (focos y suelo de luz), 12 gimnasio,
-//          13 relojería, 14 globos, 15 coctelería, 16 karaoke, 17 oeste, 18 noche latina, 19 interrogatorio, 20 casino
+//          13 relojería, 14 globos, 15 coctelería, 16 karaoke, 17 oeste, 18 noche latina, 19 interrogatorio, 20 casino,
+//          21 beerpong
 //   moon — luna con cráteres (0/1); sun — sol sin cráteres con halo cálido (0/1; temáticas de día)
 //   part — partículas: 0 nada, 1 luciérnagas, 2 brasas, 3 burbujas, 4 lluvia, 5 chispas, 6 polvo/escarcha
 //   colores RGB 0..1: top/bot (cielo), fog (niebla), glow (luna, ventanas, resplandor del horizonte), part (partículas)
@@ -488,6 +489,26 @@ export const ENVIRONMENTS = [
     horizon: 0.3,
     decor: ['🎰', '🃏', '🪙', '♠️', '♦️', '🎲'],
     ui: { accent: '#ffd24a', accent2: '#fff0b0', kicker: '#fff0b0', titleGlow: 'rgb(255 210 74 / 0.55)', display: 'outfit', confetti: 'money' },
+  },
+  {
+    // Beerpong: fiesta en un sótano, la mesa con los dos triángulos de vasos rojos, la bola que cruza y una guirnalda
+    // de bombillas; burbujas de cerveza en el aire
+    id: 'beerpong',
+    name: 'Beerpong',
+    top: rgb('#1a1238'),
+    bot: rgb('#05030c'),
+    fog: rgb('#ff3b3b'),
+    glow: rgb('#ffc93a'),
+    part: rgb('#ffe39a'),
+    fogAmt: 0.16,
+    moon: 0,
+    sil: 21,
+    particles: 3,
+    bats: 0,
+    lightning: 0,
+    horizon: 0.3,
+    decor: ['🍺', '🏓', '🍻', '🎉', '🍺', '🏓', '🎊', '🍻'],
+    ui: { accent: '#ff4a4a', accent2: '#ffc93a', kicker: '#ffe39a', titleGlow: 'rgb(255 74 74 / 0.55)', display: 'outfit', confetti: { glyphs: ['🍺', '🏓', '🍻', '🎉'], paper: ['#ff3b3b', '#ffc93a', '#2f6fff', '#ffffff'] } },
   },
 ];
 
