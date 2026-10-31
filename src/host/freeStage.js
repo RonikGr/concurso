@@ -88,7 +88,11 @@ export function createFreeStage() {
           return h(
             'li',
             { class: p.out != null ? 'out' : '', style: { '--pc': getColor(p.color).bg, '--pc-fg': getColor(p.color).fg } },
-            few && hasAvatar ? [h('span', { class: `free-avatar ${p.face ? 'has-face' : ''}` }, avatarOf(p)), h('span', { class: 'free-who' }, name, detail)] : [name, detail],
+            few && hasAvatar
+              ? [h('span', { class: `free-avatar ${p.face ? 'has-face' : ''}` }, avatarOf(p)), h('span', { class: 'free-who' }, name, detail)]
+              : p.players?.length
+                ? h('span', { class: 'free-who' }, name, whoPlays(p), detail)
+                : [name, detail],
           );
         }),
       ),
@@ -247,7 +251,18 @@ function chip(p, score) {
     { style: { '--pc': getColor(p.color).bg, '--pc-fg': getColor(p.color).fg } },
     p.icon || p.face ? h('span', { class: 'emoji' }, avatarOf(p)) : null,
     h('span', {}, p.name),
+    p.players?.length ? whoPlays(p) : null,
     score === undefined ? null : h('strong', { class: `free-score ${score == null ? 'none' : ''}` }, score == null ? '…' : String(score)),
+  );
+}
+
+/** Por equipos: quién sale por el equipo (sus caras y nombres), p. ej. la pareja del beerpong. */
+function whoPlays(team) {
+  return h(
+    'span',
+    { class: 'free-players' },
+    team.players.map((p) => h('span', { class: `free-player-face ${p.face ? 'has-face' : ''}` }, avatarOf(p))),
+    h('span', { class: 'free-player-names' }, andList(team.players.map((p) => p.name))),
   );
 }
 

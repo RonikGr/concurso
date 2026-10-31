@@ -522,7 +522,9 @@ export class HostRoom extends EventTarget {
         score: r.scores[id] ?? null, // nota del presentador (1–10)
         // Con equipos: quién cuenta desde su móvil y entre quiénes se puede elegir (solo el mando)
         counter: r.byTeams ? (r.counters[id] ?? null) : null,
-        members: forControl && r.byTeams ? this.roster.list().filter((p) => p.teamId === id).map((p) => ({ id: p.id, name: p.name })) : null,
+        members: forControl && r.byTeams ? this.roster.list().filter((p) => p.teamId === id).map((p) => ({ id: p.id, name: p.name, icon: p.icon, face: p.face ?? null })) : null,
+        // con equipos: quién sale por él (vacío = el equipo entero)
+        players: r.byTeams ? (r.players[id] ?? []).map((pid) => this.roster.get(pid)).filter(Boolean).map((p) => ({ id: p.id, name: p.name, color: p.color, icon: p.icon, face: p.face ?? null })) : null,
       })),
       ranking: r.ranking(t).map((row) => ({ ...row, who: who(row.id) })),
       winners: r.winners.map(who),
@@ -952,6 +954,11 @@ export class HostRoom extends EventTarget {
       return true;
     },
     freeParticipants: ({ ids = '' }) => this.inFreePlay && this.freeRound.setParticipants(String(ids).split(',').filter(Boolean)),
+    // con equipos: quién sale por un equipo (la pareja del beerpong…); solo gente de ese equipo
+    freePlayers: ({ teamId, ids = '' }) =>
+      this.inFreePlay &&
+      !!this.roster.team(teamId) &&
+      this.freeRound.setPlayers(teamId, String(ids).split(',').filter((id) => this.roster.get(id)?.teamId === teamId)),
     // Nota (marcar el golpe): cuenta atrás en la tele antes de que suene la canción
     // Todas las pruebas Libre empiezan con cuenta atrás en la tele (el reloj y la canción, en tStart)
     freeStart: () => this.inFreePlay && this.freeRound.start(now() + this.#freeCountdownMs),
@@ -1869,8 +1876,10 @@ export class HostRoom extends EventTarget {
   #freeViewFor(player) {
     const r = this.freeRound;
     const me = r.byTeams ? player.teamId : player.id;
-    const participating = r.participants.includes(me);
+    // con equipos y gente elegida, solo «le toca» a los elegidos; los demás de su equipo, «juega tu equipo»
+    const participating = r.plays(player.id, player.teamId);
     return {
+      teamPlays: r.byTeams && !participating && r.participants.includes(me),
       title: r.item.title,
       tool: r.tool,
       phase: r.phase,

@@ -191,3 +191,36 @@ describe('contrarreloj (p. ej. las botellas)', () => {
     expect(none.award([], 100)).toBeNull(); // sin ninguna nota
   });
 });
+
+describe('con equipos: quién sale por cada uno (beerpong, guerra de globos)', () => {
+  it('se elige la pareja de cada equipo; los puntos siguen siendo del equipo', () => {
+    const r = new FreeRound(item('counter', { teams: true }), { roundId: 'bp' });
+    expect(r.setPlayers('rojo', ['ana', 'luis', 'ana'])).toBe(true);
+    expect(r.participants).toEqual(['rojo']); // elegir a alguien apunta a su equipo
+    expect(r.players.rojo).toEqual(['ana', 'luis']);
+    r.setPlayers('azul', ['eva', 'leo']);
+    expect(r.plays('ana', 'rojo')).toBe(true);
+    expect(r.plays('pepe', 'rojo')).toBe(false); // de su equipo, pero no sale
+    expect(r.plays('eva', 'azul')).toBe(true);
+    r.start(0);
+    r.count('rojo', 1);
+    r.count('rojo', 1);
+    r.count('azul', 1);
+    expect(r.award(['rojo'], 10)).toEqual({ rojo: 3 });
+    expect(r.setPlayers('rojo', ['pepe'])).toBe(false); // ya puntuada
+  });
+
+  it('sin elegir a nadie juega el equipo entero; quitar el equipo quita su elección; se guarda', () => {
+    const r = new FreeRound(item('none', { teams: true }), { roundId: 'gg' });
+    r.setParticipants(['rojo', 'azul']);
+    expect(r.plays('cualquiera', 'azul')).toBe(true);
+    r.setPlayers('rojo', ['ana']);
+    r.setParticipants(['azul']);
+    expect(r.players).toEqual({});
+    r.setPlayers('azul', ['eva']);
+    const back = FreeRound.fromJSON(r.item, JSON.parse(JSON.stringify(r)));
+    expect(back.players).toEqual({ azul: ['eva'] });
+    expect(back.plays('leo', 'azul')).toBe(false);
+    expect(new FreeRound(item('none'), { roundId: 'x' }).setPlayers('rojo', ['ana'])).toBe(false); // sin equipos, no
+  });
+});

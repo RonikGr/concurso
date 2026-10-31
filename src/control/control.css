@@ -924,3 +924,18 @@ body.c-playing .c-main {
   width: 100%;
   height: 100%;
 }
+
+/* Libre por equipos: el equipo a lo ancho y, debajo, quién sale por él */
+.c-checks.c-team-row {
+  grid-template-columns: 1fr;
+  margin-top: 0.6rem;
+}
+
+.c-team-row .c-check {
+  font-weight: 800;
+  border-left: 0.35rem solid var(--tc);
+}
+
+.c-team-players {
+  margin: 0.4rem 0 0 1rem;
+}

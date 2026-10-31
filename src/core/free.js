@@ -26,6 +26,7 @@ export class FreeRound {
     this.out = {}; // cronómetro: id → ms aguantados al caer
     this.counts = {}; // contador: id → número
     this.counters = {}; // contador desde el móvil, con equipos: equipo → playerId que lleva su cuenta (lo elige el presentador)
+    this.players = {}; // con equipos: equipo → [playerId…] que salen por él (lo elige el presentador; sin nadie = el equipo)
     this.trials = {}; // contrarreloj: id → {tStart, time, gaveUp, attempts: [{n, t}]}
     this.current = null; // contrarreloj: a quién le toca (puede no haber empezado aún)
     this.scores = {}; // nota: id → 1…10 (la pone el presentador)
@@ -45,7 +46,31 @@ export class FreeRound {
   setParticipants(ids) {
     if (this.phase !== FPHASE.SETUP) return false;
     this.participants = [...new Set(ids)];
+    for (const teamId of Object.keys(this.players)) if (!this.participants.includes(teamId)) delete this.players[teamId];
     return true;
+  }
+
+  /**
+   * Con equipos: quién sale por cada uno (p. ej. la pareja del beerpong). Los puntos siguen siendo del equipo; esto es
+   * para que la tele los enseñe y sus móviles digan «¡Te toca!». Elegir a alguien apunta a su equipo. Antes de dar los
+   * puntos (se puede corregir con la prueba en marcha).
+   */
+  setPlayers(teamId, ids) {
+    if (!this.byTeams || this.phase === FPHASE.AWARDED) return false;
+    const list = [...new Set(ids)];
+    if (list.length) {
+      this.players[teamId] = list;
+      if (this.phase === FPHASE.SETUP && !this.participants.includes(teamId)) this.participants.push(teamId);
+    } else delete this.players[teamId];
+    return true;
+  }
+
+  /** ¿Le toca a este jugador? Sin equipos, si participa; con equipos, si sale su equipo y él es de los elegidos (o no se eligió a nadie). */
+  plays(playerId, teamId) {
+    if (!this.byTeams) return this.participants.includes(playerId);
+    if (!this.participants.includes(teamId)) return false;
+    const chosen = this.players[teamId];
+    return !chosen?.length || chosen.includes(playerId);
   }
 
   /** ¿Tiene «¡Empezar!»? Todas: sin herramienta, la tele enseña un reloj (y suena la canción si la hay). */
@@ -288,8 +313,8 @@ export class FreeRound {
   }
 
   toJSON() {
-    const { roundId, phase, participants, tStart, tStop, out, counts, counters, trials, current, scores, winners, points } = this;
-    return { roundId, phase, participants, tStart, tStop, out, counts, counters, trials, current, scores, winners, points };
+    const { roundId, phase, participants, tStart, tStop, out, counts, counters, players, trials, current, scores, winners, points } = this;
+    return { roundId, phase, participants, tStart, tStop, out, counts, counters, players, trials, current, scores, winners, points };
   }
 
   static fromJSON(item, data) {

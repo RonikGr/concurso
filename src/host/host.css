@@ -1899,6 +1899,60 @@ a.btn {
   overflow-wrap: anywhere;
 }
 
+/* Por equipos: quién sale por el equipo (la pareja del beerpong, los tres de los globos), con su cara */
+.free-players {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.free-player-face {
+  flex: none;
+  width: min(6rem, 11vh);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  overflow: hidden;
+  font-family: var(--emoji);
+  font-size: min(3.6rem, 6.5vh);
+  line-height: 1;
+  background: color-mix(in srgb, var(--pc) 35%, transparent);
+  box-shadow: 0 0 0 0.25rem var(--pc);
+}
+
+.free-player-face .face {
+  width: 100%;
+  height: 100%;
+}
+
+.free-player-names {
+  flex-basis: 100%;
+  text-align: center;
+  font-size: 1.3rem;
+  font-weight: 700;
+  opacity: 0.9;
+}
+
+/* en la presentación (chips): las caras más pequeñas, en la misma pastilla */
+.free-chips li:has(.free-players) {
+  flex-direction: column;
+  padding: 0.6rem 1.2rem;
+  border-radius: var(--radius);
+}
+
+.free-chips .free-player-face {
+  width: min(4.5rem, 8vh);
+  font-size: min(2.6rem, 5vh);
+  box-shadow: 0 0 0 0.2rem var(--pc-fg);
+}
+
+.free-chips .free-player-names {
+  font-size: 1.1rem;
+}
+
 .free-status {
   font-size: 1.4rem;
   color: var(--muted);

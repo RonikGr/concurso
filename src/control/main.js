@@ -1224,12 +1224,40 @@ function freePanel() {
       );
     // Cada uno con equipos (p. ej. «uno por equipo» que se lleva los puntos él): agrupados por equipo
     const groups = !f.byTeams && view.teams.length ? [...view.teams.map((t) => ({ team: t, list: f.pool.filter((p) => p.teamId === t.id) })), { team: null, list: f.pool.filter((p) => !teamOf(p.teamId)) }].filter((g) => g.list.length) : null;
+    // Por equipos (beerpong, guerra de globos): cada equipo y, debajo, quién sale por él (los puntos son del equipo)
+    const teamPlayers = (team) => {
+      const picked = new Set((f.participants.find((x) => x.id === team.id)?.players ?? []).map((p) => p.id));
+      const members = view.players.filter((p) => p.teamId === team.id);
+      if (!members.length) return null;
+      return h(
+        'div',
+        { class: 'c-checks c-team-players' },
+        members.map((p) =>
+          h(
+            'label',
+            { class: 'c-check' },
+            h('input', {
+              type: 'checkbox',
+              checked: picked.has(p.id),
+              onchange: (e) => {
+                if (e.target.checked) picked.add(p.id);
+                else picked.delete(p.id);
+                cmd('freePlayers', { teamId: team.id, ids: [...picked].join(',') });
+              },
+            }),
+            label(p),
+          ),
+        ),
+      );
+    };
     body.push(
       h(
         'section',
         { class: 'c-card' },
-        h('p', { class: 'c-kicker' }, f.byTeams ? '¿Qué equipos participan?' : groups ? '¿Quién sale de cada equipo? (los puntos son para él)' : '¿Quién participa?'),
-        groups
+        h('p', { class: 'c-kicker' }, f.byTeams ? '¿Qué equipos participan? Marca quién sale por cada uno' : groups ? '¿Quién sale de cada equipo? (los puntos son para él)' : '¿Quién participa?'),
+        f.byTeams
+          ? f.pool.map((t) => [h('div', { class: 'c-checks c-team-row', style: { '--tc': getColor(t.color).bg } }, check(t)), teamPlayers(t)])
+          : groups
           ? groups.map((g) => [
               h('p', { class: 'c-team-head', style: { '--tc': getColor(g.team?.color ?? 'gris').bg } }, g.team?.name ?? 'Sin equipo'),
               h('div', { class: 'c-checks' }, g.list.map(check)),

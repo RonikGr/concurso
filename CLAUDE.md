@@ -424,6 +424,11 @@ con vibración). Mando: `hankyPanel` (chips por equipo para elegir en secreto, `
   `setDuel`). Antes eran dos desplegables que el repintado del mando reiniciaba.
 - **Libre con «Jugadores» y equipos:** el mando agrupa por equipo (`pool` lleva `teamId`): se elige quién sale y los
   puntos son suyos. La plantilla usa así twerking, galleta y flexiones. Sin «La silla invisible».
+- **Libre con «Equipos», quién sale por cada uno** (beerpong, guerra de globos): `FreeRound.players` {equipo →
+  [playerId]} (`setPlayers`, hasta dar los puntos; elegir a alguien apunta a su equipo; sin nadie = el equipo entero;
+  `plays(playerId, teamId)`), orden `freePlayers {teamId, ids}`. Los puntos siguen siendo del equipo. Mando: debajo de
+  cada equipo, sus jugadores con casilla; tele: caras y nombres en la tarjeta del equipo (`whoPlays`); móvil: «¡Te
+  toca!» a los elegidos y «Juega tu equipo» al resto (`teamPlays`).
 - **Nota:** `freeStart` pone `tStart` = ahora + la cuenta atrás; la tele cuenta 3-2-1 y la canción entra en `tStart`.
 - **Duelos de Libre:** con `FEW_FOR_FACES` (4) participantes o menos, cada tarjeta lleva la cara (o el icono) en
   grande y redonda con aro de su color (`.free-cards.few`, `.free-avatar`); con más, el icono pequeño junto al nombre.

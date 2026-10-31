@@ -630,8 +630,8 @@ function renderInfo(state) {
           ? ['💃 ¡A bailar!', 'Marca el golpe bailando: el presentador pone la nota']
           : ['¡Te toca!', free.title]
       : [
-          free.won ? '¡Has ganado!' : free.out ? '¡Eliminado!' : free.participating ? '¡Te toca!' : free.title,
-          free.won ? `+${free.points} ${free.byTeams ? 'para tu equipo' : ''}`.trim() : free.participating ? free.title : 'Mira la tele',
+          free.won ? '¡Has ganado!' : free.out ? '¡Eliminado!' : free.participating ? '¡Te toca!' : free.teamPlays ? 'Juega tu equipo' : free.title,
+          free.won ? `+${free.points} ${free.byTeams ? 'para tu equipo' : ''}`.trim() : free.participating ? free.title : free.teamPlays ? `${free.title}: ¡anímalos!` : 'Mira la tele',
         ]);
   // El presentador, en las secciones donde no juega (ve las respuestas en el mando)
   const benched = state.benched && ['intro', 'play'].includes(state.screen) ? ['🎤 Presentas', 'En esta sección no juegas: tú la llevas'] : null;
