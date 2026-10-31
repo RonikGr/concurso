@@ -572,7 +572,10 @@ con vibración). Mando: `hankyPanel` (chips por equipo para elegir en secreto, `
   sección, luego el general, luego **sigue la canción que sonaba** (`#keepable`: la actual o la última larga que calló
   por una prueba con canción o un efecto; no en `hush` ni con entornos de música propia, como Squid), y si no hay
   ninguna, la música generada (`setScene(scene, sección, nº de pregunta)`). El mismo archivo en varios momentos sigue
-  sin empezar de nuevo (`#sameSong`: compara por nombre). Ordenadas por nombre.
+  sin empezar de nuevo (`#sameSong`: compara por nombre). Una canción **de la sección** que ya suena (aunque solo
+  esté en una parte, p. ej. su Presentación) sigue en las partes sin la suya: las generales no la cortan
+  (`#sectionSongOn` en `#slotKey`; `#keepable` prefiere la de la sección). El marcador consultado con M cuenta como
+  parte de la sección (el realizador le pasa la sección). Ordenadas por nombre.
   **Escalera** (`LADDER_SCENES`): en una sección, «Jugando», «Pregunta abierta» y «Suspense» con varias canciones ponen la
   1ª en la 1ª pregunta, la 2ª en la 2ª… (la última sigue). **Efectos con canción** (`EFFECT_SLOTS`, `SFX_SLOT`): respuesta
   definitiva (al cerrar), acierto, fallo, redoble (`sfx:drumroll`, carpeta `Música/Redoble/`) y cada comodín (la tele

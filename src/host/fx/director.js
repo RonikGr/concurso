@@ -138,8 +138,9 @@ export function createDirector({ backdrop }) {
     const p = prev;
     prev = n;
 
-    // Las canciones de una sección valen en su presentación, su juego y su marcador final (no al consultar el marcador)
-    const inSection = view.section && [SCREEN.INTRO, SCREEN.PLAY, SCREEN.SCOREBOARD].includes(view.screen) && !view.peekScoreboard;
+    // Las canciones de una sección valen en su presentación, su juego y su marcador (también al consultarlo con M: la
+    // canción de la sección sigue sonando)
+    const inSection = view.section && [SCREEN.INTRO, SCREEN.PLAY, SCREEN.SCOREBOARD].includes(view.screen);
     sound.setScene(musicScene(n), inSection ? view.section.name : null, view.screen === SCREEN.PLAY ? view.itemIndex : null);
     // Millonario con sus canciones: mandan sobre la música de siempre
     sound.setCue(

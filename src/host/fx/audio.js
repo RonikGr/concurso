@@ -149,7 +149,15 @@ class SoundEngine extends EventTarget {
     if (own && this.#tracks.get(own)?.length) return own;
     const whole = this.#section ? sectionWideSlot(this.#section) : null;
     if (whole && this.#tracks.get(whole)?.length) return whole;
+    // Ya suena (o calló por una prueba) una canción de esta sección: sigue en las partes que no tienen la suya, sin
+    // que la general del momento la corte (#keepable la mantiene)
+    if (this.#sectionSongOn()) return null;
     return this.#tracks.get(this.#scene)?.length ? this.#scene : null;
+  }
+
+  #sectionSongOn() {
+    const mine = this.#section && `${this.#section}|`;
+    return !!mine && [this.#slot, this.#lastSong].some((p) => p?.slot?.startsWith(mine) && !p.audio.ended && !(p.audio.duration < SHORT_TRACK_S));
   }
 
   /** Efecto de sonido, opcionalmente con retraso (ms). */
@@ -676,7 +684,10 @@ class SoundEngine extends EventTarget {
   #keepable() {
     if (this.#scene === 'hush' || MOODS[this.#moodId].styles?.[this.#scene]) return null;
     const ok = (p) => p && !(p.audio.duration < SHORT_TRACK_S) && !p.audio.ended && this.#tracks.get(p.slot)?.some((t) => t.url === p.audio.src);
-    return [this.#slot, this.#lastSong].find(ok) ?? null;
+    const mine = (p) => !!this.#section && !!p?.slot?.startsWith(`${this.#section}|`);
+    // primero la de esta sección (si una general la cortó un momento, vuelve ella)
+    const both = [this.#slot, this.#lastSong];
+    return both.find((p) => ok(p) && mine(p)) ?? both.find(ok) ?? null;
   }
 
   // ------------------------------------------------------------------------------------------ canciones de las pruebas
