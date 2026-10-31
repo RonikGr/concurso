@@ -60,7 +60,7 @@ export function createMillionaireStage() {
             h('span', { class: 'mini-avatar emoji', style: { '--pc': getColor(m.seat.color).bg } }, avatarOf(m.seat)),
             h('div', {}, h('strong', {}, m.seat.name), h('small', {}, [team?.name, `Pregunta ${view.itemIndex + 1} de ${view.itemCount}`, LEVEL_LABELS[m.level], `${m.points} ${m.points === 1 ? 'punto' : 'puntos'}`].filter(Boolean).join(' · '))),
           )
-        : h('div', { class: 'mill-seat' }, h('strong', {}, 'Elige quién concursa (mando)')),
+        : h('div', { class: 'mill-seat' }, h('strong', {}, '🎤 El presentador elige quién concursa…')),
       m.jokers
         ? h(
             'div',

@@ -506,7 +506,15 @@ function millionaireRules(view) {
     h(
       'ol',
       { class: 'mill-rules-list' },
-      h('li', {}, teams ? 'Concursa una persona cada vez, alternando equipos y en el orden que elija el presentador.' : 'Concursa una persona cada vez.'),
+      h(
+        'li',
+        {},
+        view.millionairePick === 'presenter'
+          ? 'Concursa una persona cada vez: la elige el presentador en cada pregunta. ¡Puede tocarle a cualquiera!'
+          : teams
+            ? 'Concursa una persona cada vez, alternando equipos y en el orden que elija el presentador.'
+            : 'Concursa una persona cada vez.',
+      ),
       h('li', {}, 'Las respuestas van apareciendo. Elige en tu móvil: toca una y vuelve a tocarla para confirmar.'),
       h('li', {}, 'Cuando el presentador la marque, es tu respuesta definitiva.'),
       h('li', {}, `Por acierto: ${levelPointsText(view.section.points)}. Salir de la app durante tu pregunta es trampa: no puntúas.`),

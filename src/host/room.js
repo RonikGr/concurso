@@ -55,6 +55,7 @@ export const DEFAULT_SETTINGS = {
   volume: 70,
   muted: false, // 🔇 desde el mando: calla todo de golpe (y al quitarlo vuelve como estaba)
   quality: 'auto', // imagen del fondo de la tele: 'auto' se ajusta sola para ir fluida; 'max' / 'high' / 'low' la fijan
+  millionairePick: 'turns', // millonario: 'turns' = por turnos alternando equipos; 'presenter' = en cada pregunta el presentador elige a cualquiera
 };
 
 const CONTROL_PUSH_MS = 150; // agrupar cambios antes de mandar el estado completo al mando
@@ -240,7 +241,12 @@ export class HostRoom extends EventTarget {
   /** Sección por turnos (con equipos): cada pregunta la responde uno de cada equipo, en el orden de su portavoz. */
   get inTurns() {
     const s = this.runner.section;
-    return this.roster.hasTeams && (s?.type === 'test' || (!!s?.turns && TURN_TYPES.has(s.type)));
+    return this.roster.hasTeams && ((s?.type === 'test' && !this.pickBySeat) || (!!s?.turns && TURN_TYPES.has(s.type)));
+  }
+
+  /** Millonario sin turnos: en cada pregunta el presentador elige quién concursa (cualquiera, también repetir). */
+  get pickBySeat() {
+    return this.settings.millionairePick === 'presenter';
   }
 
   /** ¿Se está jugando una pregunta del millonario (sección de Test)? */
@@ -577,6 +583,7 @@ export class HostRoom extends EventTarget {
       setupStep: this.setupStep,
       versus: this.versusStep,
       startStandings: this.standingsStep, // marcador de salida (antes del primer juego)
+      millionairePick: this.settings.millionairePick, // (fuera de settings: la firma de repintado de la tele no mira los ajustes)
       introRules: this.introRules,
       bots: { count: this.bots.ids.length, auto: this.bots.auto }, // concursantes de prueba
       paused: this.paused, // en pausa para seguir otro día: la tele enseña «Continuará…»
@@ -1055,7 +1062,12 @@ export class HostRoom extends EventTarget {
     },
     unlock: ({ playerId }) => this.game.unlock(playerId),
     // Millonario: enseñar respuestas, marcar (amarillo), revelar (verde), llamada y público
-    mShow: ({ all = false }) => this.inMillionairePlay && this.millionaire.show(!!all),
+    mShow: ({ all = false }) => {
+      if (!this.inMillionairePlay) return false;
+      // (sin nadie sentado no se enseñan las respuestas: «lo elijo yo» empieza cada pregunta vacío)
+      if (!this.millionaire.seat?.playerId) return 'Primero elige quién concursa (en el mando).';
+      return this.millionaire.show(!!all);
+    },
     mSeat: ({ playerId }) => {
       if (!this.inMillionairePlay || this.millionaire.phase === MPHASE.REVEALED) return false;
       const p = this.roster.get(playerId);
@@ -1573,7 +1585,7 @@ export class HostRoom extends EventTarget {
       return;
     }
     const connected = (id) => !!this.roster.get(id)?.connected;
-    const seat = seatFor(this.#seatGroups(), this.runner.itemIndex, connected) ?? { playerId: null, teamId: null };
+    const seat = (!this.pickBySeat && seatFor(this.#seatGroups(), this.runner.itemIndex, connected)) || { playerId: null, teamId: null };
     this.millionaire = new MillionaireRound(question, { roundId: `${key}#${++this.#roundSeq}`, seat });
     this.#mStartedAt = now();
   }
@@ -2020,9 +2032,9 @@ export class HostRoom extends EventTarget {
       this.#syncGames();
     }
     // Millonario sin nadie en el asiento (p. ej. la tele se recargó y aún no habían vuelto los móviles): en cuanto
-    // haya alguien conectado, se sienta quien toca
+    // haya alguien conectado, se sienta quien toca (con «lo elijo yo», no: lo elige el presentador)
     const m = this.millionaire;
-    if (m && !m.seat.playerId && m.phase === MPHASE.READY) {
+    if (m && !m.seat.playerId && m.phase === MPHASE.READY && !this.pickBySeat) {
       const seat = seatFor(this.#seatGroups(), this.runner.itemIndex, (id) => !!this.roster.get(id)?.connected);
       if (seat) m.seat = seat;
     }

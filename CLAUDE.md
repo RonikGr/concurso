@@ -230,7 +230,11 @@ quitando sus puntos.
 `player/millionairePad.js`, mando `millionairePanel`): una persona cada vez (el asiento), `seatFor()` alterna equipos
 (pregunta 1 → equipo 1, pregunta 2 → equipo 2…) y dentro de cada equipo sigue el orden **que pone el presentador**
 (`orderByPresenter`: en el Test los portavoces no ordenan; mando `turnOrderCard` con ↑ ↓ en la presentación → orden
-`setTurnOrder`; tele «🎤 El presentador lo está ordenando…»; móvil «el presentador está eligiendo el orden») (el Test siempre
+`setTurnOrder`; tele «🎤 El presentador lo está ordenando…»; móvil «el presentador está eligiendo el orden»). O bien
+**«Lo elijo yo»** (ajuste `millionairePick: 'presenter'`, botones en la presentación del Test en el mando,
+`pickModeCard`): sin turnos (`pickBySeat` → `inTurns` false), cada pregunta empieza sin nadie sentado y el presentador
+toca a cualquiera (`seatPicker` → `mSeat`; puede repetir); `mShow` sin asiento responde que elija antes; la tele dice
+«🎤 El presentador elige quién concursa…» (`view.millionairePick`, fuera de `settings` por la firma) (el Test siempre
 va por turnos si hay equipos; sin equipos, por orden de llegada; el mando puede cambiar el asiento con `mSeat`). Sin
 reloj, lo lleva el presentador: `ready` (pregunta, respuestas ocultas) → `mShow` (una a una o todas: `playing`; el
 concursante elige en su móvil con dos toques y puede cambiar) → `mMark` (la elegida u otra: amarilla, letras negras;

@@ -605,8 +605,8 @@ function gameTabBody() {
       if (view.versus) return [h('section', { class: 'c-card center' }, h('p', { class: 'c-kicker' }, 'En la tele: los equipos'), h('h2', {}, view.teams.map((t) => t.name).join(' vs '))), bigNext(view.hasPunish ? 'Votar castigos →' : 'Puntos de salida →'), navRow()];
       return [h('section', { class: 'c-card center' }, h('p', { class: 'c-kicker' }, 'En la tele: portada'), h('h2', {}, view.title)), bigNext(`Presentar «${view.sections.find((s) => s.on)?.name ?? 'la primera sección'}» →`), navRow()];
     case 'intro':
-      if (view.section?.type === 'test' && view.playable && !view.introRules) return [sectionCard(), turnOrderCard(), bigNext('Explicar cómo se juega →'), navRow()];
-      return [sectionCard(), turnOrderCard(), bigNext(view.playable ? 'Empezar sección →' : 'Saltar esta sección →'), navRow()];
+      if (view.section?.type === 'test' && view.playable && !view.introRules) return [sectionCard(), pickModeCard(), turnOrderCard(), bigNext('Explicar cómo se juega →'), navRow()];
+      return [sectionCard(), pickModeCard(), turnOrderCard(), bigNext(view.playable ? 'Empezar sección →' : 'Saltar esta sección →'), navRow()];
     case 'play':
       if (view.squid) return squidPanel();
       if (view.hanky) return hankyPanel();
@@ -1033,6 +1033,56 @@ function teamsSummary() {
  * Millonario por turnos: el presentador ordena a cada equipo (de la pregunta más fácil a la más difícil) con ↑ ↓; la
  * tele y los móviles lo ven al momento. «✓ Así» guarda el orden tal cual está (si no se toca, vale el de llegada).
  */
+function pickModeCard() {
+  if (view.section?.type !== 'test') return null;
+  const mode = view.settings?.millionairePick ?? 'turns';
+  const set = (m) => cmd('updateSettings', { millionairePick: m });
+  return h(
+    'section',
+    { class: 'c-card' },
+    h('p', { class: 'c-kicker' }, '¿Quién concursa en cada pregunta?'),
+    h(
+      'div',
+      { class: 'c-sound' },
+      btn('🔁 Por turnos', () => set('turns'), mode === 'turns' ? 'on' : ''),
+      btn('🎤 Lo elijo yo', () => set('presenter'), mode === 'presenter' ? 'on' : ''),
+    ),
+    h(
+      'p',
+      { class: 'muted small' },
+      mode === 'presenter'
+        ? 'En cada pregunta tocas a quien concursa: cualquiera, de cualquier equipo, y puede repetir.'
+        : view.teams.length
+          ? 'Alternando equipos y en el orden que pongas abajo.'
+          : 'Por orden de llegada (puedes cambiarlo en cada pregunta).',
+    ),
+  );
+}
+
+/** Millonario «lo elijo yo»: todos, por equipo, para tocar a quien concursa en esta pregunta. */
+function seatPicker(m, disabled) {
+  const groups = view.teams.length
+    ? [...view.teams.map((t) => ({ team: t, members: view.players.filter((p) => p.teamId === t.id) })), { team: null, members: view.players.filter((p) => !teamOf(p.teamId)) }]
+    : [{ team: null, members: view.players }];
+  return groups
+    .filter((g) => g.members.length)
+    .map((g) => [
+      g.team ? h('p', { class: 'c-team-head', style: { '--tc': getColor(g.team.color).bg } }, g.team.name) : null,
+      h(
+        'div',
+        { class: 'c-seat-chips' },
+        g.members.map((p) =>
+          h(
+            'button',
+            { class: `btn small ${p.id === m.seat?.id ? 'on' : ''}`, disabled: disabled || !p.connected, onclick: () => cmd('mSeat', { playerId: p.id }) },
+            avatar(p),
+            ` ${p.name}`,
+          ),
+        ),
+      ),
+    ]);
+}
+
 function turnOrderCard() {
   const turns = view.turns;
   if (!turns?.byPresenter) return null;
@@ -1189,17 +1239,22 @@ function millionairePanel() {
     'section',
     { class: 'c-card' },
     h('p', { class: 'c-kicker' }, [view.section.name, progress, `${m.points} ${m.points === 1 ? 'punto' : 'puntos'}`].join(' · ')),
-    h(
-      'label',
-      { class: 'c-counter-row' },
-      h('span', {}, 'Concursa'),
-      h(
-        'select',
-        { class: 'c-select', disabled: revealed, onchange: (e) => cmd('mSeat', { playerId: e.target.value }) },
-        m.seat ? null : h('option', { value: '', selected: true }, '— elige —'),
-        view.players.map((p) => h('option', { value: p.id, selected: p.id === m.seat?.id }, `${p.name}${p.connected ? '' : ' (desconectado)'}`)),
-      ),
-    ),
+    view.settings?.millionairePick === 'presenter'
+      ? [
+          h('p', { class: m.seat ? '' : 'c-live' }, m.seat ? `Concursa: ${m.seat.name} (toca a otro para cambiar)` : '🎤 Toca a quien concursa en esta pregunta'),
+          seatPicker(m, revealed),
+        ]
+      : h(
+          'label',
+          { class: 'c-counter-row' },
+          h('span', {}, 'Concursa'),
+          h(
+            'select',
+            { class: 'c-select', disabled: revealed, onchange: (e) => cmd('mSeat', { playerId: e.target.value }) },
+            m.seat ? null : h('option', { value: '', selected: true }, '— elige —'),
+            view.players.map((p) => h('option', { value: p.id, selected: p.id === m.seat?.id }, `${p.name}${p.connected ? '' : ' (desconectado)'}`)),
+          ),
+        ),
     m.jokers ? h('p', { class: 'muted small' }, 'Comodines: ' + ['fifty', 'audience', 'call'].map((k) => `${{ fifty: '50:50', audience: 'Público', call: 'Llamada' }[k]} ${m.jokers[k] > 0 ? '✓' : '✗'}`).join(' · ')) : null,
     m.cheated ? h('p', { class: 'c-live' }, '🚨 Ha salido de la app: aunque acierte, no puntúa (puedes perdonarle arriba)') : null,
   );

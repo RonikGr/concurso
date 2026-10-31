@@ -968,3 +968,21 @@ body.c-playing .c-main {
   display: grid;
   grid-template-columns: 1fr 1fr;
 }
+
+/* Millonario «lo elijo yo»: a quién se sienta, en botones por equipo */
+.c-seat-chips {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.c-seat-chips .btn {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.c-seat-chips .btn.on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 25%, var(--surface-2));
+}
