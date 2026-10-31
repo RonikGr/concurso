@@ -14,6 +14,7 @@ uniform vec2 uRes;
 uniform float uTime;
 uniform vec3 uTop, uBot, uFog, uGlow, uPartCol;
 uniform float uFogAmt, uMoon, uSun, uSil, uPart, uBats, uFlash, uDim, uHorizon;
+uniform float uGrain; // fuerza del grano: menos cuanto más se estira el lienzo (si no, se ve granulado)
 uniform vec2 uBolt; // relámpago: x y semilla
 
 const float PI = 3.14159265;
@@ -929,19 +930,21 @@ void main() {
 
   // viñeta, grano y oscurecido de transición
   col *= 1.0 - 0.55 * dot(p * vec2(0.8, 1.1), p * vec2(0.8, 1.1));
-  col += (hash(gl_FragCoord.xy + fract(t) * 100.0) - 0.5) * 0.035;
+  col += (hash(gl_FragCoord.xy + fract(t) * 100.0) - 0.5) * uGrain;
   col *= 1.0 - uDim;
   gl_FragColor = vec4(max(col, 0.0), 1.0);
 }
 `;
 
 /**
- * Calidad del fondo, de mejor a más ligera: resolución del shader (fracción de la pantalla) y cada cuántos fotogramas
+ * Calidad del fondo, de mejor a más ligera: resolución del shader (fracción de los píxeles reales de la pantalla: en una
+ * tele 4K con Windows escalado, devicePixelRatio 2–3; antes era de los píxeles CSS y se veía borroso y granulado) y cada cuántos fotogramas
  * se dibuja (2 = a 30 fps: la niebla y las partículas van lentas, no se nota). Desde «lite», la tele quita además el
  * desenfoque de los cristales (body.fx-lite), que es lo más caro en una gráfica integrada: cada cristal se vuelve a
  * desenfocar en cada fotograma porque el fondo se mueve.
  */
 export const QUALITY_LEVELS = [
+  { scale: 1, every: 1, lite: false }, // máxima: nítido, a la resolución de la tele (hasta 4K)
   { scale: 0.6, every: 1, lite: false },
   { scale: 0.5, every: 1, lite: true },
   { scale: 0.42, every: 2, lite: true },
@@ -949,6 +952,9 @@ export const QUALITY_LEVELS = [
   { scale: 0.26, every: 3, lite: true },
 ];
 const SAMPLE = 90; // fotogramas por medida
+/** Nivel de cada modo: 'max' y 'high' fijos; 'auto' empieza en 'high' y sube o baja según vaya; 'low' fijo. */
+const MODE_LEVEL = { max: 0, high: 1, auto: 1, low: 4 };
+const MAX_CANVAS_W = 3840; // más no se ve: una tele 4K
 
 const NUMERIC = ['fogAmt', 'moon', 'sun', 'bats', 'horizon'];
 const COLORS = ['top', 'bot', 'fog', 'glow', 'part'];
@@ -966,8 +972,8 @@ export class Backdrop {
     this.canvas = canvas;
     // Calidad: 'auto' mide cómo de fluida va la tele y la ajusta sola; 'high' / 'low' la fijan.
     this.mode = 'auto';
-    this.level = 0;
-    this.scale = QUALITY_LEVELS[0].scale;
+    this.level = MODE_LEVEL.auto;
+    this.scale = QUALITY_LEVELS[MODE_LEVEL.auto].scale;
     this.fps = null; // fotogramas por segundo de la página (para la depuración)
     this.onQuality = null; // (nivel) → la tele pone o quita body.fx-lite
     this.#deltas = [];
@@ -1016,12 +1022,12 @@ export class Backdrop {
     this.tStart = performance.now();
   }
 
-  /** 'auto' | 'high' | 'low' */
+  /** 'auto' | 'max' | 'high' | 'low' */
   setMode(mode) {
-    if (!['auto', 'high', 'low'].includes(mode) || mode === this.mode) return;
+    if (!(mode in MODE_LEVEL) || mode === this.mode) return;
     this.mode = mode;
     this.#deltas = [];
-    this.#setLevel(mode === 'high' ? 0 : mode === 'low' ? 3 : 0);
+    this.#setLevel(MODE_LEVEL[mode]);
   }
 
   #setLevel(level) {
@@ -1054,7 +1060,7 @@ export class Backdrop {
       this.#goodRuns = 0;
       this.#lastDrop = now;
       this.#setLevel(this.level + 1);
-    } else if (this.level > 0 && slow < refresh * 1.25 && ++this.#goodRuns >= 8 && now - this.#lastDrop > 30_000) {
+    } else if (this.level > MODE_LEVEL.auto && slow < refresh * 1.25 && ++this.#goodRuns >= 8 && now - this.#lastDrop > 30_000) {
       this.#goodRuns = 0;
       this.#setLevel(this.level - 1);
     }
@@ -1113,6 +1119,7 @@ export class Backdrop {
       'uBats',
       'uFlash',
       'uDim',
+      'uGrain',
       'uHorizon',
       'uBolt',
     ]) {
@@ -1122,9 +1129,13 @@ export class Backdrop {
   }
 
   #resize() {
-    // Resolución reducida (según la calidad): la niebla es suave y así la tele va fluida.
-    const w = Math.round(innerWidth * this.scale);
-    const h = Math.round(innerHeight * this.scale);
+    // Resolución según la calidad, sobre los píxeles reales (la niebla es suave: rebajada, la tele va fluida)
+    const dpr = Math.max(1, devicePixelRatio || 1);
+    const k = Math.min(this.scale * dpr, MAX_CANVAS_W / innerWidth);
+    const w = Math.round(innerWidth * k);
+    const h = Math.round(innerHeight * k);
+    // el grano, en su punto con el lienzo a tamaño real; cuanto más se estira, más flojo
+    this.grain = 0.035 * Math.min(1, k / dpr) ** 2;
     this.canvas.width = w;
     this.canvas.height = h;
     this.gl.viewport(0, 0, w, h);
@@ -1163,6 +1174,7 @@ export class Backdrop {
     const gl = this.gl;
     const u = this.u;
     gl.uniform2f(u.uRes, this.canvas.width, this.canvas.height);
+    gl.uniform1f(u.uGrain, this.grain ?? 0.01);
     gl.uniform1f(u.uTime, (now - this.t0) / 1000);
     gl.uniform3fv(u.uTop, this.cur.top);
     gl.uniform3fv(u.uBot, this.cur.bot);

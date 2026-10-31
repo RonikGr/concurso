@@ -3,7 +3,8 @@
 /* Pensado para leerse a 3 m: todo escala con el ancho de la pantalla (≈22 px en una tele 1080p). */
 html {
   /* también con la altura: la tele sin pantalla completa (con la barra del navegador) no se corta */
-  font-size: clamp(14px, min(1.15vw, 2.05vh), 30px);
+  /* hasta 48px: en una tele 4K (3840×2160) sin escalado de Windows, todo sale al mismo tamaño que en una de 1080 */
+  font-size: clamp(14px, min(1.15vw, 2.05vh), 48px);
 }
 
 .host-shell {

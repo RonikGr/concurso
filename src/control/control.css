@@ -939,3 +939,32 @@ body.c-playing .c-main {
 .c-team-players {
   margin: 0.4rem 0 0 1rem;
 }
+
+/* Millonario: el presentador ordena los turnos de cada equipo con ↑ ↓ */
+.c-order {
+  margin: 0.3rem 0 0.6rem;
+  padding-left: 1.6rem;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.c-order li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.c-order .c-pname {
+  flex: 1;
+  min-width: 0;
+}
+
+.c-order .btn.hidden {
+  visibility: hidden;
+}
+
+/* Imagen del fondo: cuatro botones en dos filas */
+.c-quality {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}

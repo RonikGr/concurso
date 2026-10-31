@@ -30,6 +30,8 @@ export function screenKey(view) {
           ? 'reglas'
           : view.versus
             ? 'equipos'
+            : view.startStandings
+              ? 'salida'
             : view.punish?.step === 'vote'
               ? 'castigos'
               : view.punish?.step === 'roulette'
@@ -46,7 +48,7 @@ function snapshot(view) {
   const f = view.free;
   return {
     key: screenKey(view),
-    screen: view.peekScoreboard ? 'peek' : view.screen,
+    screen: view.peekScoreboard || view.startStandings ? 'peek' : view.screen, // el marcador de salida suena como el marcador
     item: `${view.sectionIndex}|${view.itemIndex}`,
     game: g && { phase: g.phase, started: g.phase === PHASE.OPEN && t >= g.tOpen, judged: g.judged, winner: g.winner?.id ?? null },
     answer: a && {

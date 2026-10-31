@@ -643,7 +643,9 @@ function renderInfo(state) {
           section?.name ?? 'Nueva sección',
           state.turns.ready
             ? `Por turnos: responderás la pregunta ${state.turns.position}`
-            : `Por turnos: ${state.turns.spokespersonName ?? 'tu portavoz'} está eligiendo el orden de tu equipo`,
+            : state.turns.byPresenter
+              ? 'Por turnos: el presentador está eligiendo el orden'
+              : `Por turnos: ${state.turns.spokespersonName ?? 'tu portavoz'} está eligiendo el orden de tu equipo`,
         ]
       : section?.env === 'squid'
         ? ['○ △ □  ¿Quieres jugar?', `${section.name}: varios juegos seguidos. Si caes en uno, fuera; los que sobreviven se reparten la hucha. ¡Mira la tele!`]

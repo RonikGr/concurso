@@ -225,6 +225,7 @@ function render() {
         'div',
         { class: 'c-top-actions' },
         h('button', { class: `c-top-btn ${view.settings?.muted ? 'on' : ''}`, 'aria-label': view.settings?.muted ? 'Quitar silencio' : 'Silenciar la tele', onclick: () => cmd('updateSettings', { muted: !view.settings?.muted }) }, view.settings?.muted ? '🔇' : '🔊'),
+        h('button', { class: `c-top-btn ${bonusOpen ? 'on' : ''}`, 'aria-label': 'Dar puntos a alguien', onclick: () => toggleBonus() }, '➕'),
         h('button', { class: `c-top-btn ${penaltyOpen ? 'on' : ''}`, 'aria-label': 'Quitar puntos por trampas', onclick: () => togglePenalty() }, '⚖️'),
         h('span', { class: 'c-net', title: 'Conexión' }),
       ),
@@ -425,7 +426,7 @@ function awayNowCard() {
 }
 
 function gameTab() {
-  return [newControlCard(), penaltyOpen ? penaltyCard() : null, presentersCard(), cheatCard(), awayNowCard(), gameTabBody()];
+  return [newControlCard(), bonusOpen && !view.startStandings ? bonusCard() : null, penaltyOpen ? penaltyCard() : null, presentersCard(), cheatCard(), awayNowCard(), gameTabBody()];
 }
 
 /** Otro móvil pide ser mando (el del otro presentador): se acepta desde aquí o con Enter en el portátil. */
@@ -481,6 +482,47 @@ function pairCard() {
   );
 }
 
+/**
+ * ➕ Dar puntos a una persona en cualquier momento (cuentan también para su equipo, que suma los de su gente). Con
+ * «↶ Deshacer» unos segundos, por si se toca a quien no era.
+ */
+let bonusOpen = false;
+function bonusCard({ closable = true } = {}) {
+  const give = (p, n) => {
+    cmd('adjustScore', { playerId: p.id, delta: n });
+    toast(`+${n} para ${p.name}`, { label: '↶ Deshacer', run: () => cmd('adjustScore', { playerId: p.id, delta: -n }) });
+  };
+  const groups = view.teams.length
+    ? [...view.teams.map((t) => ({ team: t, members: view.players.filter((p) => p.teamId === t.id) })), { team: null, members: view.players.filter((p) => !teamOf(p.teamId)) }]
+    : [{ team: null, members: view.players }];
+  return h(
+    'section',
+    { class: 'c-card c-bonus' },
+    h('div', { class: 'c-row' }, h('p', { class: 'c-kicker' }, '➕ Dar puntos'), closable ? btn('Cerrar', () => toggleBonus(false), 'small') : null),
+    groups
+      .filter((g) => g.members.length)
+      .map((g) => [
+        g.team ? h('p', { class: 'c-team-head', style: { '--tc': getColor(g.team.color).bg } }, g.team.name) : null,
+        g.members.map((p) =>
+          h(
+            'div',
+            { class: 'c-score-row' },
+            h('p', { class: 'c-pname' }, avatar(p), ` ${p.name} · `, h('strong', {}, String(p.score))),
+            h('div', { class: 'c-bet-amounts' }, [1, 3, 5, 10].map((n) => btn(`+${n}`, () => give(p, n), 'ok small'))),
+          ),
+        ),
+      ]),
+  );
+}
+
+function toggleBonus(on = !bonusOpen) {
+  bonusOpen = on;
+  if (on) penaltyOpen = false;
+  tab = 'game';
+  lastSignature = null;
+  render();
+}
+
 /** ⚖️ Quitar puntos por trampas, en cualquier momento (se abre con el botón de arriba). */
 let penaltyOpen = false;
 function penaltyCard() {
@@ -512,6 +554,7 @@ function penaltyCard() {
 
 function togglePenalty(on = !penaltyOpen) {
   penaltyOpen = on;
+  if (on) bonusOpen = false;
   tab = 'game';
   lastSignature = null;
   render();
@@ -552,11 +595,18 @@ function gameTabBody() {
       return setupPanel();
     case 'cover':
       if (view.punish?.step === 'vote') return punishVotePanel();
-      if (view.versus) return [h('section', { class: 'c-card center' }, h('p', { class: 'c-kicker' }, 'En la tele: los equipos'), h('h2', {}, view.teams.map((t) => t.name).join(' vs '))), bigNext(view.hasPunish ? 'Votar castigos →' : 'Portada →'), navRow()];
+      if (view.startStandings)
+        return [
+          h('section', { class: 'c-card center' }, h('p', { class: 'c-kicker' }, 'En la tele: el marcador'), h('h2', {}, 'Puntos de salida'), h('p', { class: 'muted' }, 'Si alguien trae puntos de antes (p. ej. del Vampiro), dáselos aquí: se suman a su equipo.')),
+          bonusCard({ closable: false }),
+          bigNext('Portada →'),
+          navRow(),
+        ];
+      if (view.versus) return [h('section', { class: 'c-card center' }, h('p', { class: 'c-kicker' }, 'En la tele: los equipos'), h('h2', {}, view.teams.map((t) => t.name).join(' vs '))), bigNext(view.hasPunish ? 'Votar castigos →' : 'Puntos de salida →'), navRow()];
       return [h('section', { class: 'c-card center' }, h('p', { class: 'c-kicker' }, 'En la tele: portada'), h('h2', {}, view.title)), bigNext(`Presentar «${view.sections.find((s) => s.on)?.name ?? 'la primera sección'}» →`), navRow()];
     case 'intro':
-      if (view.section?.type === 'test' && view.playable && !view.introRules) return [sectionCard(), bigNext('Explicar cómo se juega →'), navRow()];
-      return [sectionCard(), bigNext(view.playable ? 'Empezar sección →' : 'Saltar esta sección →'), navRow()];
+      if (view.section?.type === 'test' && view.playable && !view.introRules) return [sectionCard(), turnOrderCard(), bigNext('Explicar cómo se juega →'), navRow()];
+      return [sectionCard(), turnOrderCard(), bigNext(view.playable ? 'Empezar sección →' : 'Saltar esta sección →'), navRow()];
     case 'play':
       if (view.squid) return squidPanel();
       if (view.hanky) return hankyPanel();
@@ -862,7 +912,7 @@ function punishVotePanel() {
         p.options.map((text, i) => h('li', { class: p.closed && !finalists.has(i) ? 'dim' : '' }, h('span', {}, `${finalists.has(i) ? '🎡 ' : ''}${text}`), h('strong', {}, String(p.tally[i])))),
       ),
     ),
-    h('button', { class: 'btn primary big', onclick: () => cmd('next') }, p.closed ? 'Portada →' : 'Cerrar votación (pasan 3) →'),
+    h('button', { class: 'btn primary big', onclick: () => cmd('next') }, p.closed ? 'Puntos de salida →' : 'Cerrar votación (pasan 3) →'),
     p.closed ? h('div', { class: 'c-row' }, twoTap('Volver a votar', () => cmd('punishReopen'), { key: 'punish-reopen', ask: '¿Borrar los votos? Toca otra vez' })) : null,
     navRow(),
   ];
@@ -976,6 +1026,46 @@ function teamsSummary() {
       ),
     ),
     teamless.length ? h('div', { class: 'c-team no-team' }, h('strong', {}, `Sin equipo (${teamless.length})`), h('span', {}, teamless.map((m) => m.name).join(', '))) : null,
+  );
+}
+
+/**
+ * Millonario por turnos: el presentador ordena a cada equipo (de la pregunta más fácil a la más difícil) con ↑ ↓; la
+ * tele y los móviles lo ven al momento. «✓ Así» guarda el orden tal cual está (si no se toca, vale el de llegada).
+ */
+function turnOrderCard() {
+  const turns = view.turns;
+  if (!turns?.byPresenter) return null;
+  const send = (teamId, ids) => cmd('setTurnOrder', { teamId, order: ids.join(',') });
+  return h(
+    'section',
+    { class: 'c-card c-turn-order' },
+    h('p', { class: 'c-kicker' }, '🎤 Orden de turnos (de la más fácil a la más difícil)'),
+    turns.teams.map((t) => {
+      const ids = t.order.filter(Boolean).map((p) => p.id);
+      const move = (i, d) => {
+        const next = [...ids];
+        [next[i], next[i + d]] = [next[i + d], next[i]];
+        send(t.team.id, next);
+      };
+      return [
+        h('p', { class: 'c-team-head', style: { '--tc': getColor(t.team.color).bg } }, t.team.name, t.ready ? h('small', {}, ' · ✓ listo') : null),
+        h(
+          'ol',
+          { class: 'c-order' },
+          t.order.filter(Boolean).map((p, i) =>
+            h(
+              'li',
+              {},
+              h('span', { class: 'c-pname' }, avatar(p), ` ${p.name}`),
+              btn('↑', () => move(i, -1), i === 0 ? 'round ghost hidden' : 'round ghost'),
+              btn('↓', () => move(i, 1), i === ids.length - 1 ? 'round ghost hidden' : 'round ghost'),
+            ),
+          ),
+        ),
+        t.ready ? null : btn('✓ Este orden está bien', () => send(t.team.id, ids), 'small'),
+      ];
+    }),
   );
 }
 
@@ -1934,6 +2024,7 @@ function sectionsTab() {
       ),
     ),
     soundCard(),
+    qualityCard(),
     pairCard(),
     view.paused
       ? null
@@ -1981,6 +2072,24 @@ function soundCard() {
       btn(st.sfxOn ? '🔊 Efectos: sí' : '🔇 Efectos: no', () => set({ sfxOn: !st.sfxOn }), st.sfxOn ? 'on' : ''),
     ),
     h('div', { class: 'c-sound' }, btn('−', () => vol(-10)), h('span', { class: 'c-volume' }, `Volumen ${st.volume} %`),btn('+', () => vol(10))),
+  );
+}
+
+/** Calidad del fondo animado de la tele (Máxima = nítido en una tele 4K, pide más al portátil). */
+function qualityCard() {
+  const q = view.settings?.quality ?? 'auto';
+  const opts = [
+    ['auto', 'Automática'],
+    ['max', 'Máxima'],
+    ['high', 'Alta'],
+    ['low', 'Ligera'],
+  ];
+  return h(
+    'section',
+    { class: 'c-card' },
+    h('p', { class: 'c-kicker' }, 'Imagen del fondo de la tele'),
+    h('div', { class: 'c-sound c-quality' }, opts.map(([id, label]) => btn(label, () => cmd('updateSettings', { quality: id }), q === id ? 'on' : ''))),
+    h('p', { class: 'muted small' }, q === 'max' ? 'Máxima: nítido a la resolución de la tele. Si notas tirones, vuelve a Automática.' : q === 'low' ? 'Ligera: para portátiles lentos.' : q === 'high' ? 'Alta: buena y fija, sin cambiar sola.' : 'Automática: buena, y si el portátil va justo se aligera sola.'),
   );
 }
 

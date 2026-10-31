@@ -228,7 +228,9 @@ quitando sus puntos.
 
 **Millonario** (secciones de Test, `core/millionaire.js` `MillionaireRound`; tele `millionaireStage.js`, móvil
 `player/millionairePad.js`, mando `millionairePanel`): una persona cada vez (el asiento), `seatFor()` alterna equipos
-(pregunta 1 → equipo 1, pregunta 2 → equipo 2…) y dentro de cada equipo sigue el orden de su portavoz (el Test siempre
+(pregunta 1 → equipo 1, pregunta 2 → equipo 2…) y dentro de cada equipo sigue el orden **que pone el presentador**
+(`orderByPresenter`: en el Test los portavoces no ordenan; mando `turnOrderCard` con ↑ ↓ en la presentación → orden
+`setTurnOrder`; tele «🎤 El presentador lo está ordenando…»; móvil «el presentador está eligiendo el orden») (el Test siempre
 va por turnos si hay equipos; sin equipos, por orden de llegada; el mando puede cambiar el asiento con `mSeat`). Sin
 reloj, lo lleva el presentador: `ready` (pregunta, respuestas ocultas) → `mShow` (una a una o todas: `playing`; el
 concursante elige en su móvil con dos toques y puede cambiar) → `mMark` (la elegida u otra: amarilla, letras negras;
@@ -474,7 +476,8 @@ con vibración). Mando: `hankyPanel` (chips por equipo para elegir en secreto, `
   herramienta enseña un reloj (y el mando, el elegir ganador) — `startable` siempre. **Contar** solo desde el mando:
   `canCount()` → false (los concursantes se sumaban de más); sin `countersCard`. Marcar el golpe: `fadeIn` de 2 s
   (`songFor` → audio `setSong`).
-- **Mando:** 🔊/🔇 (ajuste `muted`: volumen 0 sin tocar lo demás) y ⚖️ (orden `penalty {teamId|playerId, points}`: quita
+- **Mando:** ➕ (`bonusCard`: +1/+3/+5/+10 a cualquier persona en cualquier momento con `adjustScore`, que cuenta
+  para su equipo; «↶ Deshacer» resta lo mismo; en los Puntos de salida sale abierta), 🔊/🔇 (ajuste `muted`: volumen 0 sin tocar lo demás) y ⚖️ (orden `penalty {teamId|playerId, points}`: quita
   puntos y `lastPenalty` sale en la tele, `renderPenalty`) arriba, siempre. **Dos presentadores** que se turnan:
   `sala.playingNow` (persistido): un presentador que «ahora juega» no está en el banquillo (`benched`) y juega en todo;
   orden `setPlaying {playerId, playing}` o `{swap: true}`; `presentersCard` en Juego («⇄ Cambiar»).
@@ -524,7 +527,11 @@ con vibración). Mando: `hankyPanel` (chips por equipo para elegir en secreto, `
 - **Contrarreloj** (`TOOL.TRIAL`, Libre «Contrarreloj» + «Piezas»): salen de uno en uno en el orden de
   `participants`; `trials[id] = {tStart, time, gaveUp, attempts: [{n, t}]}`, `current`. Órdenes freeAttempt {n},
   freeUndoAttempt, freeDone {gaveUp}, freeNext. Con n = piezas se para solo. Gana el menor tiempo (rendirse = sin puesto).
-- **Fluidez de la tele** (`fx/backdrop.js` `QUALITY_LEVELS`): con calidad 'auto' (ajuste `quality`) mide la mediana del
+- **Fluidez de la tele** (`fx/backdrop.js` `QUALITY_LEVELS`): la resolución del shader es una fracción de los píxeles
+  **reales** (× `devicePixelRatio`, hasta 3840 de ancho; antes de los CSS: en una tele 4K escalada se veía borroso), y
+  el grano (`uGrain`) se suaviza cuanto más se estira el lienzo (era lo que se veía «granulado»). Modos (`MODE_LEVEL`):
+  'max' (nivel 0, a resolución real), 'high' (1, fijo), 'auto' (empieza en 1 y solo baja; no sube a la máxima) y 'low'
+  (4). Se elige en Ajustes de la tele y en el mando (pestaña Secciones, `qualityCard`). Con calidad 'auto' (ajuste `quality`) mide la mediana del
   fotograma cada 90 y, si pasa de 1,35 × el ritmo de la pantalla, baja un nivel (resolución del shader 0,6 → 0,26,
   dibujar 1 de cada 2–3 fotogramas); sube si va sobrada 8 medidas seguidas y 30 s después de bajar. Desde el nivel 2,
   `body.fx-lite`: sin `backdrop-filter` y la mitad de confeti. Los cristales pequeños (tarjetas, filas) ya no
@@ -666,7 +673,9 @@ con vibración). Mando: `hankyPanel` (chips por equipo para elegir en secreto, `
   presentador y la sección no lo permite (Test, Verdad, Estimación…: ve las respuestas): fuera de los elegibles de
   respuestas, del pulsador (`closed`), del asiento y del público/llamada del millonario y del orden de su equipo (y mejor
   no portavoz); su móvil dice «🎤 Presentas» (`state.benched`) y la tele pone 🎤 en su tarjeta.
-- **Pantallas de la tele:** Preparación → Título → Conexión → Equipos (A vs B) → Votación de castigos → Portada →
+- **Pantallas de la tele:** Preparación → Título → Conexión → Equipos (A vs B) → Votación de castigos → Puntos de
+  salida (el marcador, `#standingsStep` / `view.startStandings`, persistido en `steps.standings`: para dar desde el
+  mando los puntos de un juego de antes, p. ej. el «Vampiro») → Portada →
   [Intro de sección → rondas → Marcador] × N → Final (podios) → Ruleta del castigo.
 - **Equipos:** se eligen al entrar; antes de empezar, pantalla de comprobación y "Equipos cerrados" (solo el
   presentador puede mover a alguien después). Puntos individuales visibles; equipo = suma de sus miembros + puntos
@@ -740,6 +749,12 @@ con vibración). Mando: `hankyPanel` (chips por equipo para elegir en secreto, `
   bombillas; sección Libre «Beerpong», parejas 2 contra 2 con Contador por equipos, 6 vasos). La plantilla
   lleva la lista de entornos en una pestaña oculta «Listas» (Excel corta un desplegable escrito a 255 letras).
   Opciones sin colores de equipo (`shared/options.js`: A violeta, B ámbar, C verde azulado, D frambuesa; Mentira violeta).
+- **Que todo quepa** (tras el Gauntlet): `fitScreen()` (host/main.js, en cada `render()` y con un ResizeObserver) mide
+  el alto natural de lo que hay en `#screen` (`offsetHeight`, sin adornos ni transformaciones) y, si no cabe, pone
+  `--fit` (`#screen > * { zoom }`, mínimo 0,45): antes, al ir centrado, se salía por arriba (debajo del QR) y por abajo.
+  El orden por turnos con 5 o más va en dos columnas. La letra de la tele crece con la pantalla hasta 48px (`html`
+  en host.css): en una tele 4K sin escalado de Windows sale igual que en una de 1080. Comprobado a 1280×720,
+  1920×1080 y 3840×2160 con 14 (lo que más encoge: «Cómo se juega» del millonario, 0,72–0,75).
 - **Tele:** cabe en 100vh con 14 (densidad `tiny` desde 12, lista `.many` en dos columnas desde 7 filas, tira de caras
   en los revelados); `.static` en #screen cuando `screenKey` no cambia (sin animaciones al repintar); votación de
   castigos con `updatePunishVote` en su sitio; final con empates en el mismo escalón (`podiumPlaces`); marcador con una

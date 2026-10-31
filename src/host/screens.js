@@ -506,7 +506,7 @@ function millionaireRules(view) {
     h(
       'ol',
       { class: 'mill-rules-list' },
-      h('li', {}, teams ? 'Concursa una persona cada vez, alternando equipos y en el orden que elija vuestro portavoz.' : 'Concursa una persona cada vez.'),
+      h('li', {}, teams ? 'Concursa una persona cada vez, alternando equipos y en el orden que elija el presentador.' : 'Concursa una persona cada vez.'),
       h('li', {}, 'Las respuestas van apareciendo. Elige en tu móvil: toca una y vuelve a tocarla para confirmar.'),
       h('li', {}, 'Cuando el presentador la marque, es tu respuesta definitiva.'),
       h('li', {}, `Por acierto: ${levelPointsText(view.section.points)}. Salir de la app durante tu pregunta es trampa: no puntúas.`),
@@ -521,12 +521,18 @@ function millionaireRules(view) {
   );
 }
 
-/** Por turnos: cada uno responde una pregunta; el portavoz de cada equipo elige el orden en su móvil. */
+/** Por turnos: cada uno responde una pregunta; el portavoz de cada equipo elige el orden en su móvil (en el millonario, el presentador). */
 function turnsIntro(turns) {
   return h(
     'div',
     { class: 'turns-intro' },
-    h('p', { class: 'how' }, 'Por turnos: cada uno responde una pregunta. ¡Portavoces, ordenad a vuestro equipo de la más fácil a la más difícil!'),
+    h(
+      'p',
+      { class: 'how' },
+      turns.byPresenter
+        ? 'Por turnos: cada uno responde una pregunta, en el orden que elija el presentador.'
+        : 'Por turnos: cada uno responde una pregunta. ¡Portavoces, ordenad a vuestro equipo de la más fácil a la más difícil!',
+    ),
     h(
       'ul',
       { class: 'turns-teams' },
@@ -535,7 +541,7 @@ function turnsIntro(turns) {
           'li',
           { class: t.ready ? 'ready' : '', style: { '--tc': getColor(t.team.color).bg } },
           h('strong', {}, t.team.name),
-          h('span', { class: 'muted' }, t.ready ? '✓ Orden listo' : `📣 ${t.spokesperson?.name ?? '¿?'} está ordenando…`),
+          h('span', { class: 'muted' }, t.ready ? '✓ Orden listo' : turns.byPresenter ? '🎤 El presentador lo está ordenando…' : `📣 ${t.spokesperson?.name ?? '¿?'} está ordenando…`),
           t.ready
             ? h(
                 'ol',

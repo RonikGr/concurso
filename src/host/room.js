@@ -54,7 +54,7 @@ export const DEFAULT_SETTINGS = {
   sfxOn: true,
   volume: 70,
   muted: false, // 🔇 desde el mando: calla todo de golpe (y al quitarlo vuelve como estaba)
-  quality: 'auto', // imagen de la tele: 'auto' se ajusta sola para ir fluida; 'high' / 'low' la fijan
+  quality: 'auto', // imagen del fondo de la tele: 'auto' se ajusta sola para ir fluida; 'max' / 'high' / 'low' la fijan
 };
 
 const CONTROL_PUSH_MS = 150; // agrupar cambios antes de mandar el estado completo al mando
@@ -79,6 +79,7 @@ export class HostRoom extends EventTarget {
   #rulesFor = null; // sección (millonario) cuya presentación va ya por «Cómo se juega»
   #versusStep = false; // portada: antes, la presentación de los equipos («Rojos contra Azules»)
   #punishStep = false; // portada: tras los equipos, la votación de castigos
+  #standingsStep = false; // portada: tras los castigos, el marcador (puntos de salida, p. ej. de un juego de antes)
   #rouletteStep = false; // final: tras el podio, la ruleta del castigo
   #penaltySeq = 0; // nº de la última penalización (la tele enseña cada nueva una vez)
   cheatAlerts = []; // [{id, playerId, name, ms, voided, forgiven, at}] los últimos
@@ -130,6 +131,7 @@ export class HostRoom extends EventTarget {
     this.#rulesFor = Number.isInteger(steps.rulesFor) ? steps.rulesFor : null;
     this.#versusStep = !!steps.versus;
     this.#punishStep = !!steps.punish;
+    this.#standingsStep = !!steps.standings;
     this.#rouletteStep = !!steps.roulette;
     // Caras puestas a mano desde el mando (mandan sobre el nombre): playerId → faceId | null (sin cara)
     this.faceOverrides = new Map(Object.entries(saved?.faceOverrides ?? {}));
@@ -289,6 +291,11 @@ export class HostRoom extends EventTarget {
     };
   }
 
+  /** ¿La portada va por el marcador de salida (antes del primer juego, para dar puntos de antes)? */
+  get standingsStep() {
+    return this.runner.screen === SCREEN.COVER && this.#standingsStep;
+  }
+
   /** ¿La portada va por la presentación de los equipos? */
   get versusStep() {
     return this.runner.screen === SCREEN.COVER && this.#versusStep;
@@ -354,12 +361,18 @@ export class HostRoom extends EventTarget {
       .filter((a) => a.playerId);
   }
 
+  /** El millonario (Test): el orden de turnos de cada equipo lo pone el presentador desde el mando, no los portavoces. */
+  get orderByPresenter() {
+    return this.runner.section?.type === 'test';
+  }
+
   /** Por turnos, para la tele y el mando: portavoces, si ya ordenaron, el orden y a quién le toca ahora. */
   #turnsView() {
     if (!this.inTurns || ![SCREEN.INTRO, SCREEN.PLAY].includes(this.runner.screen)) return null;
     const sec = this.runner.section.id;
     const pub = (id) => (id && this.roster.get(id) ? publicPlayer(this.roster.get(id)) : null);
     return {
+      byPresenter: this.orderByPresenter,
       teams: this.roster.teams.map((team) => ({
         team,
         spokesperson: pub(this.spokespersonOf(team.id)),
@@ -380,7 +393,7 @@ export class HostRoom extends EventTarget {
   /** Por turnos: el portavoz manda desde su móvil el orden de su equipo (mientras se presenta la sección). */
   #onTurnOrder(playerId, msg) {
     const p = this.roster.get(playerId);
-    if (!p?.teamId || !this.inTurns || this.runner.screen !== SCREEN.INTRO || this.spokespersonOf(p.teamId) !== playerId) return;
+    if (!p?.teamId || !this.inTurns || this.orderByPresenter || this.runner.screen !== SCREEN.INTRO || this.spokespersonOf(p.teamId) !== playerId) return;
     const sec = this.runner.section.id;
     this.turnOrders[sec] = { ...this.turnOrders[sec], [p.teamId]: normalizeOrder(msg.order, this.#members(p.teamId).map((m) => m.id)) };
     this.#afterChange();
@@ -563,6 +576,7 @@ export class HostRoom extends EventTarget {
       section: r.section,
       setupStep: this.setupStep,
       versus: this.versusStep,
+      startStandings: this.standingsStep, // marcador de salida (antes del primer juego)
       introRules: this.introRules,
       bots: { count: this.bots.ids.length, auto: this.bots.auto }, // concursantes de prueba
       paused: this.paused, // en pausa para seguir otro día: la tele enseña «Continuará…»
@@ -642,6 +656,7 @@ export class HostRoom extends EventTarget {
       sectionLabel: v.sectionLabel,
       setupStep: v.setupStep,
       versus: v.versus,
+      startStandings: v.startStandings,
       introRules: v.introRules,
       playable: v.playable,
       item: v.item,
@@ -718,17 +733,24 @@ export class HostRoom extends EventTarget {
         const atCover = ok !== false && r.screen === SCREEN.COVER;
         this.#versusStep = atCover && this.hasVersus;
         this.#punishStep = atCover && !this.#versusStep && this.hasPunish && !this.punish.closed;
+        this.#standingsStep = atCover && !this.#versusStep && !this.#punishStep;
         return ok;
       }
       if (r.screen === SCREEN.COVER && this.#versusStep) {
         this.#versusStep = false;
         this.#punishStep = this.hasPunish && !this.punish.closed;
+        this.#standingsStep = !this.#punishStep;
         return true;
       }
       if (r.screen === SCREEN.COVER && this.#punishStep) {
-        // primero se cierra la votación (se ven los 3 que pasan); luego, la portada
+        // primero se cierra la votación (se ven los 3 que pasan); luego, el marcador de salida
         if (!this.punish.closed) return this.punish.close();
         this.#punishStep = false;
+        this.#standingsStep = true;
+        return true;
+      }
+      if (r.screen === SCREEN.COVER && this.#standingsStep) {
+        this.#standingsStep = false; // → la portada
         return true;
       }
       if (r.screen === SCREEN.FINAL && this.hasPunish) {
@@ -766,10 +788,21 @@ export class HostRoom extends EventTarget {
         return true;
       }
       if (r.screen === SCREEN.COVER) {
-        // portada ← castigos ← equipos ← conexión
-        if (!this.#versusStep && !this.#punishStep && this.hasPunish) {
-          this.#punishStep = true;
+        // portada ← marcador de salida ← castigos ← equipos ← conexión
+        if (!this.#versusStep && !this.#punishStep && !this.#standingsStep) {
+          this.#standingsStep = true;
           return true;
+        }
+        if (this.#standingsStep) {
+          this.#standingsStep = false;
+          if (this.hasPunish) {
+            this.#punishStep = true;
+            return true;
+          }
+          if (this.hasVersus) {
+            this.#versusStep = true;
+            return true;
+          }
         }
         if (this.#punishStep) {
           this.#punishStep = false;
@@ -847,6 +880,7 @@ export class HostRoom extends EventTarget {
       this.#rulesFor = null;
       this.#versusStep = false;
       this.#punishStep = false;
+      this.#standingsStep = false;
       this.#rouletteStep = false;
       return this.runner.goToSection(Number(index));
     },
@@ -1066,6 +1100,7 @@ export class HostRoom extends EventTarget {
     },
     setTurnOrder: ({ teamId, order = '' }) => {
       if (!this.inTurns) return 'Esta sección no se juega por turnos.';
+      if (!this.roster.team(teamId)) return false;
       const sec = this.runner.section.id;
       this.turnOrders[sec] = { ...this.turnOrders[sec], [teamId]: normalizeOrder(String(order).split(','), this.#members(teamId).map((m) => m.id)) };
       return true;
@@ -1191,6 +1226,7 @@ export class HostRoom extends EventTarget {
       const atCover = this.runner.screen === SCREEN.COVER;
       this.#versusStep = atCover && this.hasVersus;
       this.#punishStep = atCover && !this.#versusStep && this.hasPunish;
+      this.#standingsStep = atCover && !this.#versusStep && !this.#punishStep;
       // (Squid guarda sus eliminados y repartos aparte; Palabras, las tarjetas ya salidas)
       this.games.squid.reset();
       this.games.palabras.resetDecks();
@@ -1863,7 +1899,8 @@ export class HostRoom extends EventTarget {
     return {
       spokesperson: isSpokesperson,
       spokespersonName: mine.spokesperson?.name ?? null,
-      canOrder: isSpokesperson && this.runner.screen === SCREEN.INTRO,
+      canOrder: isSpokesperson && this.runner.screen === SCREEN.INTRO && !this.orderByPresenter,
+      byPresenter: this.orderByPresenter, // el millonario: lo ordena el presentador
       ready: mine.ready,
       order: mine.order,
       // nº de pregunta que le toca (1 = la más fácil); en el millonario, alternando equipos
@@ -2094,7 +2131,7 @@ export class HostRoom extends EventTarget {
       playingNow: [...this.playingNow],
       awayLog: this.awayLog.toJSON(),
       paused: this.paused,
-      steps: { rulesFor: this.#rulesFor, versus: this.#versusStep, punish: this.#punishStep, roulette: this.#rouletteStep },
+      steps: { rulesFor: this.#rulesFor, versus: this.#versusStep, punish: this.#punishStep, standings: this.#standingsStep, roulette: this.#rouletteStep },
       faceOverrides: Object.fromEntries(this.faceOverrides),
     });
   }

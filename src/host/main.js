@@ -41,7 +41,8 @@ import {
 } from './screens.js';
 import { openSettingsDialog } from './settingsDialog.js';
 import { createDebugPanel } from './debugPanel.js';
-import { Backdrop } from './fx/backdrop.js';
+import { Backdrop, QUALITY_LEVELS } from './fx/backdrop.js';
+const QUALITY_COUNT = QUALITY_LEVELS.length;
 import { setLite as setConfettiLite } from './fx/confetti.js';
 import { sound } from './fx/audio.js';
 import { introVideoSlot, TrackStore, videoSlot } from './fx/tracks.js';
@@ -74,7 +75,7 @@ let lastScreenSignature = null;
 const debug = createDebugPanel({
   imageInfo: () =>
     backdrop?.ok
-      ? `Imagen: ${backdrop.fps ?? '…'} fps · fondo al ${Math.round(backdrop.scale * 100)} % (calidad ${backdrop.level + 1} de 5, ${backdrop.mode === 'auto' ? 'automática' : backdrop.mode === 'high' ? 'fija: la mejor' : 'fija: ligera'})`
+      ? `Imagen: ${backdrop.fps ?? '…'} fps · fondo al ${Math.round(backdrop.scale * 100)} % (calidad ${backdrop.level + 1} de ${QUALITY_COUNT}, ${{ auto: 'automática', max: 'fija: máxima', high: 'fija: alta', low: 'fija: ligera' }[backdrop.mode]})`
       : 'Imagen: sin WebGL (fondo fijo)',
 });
 const cards = new Map(); // playerId → elementos de su tarjeta
@@ -537,6 +538,7 @@ function render() {
   renderNetwork(view);
   renderScreen(view);
   renderPlayers(view);
+  fitScreen();
   renderApproval(view);
   syncSplash(view);
   renderCheatAlert(view);
@@ -588,6 +590,35 @@ function renderNetwork() {
     banners.push(h('div', { class: 'banner' }, message));
   }
   $('#banners').replaceChildren(...banners);
+}
+
+/**
+ * Si lo de la pantalla no cabe (mucha gente, textos largos, una tele con menos alto), se encoge lo justo para verse
+ * entero. Antes, como va centrado, lo que sobraba se salía por arriba (debajo del QR de la cabecera) y por abajo.
+ * Se mide con offsetHeight (el tamaño sin encoger ni transformaciones de las animaciones de entrada); un
+ * ResizeObserver lo rehace cuando lo de dentro crece después (listas que se rellenan, fotos que llegan).
+ */
+const fitWatch = new ResizeObserver(() => fitScreen());
+let fitWatched = [];
+function fitScreen() {
+  const screen = $('#screen');
+  if (!screen) return;
+  const kids = [...screen.children].filter((el) => !['fixed', 'absolute'].includes(getComputedStyle(el).position));
+  if (kids.some((el, i) => el !== fitWatched[i]) || kids.length !== fitWatched.length) {
+    fitWatch.disconnect();
+    fitWatch.observe(screen);
+    for (const el of kids) fitWatch.observe(el);
+    fitWatched = kids;
+  }
+  // solo el alto, y sin scrollHeight/scrollWidth: los adornos que asoman por fuera (brillos, decorados, cosas que
+  // entran de lado) no cuentan
+  const needH = kids.reduce((sum, el) => sum + el.offsetHeight, 0);
+  const fit = needH && screen.clientHeight ? Math.min(1, (screen.clientHeight - 6) / needH) : 1;
+  const value = fit >= 0.995 ? '' : String(Math.max(0.45, Math.floor(fit * 100) / 100));
+  if (screen.style.getPropertyValue('--fit') !== value) {
+    if (value) screen.style.setProperty('--fit', value);
+    else screen.style.removeProperty('--fit');
+  }
 }
 
 /**
@@ -661,8 +692,10 @@ function renderScreen(view) {
   const same = key === lastScreenKey && view.screen !== SCREEN.PLAY;
   screen.classList.toggle('static', same);
   lastScreenKey = key;
-  screen.dataset.screen = view.peekScoreboard ? 'scoreboard' : view.screen;
+  screen.dataset.screen = view.peekScoreboard || view.startStandings ? 'scoreboard' : view.screen;
   if (view.peekScoreboard) return fill(screen, scoreboardScreen(view));
+  // antes del primer juego: el marcador para dar los puntos de salida desde el mando (p. ej. de un juego de antes)
+  if (view.startStandings && !view.paused) return fill(screen, scoreboardScreen(view, { title: 'Puntos de salida' }));
   if (view.paused) {
     screen.dataset.screen = 'paused';
     return fill(screen, pausedScreen(view, { joinQr: qrs.join, joinUrlText: qrs.joinUrlText, onResume: () => run('resume'), onSaveCopy: saveCopy }));

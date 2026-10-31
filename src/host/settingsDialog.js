@@ -9,10 +9,11 @@ const FIELDS = [
     key: 'quality',
     type: 'select',
     label: 'Imagen de la tele',
-    help: 'Automática: si el portátil va justo, el fondo se simplifica para que todo vaya fluido.',
+    help: 'Automática: si el portátil va justo, el fondo se simplifica para que todo vaya fluido. Máxima: el fondo a la resolución de la tele (nítido en 4K; pide más al portátil).',
     options: [
       ['auto', 'Automática (recomendada)'],
-      ['high', 'Siempre la mejor'],
+      ['max', 'Máxima (nítida, también en 4K)'],
+      ['high', 'Alta'],
       ['low', 'Ligera (portátiles lentos)'],
     ],
   },
