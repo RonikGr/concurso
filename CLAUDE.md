@@ -268,7 +268,10 @@ mientras la página no se pinta (ventana oculta o minimizada).
   conectado, se comprueba que llegue el latido en 3,5 s. Dos fallos seguidos (plazo de 8 s o ICE `failed`) → Peer
   nuevo. `onStatus` lleva `detail {attempts, reason}` y `connectionHelp()` lo explica en el móvil y en el mando.
 - ICE (`peerConfig.js`): STUN de Google y Cloudflare. Los TURN gratuitos de PeerJS y de Metered ya no existen (2026: sin
-  DNS): si la wifi no deja la conexión directa, hace falta un TURN propio en `TURN_SERVERS`. La tele avisa
+  DNS): si la wifi no deja la conexión directa, hace falta un TURN propio en `TURN_SERVERS`, o mejor en **Ajustes de
+  la tele → «Móviles con datos (servidor TURN)»** (`LOCAL_TURN_KEY` en localStorage del portátil: las claves no van al
+  repositorio público; al guardar, la tele se recarga). Basta con que lo tenga la tele: con datos móviles, muchas
+  compañías no dejan la conexión directa (la wifi de la fiesta no admitía 14 móviles). P. ej. ExpressTURN (gratis). La tele avisa
   (`connectFailures`, banda «📶 Un móvil intenta entrar…») cuando una llamada llega pero no se abre en 15 s o su ICE falla.
   La tele, al volver a primer plano o recuperar la red, reconecta con el servidor de enlace sin esperar.
 - **Pausa para seguir otro día** (órdenes `pause` / `resume`; `sala.paused = {at}`, persistido): la tele enseña

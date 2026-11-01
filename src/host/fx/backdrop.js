@@ -1130,12 +1130,13 @@ export class Backdrop {
 
   #resize() {
     // Resolución según la calidad, sobre los píxeles reales (la niebla es suave: rebajada, la tele va fluida)
-    const dpr = Math.max(1, devicePixelRatio || 1);
-    const k = Math.min(this.scale * dpr, MAX_CANVAS_W / innerWidth);
+    // (sobre los píxeles CSS, como antes: sobre los reales, en la tele 4K el automático subía y bajaba la resolución
+    // sin parar y la imagen «bailaba»)
+    const k = Math.min(this.scale, MAX_CANVAS_W / innerWidth);
     const w = Math.round(innerWidth * k);
     const h = Math.round(innerHeight * k);
     // el grano, en su punto con el lienzo a tamaño real; cuanto más se estira, más flojo
-    this.grain = 0.035 * Math.min(1, k / dpr) ** 2;
+    this.grain = 0.035 * Math.min(1, k) ** 2;
     this.canvas.width = w;
     this.canvas.height = h;
     this.gl.viewport(0, 0, w, h);

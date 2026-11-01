@@ -1,3 +1,5 @@
+import { loadJSON } from './storage.js';
+
 // El servidor público de PeerJS es compartido por todo el mundo: el prefijo evita choques de IDs.
 export const PEER_ID_PREFIX = 'concurso-del-ano-v1-';
 
@@ -12,12 +14,26 @@ export function hostPeerId(roomCode) {
  */
 export const TURN_SERVERS = [];
 
+/**
+ * TURN puesto en este aparato (Ajustes de la tele): {urls, username, credential} en localStorage, así las claves no van
+ * al repositorio (que es público). Con datos móviles, muchas compañías no dejan la conexión directa: basta con que la
+ * tele tenga un TURN (los móviles llegan a él sin configurar nada).
+ */
+export const LOCAL_TURN_KEY = 'concurso.turn';
+function localTurn() {
+  const t = loadJSON(LOCAL_TURN_KEY);
+  const urls = String(t?.urls ?? '')
+    .split(/[s,]+/)
+    .filter(Boolean);
+  return urls.length ? [{ urls, username: t.username ?? '', credential: t.credential ?? '' }] : [];
+}
+
 // Sin `host`/`port`: PeerJS usa su servidor de enlace público (0.peerjs.com). Los STUN dicen a cada uno su
 // dirección pública; en la misma wifi casi siempre basta con la conexión directa.
 export const PEER_OPTIONS = {
   debug: 1, // 0 nada, 1 errores, 2 avisos, 3 todo
   config: {
-    iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }, { urls: 'stun:stun.cloudflare.com:3478' }, ...TURN_SERVERS],
+    iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }, { urls: 'stun:stun.cloudflare.com:3478' }, ...TURN_SERVERS, ...localTurn()],
   },
 };
 

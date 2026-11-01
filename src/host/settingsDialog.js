@@ -1,5 +1,7 @@
 // Ajustes del pulsador y del sonido (se guardan con la sala). Los puntos vienen de la hoja del concurso.
 import { h } from '../shared/dom.js';
+import { loadJSON, removeKey, saveJSON } from '../shared/storage.js';
+import { LOCAL_TURN_KEY } from '../shared/peerConfig.js';
 
 const FIELDS = [
   { key: 'musicOn', type: 'checkbox', label: 'Música ambiental (cambia con cada sección)' },
@@ -51,6 +53,13 @@ const FIELDS = [
 
 export function openSettingsDialog(room) {
   const inputs = new Map();
+  // TURN (móviles con datos): se guarda en este portátil, no en la sala ni en el repositorio
+  const turn = loadJSON(LOCAL_TURN_KEY) ?? {};
+  const turnInputs = {
+    urls: h('input', { type: 'text', name: 'turnUrls', value: turn.urls ?? '', placeholder: 'turn:servidor:3478 turns:servidor:443?transport=tcp', autocomplete: 'off' }),
+    username: h('input', { type: 'text', name: 'turnUser', value: turn.username ?? '', autocomplete: 'off' }),
+    credential: h('input', { type: 'password', name: 'turnPass', value: turn.credential ?? '', autocomplete: 'off' }),
+  };
   const form = h(
     'form',
     { method: 'dialog', class: 'settings-form' },
@@ -70,6 +79,15 @@ export function openSettingsDialog(room) {
         input,
       );
     }),
+    h(
+      'fieldset',
+      { class: 'setting-turn' },
+      h('legend', {}, 'Móviles con datos (servidor TURN)'),
+      h('small', {}, 'Si los móviles entran con sus datos y no conectan, pon aquí el servidor TURN de tu cuenta (varias direcciones separadas por espacios). Se guarda solo en este portátil. Al guardar, la tele se recarga para usarlo.'),
+      h('label', { class: 'setting' }, h('span', { class: 'setting-label' }, 'Direcciones'), turnInputs.urls),
+      h('label', { class: 'setting' }, h('span', { class: 'setting-label' }, 'Usuario'), turnInputs.username),
+      h('label', { class: 'setting' }, h('span', { class: 'setting-label' }, 'Contraseña'), turnInputs.credential),
+    ),
     h(
       'div',
       { class: 'dialog-actions' },
@@ -96,6 +114,14 @@ export function openSettingsDialog(room) {
         }
       }
       room.run('updateSettings', patch);
+      const next = { urls: turnInputs.urls.value.trim(), username: turnInputs.username.value.trim(), credential: turnInputs.credential.value };
+      const changed = next.urls !== (turn.urls ?? '') || next.username !== (turn.username ?? '') || next.credential !== (turn.credential ?? '');
+      if (changed) {
+        if (next.urls) saveJSON(LOCAL_TURN_KEY, next);
+        else removeKey(LOCAL_TURN_KEY);
+        dismiss();
+        return location.reload(); // el TURN se lee al crear la conexión: la sala se recupera al volver
+      }
     }
     dismiss();
   });
