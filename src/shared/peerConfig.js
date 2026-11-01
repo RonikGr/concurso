@@ -22,8 +22,10 @@ export const TURN_SERVERS = [];
 export const LOCAL_TURN_KEY = 'concurso.turn';
 function localTurn() {
   const t = loadJSON(LOCAL_TURN_KEY);
+  // separadas por espacios o comas; solo las que tienen pinta de dirección (una mal escrita rompía todas las conexiones)
   const urls = String(t?.urls ?? '')
-    .split(/[s,]+/)
+    .split(/[\s,]+/)
+    .map((u) => (/^(turns?|stun):/.test(u) ? u : u && /^[\w.-]+:\d+/.test(u) ? `turn:${u}` : ''))
     .filter(Boolean);
   return urls.length ? [{ urls, username: t.username ?? '', credential: t.credential ?? '' }] : [];
 }
