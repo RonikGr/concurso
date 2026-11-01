@@ -538,7 +538,6 @@ function render() {
   renderNetwork(view);
   renderScreen(view);
   renderPlayers(view);
-  fitScreen();
   renderApproval(view);
   syncSplash(view);
   renderCheatAlert(view);
@@ -590,29 +589,6 @@ function renderNetwork() {
     banners.push(h('div', { class: 'banner' }, message));
   }
   $('#banners').replaceChildren(...banners);
-}
-
-/**
- * Si lo de la pantalla no cabe (mucha gente, textos largos, una tele con menos alto), se encoge lo justo para verse
- * entero. Antes, como va centrado, lo que sobraba se salía por arriba (debajo del QR de la cabecera) y por abajo.
- * Se mide con offsetHeight (el tamaño sin encoger ni transformaciones de las animaciones de entrada); un
- * ResizeObserver lo rehace cuando lo de dentro crece después (listas que se rellenan, fotos que llegan).
- */
-// (sin ResizeObserver y midiendo sin el encogido puesto: si no, lo medido dependía del encogido de antes —lo que va
-// en vh cambia con el zoom— y la pantalla iba y venía, «bailando»)
-function fitScreen() {
-  const screen = $('#screen');
-  if (!screen) return;
-  const before = parseFloat(screen.style.getPropertyValue('--fit')) || 1;
-  screen.style.removeProperty('--fit'); // (se mide sin encoger; en la misma tarea, no llega a pintarse)
-  const kids = [...screen.children].filter((el) => !['fixed', 'absolute'].includes(getComputedStyle(el).position));
-  // solo el alto, y sin scrollHeight/scrollWidth: los adornos que asoman por fuera (brillos, decorados, cosas que
-  // entran de lado) no cuentan
-  const needH = kids.reduce((sum, el) => sum + el.offsetHeight, 0);
-  let fit = needH && screen.clientHeight ? Math.min(1, (screen.clientHeight - 6) / needH) : 1;
-  fit = fit >= 0.98 ? 1 : Math.max(0.45, Math.floor(fit * 100) / 100);
-  if (Math.abs(fit - before) < 0.04 && fit < 1 && before < 1) fit = before; // pequeños cambios: se queda como está
-  if (fit < 1) screen.style.setProperty('--fit', String(fit));
 }
 
 /**

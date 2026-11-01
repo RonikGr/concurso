@@ -756,12 +756,8 @@ con vibración). Mando: `hankyPanel` (chips por equipo para elegir en secreto, `
   bombillas; sección Libre «Beerpong», parejas 2 contra 2 con Contador por equipos, 6 vasos). La plantilla
   lleva la lista de entornos en una pestaña oculta «Listas» (Excel corta un desplegable escrito a 255 letras).
   Opciones sin colores de equipo (`shared/options.js`: A violeta, B ámbar, C verde azulado, D frambuesa; Mentira violeta).
-- **Que todo quepa** (tras el Gauntlet): `fitScreen()` (host/main.js, en cada `render()` y con un ResizeObserver) mide
-  el alto natural de lo que hay en `#screen` (`offsetHeight`, sin adornos ni transformaciones) y, si no cabe, pone
-  `--fit` (`#screen > * { zoom }`, mínimo 0,45): antes, al ir centrado, se salía por arriba (debajo del QR) y por abajo.
-  El orden por turnos con 5 o más va en dos columnas. La letra de la tele crece con la pantalla hasta 48px (`html`
-  en host.css): en una tele 4K sin escalado de Windows sale igual que en una de 1080. Comprobado a 1280×720,
-  1920×1080 y 3840×2160 con 14 (lo que más encoge: «Cómo se juega» del millonario, 0,72–0,75).
+- **Tamaño de la tele:** se probó un encogido automático (fitScreen/zoom) y la letra hasta 48px, pero en la fiesta
+  "bailaba" y salía gigante: se quitó (la noche del 1-11-2026). Tamaños como antes (letra con tope 30px).
 - **Tele:** cabe en 100vh con 14 (densidad `tiny` desde 12, lista `.many` en dos columnas desde 7 filas, tira de caras
   en los revelados); `.static` en #screen cuando `screenKey` no cambia (sin animaciones al repintar); votación de
   castigos con `updatePunishVote` en su sitio; final con empates en el mismo escalón (`podiumPlaces`); marcador con una

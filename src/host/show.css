@@ -83,11 +83,6 @@ body.host {
 }
 
 /* La misma pantalla repintada por un dato nuevo (main.js renderScreen): sin animaciones de entrada otra vez */
-/* Lo que no cabe se encoge lo justo (main.js fitScreen pone --fit) */
-#screen > * {
-  zoom: var(--fit, 1);
-}
-
 #screen.static .kinetic .kl,
 #screen.static .anim-in,
 #screen.static .anim-in > :not(.intro-title, .cover-title, .final-title) {
